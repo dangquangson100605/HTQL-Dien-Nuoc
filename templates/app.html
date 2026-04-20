@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Bản đồ thiết bị{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+{% endblock %}
+
+{% block body %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+  <div class="container-fluid">
+    <span class="navbar-brand">Bản đồ hạ tầng</span>
+    <div class="d-flex align-items-center gap-2 text-white small">
+      <span id="nav-user" class="d-none d-md-inline"></span>
+      <span id="nav-role" class="badge bg-light text-primary"></span>
+      <button type="button" class="btn btn-outline-light btn-sm" id="btn-logout">Đăng xuất</button>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid py-3">
+  <div id="app-alert" class="alert alert-warning py-2 small d-none" role="alert"></div>
+
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+          <span class="fw-semibold">Bản đồ (OpenStreetMap)</span>
+          <span class="text-muted small">Kéo / zoom để xem khu vực · Click marker để xem chi tiết</span>
+        </div>
+        <div class="card-body p-0">
+          <div id="map" class="map-shell" aria-label="Bản đồ thiết bị"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <span class="fw-semibold">Danh sách thiết bị</span>
+          <button type="button" class="btn btn-sm btn-success d-none" id="btn-add-device">+ Thêm thiết bị</button>
+        </div>
+        <div class="card-body p-0 table-responsive device-table-wrap">
+          <table class="table table-hover table-sm mb-0 align-middle">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>Tên</th>
+                <th>Loại</th>
+                <th>Trạng thái</th>
+                <th class="admin-only d-none">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="device-table-body">
+              <tr><td colspan="4" class="text-center text-muted py-4">Đang tải…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal thêm / sửa -->
+<div class="modal fade" id="device-modal" data-bs-backdrop="false" tabindex="-1" aria-labelledby="device-modal-title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="device-modal-title">Thiết bị</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-alert" class="alert alert-danger py-2 small d-none"></div>
+        <form id="device-form">
+          <input type="hidden" id="device-id" value="">
+          <div class="mb-3">
+            <label for="device-name" class="form-label">Tên / mã</label>
+            <input type="text" class="form-control" id="device-name" required maxlength="150">
+          </div>
+          <div class="mb-3">
+            <label for="device-type" class="form-label">Loại</label>
+            <select class="form-select" id="device-type" required>
+              <option value="ELECTRIC_POLE">Trụ điện</option>
+              <option value="WATER_METER">Đồng hồ nước</option>
+              <option value="TRANSFORMER">Trạm biến áp</option>
+              <option value="VALVE">Van nước</option>
+            </select>
+          </div>
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label for="device-lat" class="form-label">Vĩ độ</label>
+              <input type="number" step="any" class="form-control" id="device-lat" required>
+            </div>
+            <div class="col-md-6">
+              <label for="device-lng" class="form-label">Kinh độ</label>
+              <input type="number" step="any" class="form-control" id="device-lng" required>
+            </div>
+          </div>
+          <p class="form-text small text-muted mt-1 mb-3">Gợi ý: mở form rồi click trên bản đồ để điền tọa độ.</p>
+          <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" id="device-active" checked>
+            <label class="form-check-label" for="device-active">Đang hoạt động</label>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-primary" id="device-save">Lưu</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Xác nhận xóa -->
+<div class="modal fade" id="delete-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Xóa thiết bị</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0">Bạn có chắc muốn xóa <strong id="delete-device-name"></strong>?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-danger" id="delete-confirm">Xóa</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="{% static 'js/app.js' %}"></script>
+{% endblock %}

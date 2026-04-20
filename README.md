@@ -20,7 +20,7 @@ Hiện nay, công tác quản lý hạ tầng điện nước đang gặp một 
 - 🙋‍♂️ **Người dân:** Cho phép xem, tra cứu thông tin và báo cáo sự cố một cách dễ dàng.
 
 ### 1.3 Công nghệ sử dụng
-- **Frontend:** `HTML`, `CSS`, `JavaScript`, `Leaflet.js`
+- **Frontend:** `HTML`, `CSS`, `JavaScript`, `Leaflet.js`, `Bootstrap`
 - **Backend:** `Python (Django)`, `Django REST framework`
 - **Database:** `PostgreSQL`, `PostGIS`
 - **Map Data:** `OpenStreetMap`

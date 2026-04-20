@@ -1,0 +1,36 @@
+.map-shell {
+  height: min(70vh, 560px);
+  min-height: 320px;
+  width: 100%;
+  z-index: 1;
+}
+
+.device-table-wrap {
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+}
+
+.table td {
+  vertical-align: middle;
+}
+
+.leaflet-popup-content {
+  margin: 10px 12px;
+  line-height: 1.4;
+}
+
+.device-popup-title {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+/* Tắt chế độ chặn click của lớp mờ Modal Bootstrap */
+#device-modal.modal {
+  pointer-events: none;
+}
+
+/* Đảm bảo khung nhập liệu màu trắng (Modal Content) vẫn bấm được */
+#device-modal .modal-content {
+  pointer-events: auto;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15); /* Thêm đổ bóng cho đẹp vì đã tắt lớp nền đen */
+}
