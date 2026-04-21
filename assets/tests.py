@@ -16,15 +16,42 @@ class SmokeTests(TestCase):
         data = res.json()
         self.assertEqual(data.get("status"), "ok")
 
+    def test_session_status_unauthenticated(self):
+        res = self.client.get("/api/auth/session-status/")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json().get("authenticated"), False)
+
     def test_login_page_renders(self):
         res = self.client.get("/login/")
         self.assertEqual(res.status_code, 200)
         self.assertContains(res, "Đăng nhập")
 
-    def test_app_page_renders(self):
+    def test_app_page_requires_login(self):
+        res = self.client.get("/app/")
+        self.assertEqual(res.status_code, 302)
+        self.assertIn("/login/", res.url)
+
+    def test_app_page_renders_for_authenticated_user(self):
+        user = User.objects.create_user(
+            username="viewer1",
+            password="testpass123",
+            role=User.Role.CITIZEN,
+        )
+        self.client.force_login(user)
         res = self.client.get("/app/")
         self.assertEqual(res.status_code, 200)
         self.assertContains(res, "OpenStreetMap")
+
+    def test_session_status_authenticated(self):
+        user = User.objects.create_user(
+            username="viewer2",
+            password="testpass123",
+            role=User.Role.CITIZEN,
+        )
+        self.client.force_login(user)
+        res = self.client.get("/api/auth/session-status/")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json().get("authenticated"), True)
 
 
 class DeviceAPITests(APITestCase):

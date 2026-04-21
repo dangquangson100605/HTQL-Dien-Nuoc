@@ -22,7 +22,8 @@ Hiện nay, công tác quản lý hạ tầng điện nước đang gặp một 
 ### 1.3 Công nghệ sử dụng
 - **Frontend:** `HTML`, `CSS`, `JavaScript`, `Leaflet.js`, `Bootstrap`
 - **Backend:** `Python (Django)`, `Django REST framework`
-- **Database:** `PostgreSQL`, `PostGIS`
+- **Database (hiện tại):** `SQLite` (mặc định cho Sprint 1)
+- **Database (mở rộng):** có thể nâng cấp sang `PostgreSQL` + `PostGIS` ở Sprint sau
 - **Map Data:** `OpenStreetMap`
 
 ---
@@ -38,3 +39,37 @@ Hiện nay, công tác quản lý hạ tầng điện nước đang gặp một 
 
 ### 2.2 Tính khả thi về kinh tế
 - 💰 Các công cụ, ngôn ngữ và nền tảng được sử dụng trong hệ thống đều là **mã nguồn mở và miễn phí**, giúp tối ưu hóa chi phí triển khai dự án.
+
+---
+
+## 3. Chạy nhanh dự án (local)
+
+```bash
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+API health check:
+
+```bash
+GET /api/health/
+```
+
+---
+
+## 4. Deploy baseline bằng Docker
+
+Build image:
+
+```bash
+docker build -t pm-group-2 .
+```
+
+Run container:
+
+```bash
+docker run -p 8000:8000 pm-group-2
+```
+
+Container sẽ tự chạy migrate + test + khởi động `gunicorn`.

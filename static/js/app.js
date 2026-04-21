@@ -336,13 +336,12 @@
 
   async function logout() {
     const refresh = localStorage.getItem(STORAGE.refresh);
-    if (refresh) {
-      await fetch(API.logout, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh }),
-      });
-    }
+    await fetch(API.logout, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(refresh ? { refresh } : {}),
+    });
     clearAuth();
     window.location.href = '/login/';
   }

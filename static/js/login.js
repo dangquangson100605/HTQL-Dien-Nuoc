@@ -6,9 +6,23 @@
     username: 'infra_username',
   };
 
-  function redirectIfLoggedIn() {
-    if (localStorage.getItem(STORAGE.access)) {
-      window.location.href = '/app/';
+  function clearStoredAuth() {
+    Object.values(STORAGE).forEach((key) => localStorage.removeItem(key));
+  }
+
+  async function redirectIfLoggedIn() {
+    try {
+      const ts = new Date().getTime();
+      const res = await fetch(`/api/auth/session-status/?t=${ts}`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json().catch(() => ({}));
+      if (data.authenticated && localStorage.getItem(STORAGE.access)) {
+        window.location.href = '/app/';
+        return;
+      }
+      clearStoredAuth();
+    } catch (_) {
+      // Keep the login page usable when network/server is unstable.
     }
   }
 
@@ -40,8 +54,8 @@
     window.location.href = '/app/';
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    redirectIfLoggedIn();
+  document.addEventListener('DOMContentLoaded', async () => {
+    await redirectIfLoggedIn();
     const form = document.getElementById('login-form');
     const btn = document.getElementById('login-submit');
     if (!form) return;

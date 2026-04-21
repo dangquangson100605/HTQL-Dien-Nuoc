@@ -1,3 +1,4 @@
+from django.contrib.auth import login as django_login
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .models import User
@@ -16,6 +17,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
         user = self.user
+        request = self.context.get("request")
+        if request is not None:
+            # Keep a server-side session so template pages can enforce auth.
+            django_login(request, user)
         data["role"] = user.role
         data["username"] = user.username
         data["user_id"] = user.id
