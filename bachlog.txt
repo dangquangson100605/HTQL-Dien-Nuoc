@@ -1,0 +1,514 @@
+Summary	Issue Type	Priority	Epic Name
+Authentication	Epic		Authentication
+Là Người dùng, tôi muốn Truy cập trang đăng nhập để vào hệ thống	Story	High	Authentication
+Là Người dùng, tôi muốn Nhập tên đăng nhập để xác thực tài khoản	Story	High	Authentication
+Là Người dùng, tôi muốn Nhập mật khẩu để đăng nhập	Story	High	Authentication
+Là Người dùng, tôi muốn Nhấn nút đăng nhập để gửi thông tin	Story	High	Authentication
+Là Hệ thống, tôi muốn Kiểm tra username có tồn tại để xác thực	Story	High	Authentication
+Là Hệ thống, tôi muốn Kiểm tra mật khẩu có đúng không	Story	High	Authentication
+Là Hệ thống, tôi muốn Từ chối đăng nhập nếu sai thông tin	Story	High	Authentication
+Là Người dùng, tôi muốn Thấy thông báo khi nhập sai thông tin	Story	High	Authentication
+Là Hệ thống, tôi muốn Cho phép đăng nhập khi thông tin đúng	Story	High	Authentication
+Là Người dùng, tôi muốn Được chuyển đến trang chính sau khi đăng nhập	Story	High	Authentication
+Là Người dùng, tôi muốn Nhấn nút đăng xuất để thoát hệ thống	Story	High	Authentication
+Là Hệ thống, tôi muốn Xoá session đăng nhập để bảo mật	Story	High	Authentication
+Là Hệ thống, tôi muốn Chuyển người dùng về trang đăng nhập sau khi logout	Story	High	Authentication
+Là Quản trị viên, tôi muốn Mở form tạo tài khoản để thêm người dùng	Story	High	Authentication
+Là Quản trị viên, tôi muốn Nhập tên người dùng để tạo tài khoản	Story	High	Authentication
+Là Quản trị viên, tôi muốn Nhập mật khẩu cho tài khoản	Story	High	Authentication
+Là Quản trị viên, tôi muốn Chọn vai trò (Admin/Operator/Technician)	Story	High	Authentication
+Là Hệ thống, tôi muốn Kiểm tra username không bị trùng	Story	High	Authentication
+Là Hệ thống, tôi muốn Lưu tài khoản vào database	Story	High	Authentication
+Là Quản trị viên, tôi muốn Nhận thông báo tạo tài khoản thành công	Story	Medium	Authentication
+Là Hệ thống, tôi muốn Xác định vai trò người dùng sau khi đăng nhập	Story	High	Authentication
+Là Hệ thống, tôi muốn Cấp quyền truy cập theo vai trò	Story	High	Authentication
+Là Hệ thống, tôi muốn Chặn truy cập trái phép vào chức năng admin	Story	High	Authentication
+Là Người dùng, tôi muốn Chỉ thấy chức năng phù hợp với vai trò	Story	High	Authentication
+Là Hệ thống, tôi muốn Kiểm tra quyền trước mỗi hành động	Story	High	Authentication
+Là Quản trị viên, tôi muốn Khoá tài khoản để ngăn truy cập	Story	High	Authentication
+Là Hệ thống, tôi muốn Từ chối đăng nhập nếu tài khoản bị khoá	Story	High	Authentication
+Là Người dùng, tôi muốn Thấy thông báo khi tài khoản bị khoá	Story	High	Authentication
+Là Quản trị viên, tôi muốn Mở khoá tài khoản để cho phép sử dụng lại	Story	High	Authentication
+Là Người dùng, tôi muốn Mở form đổi mật khẩu	Story	Medium	Authentication
+Là Người dùng, tôi muốn Nhập mật khẩu cũ để xác nhận	Story	Medium	Authentication
+Là Người dùng, tôi muốn Nhập mật khẩu mới	Story	Medium	Authentication
+Là Hệ thống, tôi muốn Kiểm tra mật khẩu cũ đúng	Story	Medium	Authentication
+Là Hệ thống, tôi muốn Cập nhật mật khẩu mới	Story	Medium	Authentication
+Là Người dùng, tôi muốn Nhận thông báo đổi mật khẩu thành công	Story	Medium	Authentication
+Là Người dùng, tôi muốn Chọn chức năng quên mật khẩu	Story	Medium	Authentication
+Là Người dùng, tôi muốn Nhập email để lấy lại mật khẩu	Story	Medium	Authentication
+Là Hệ thống, tôi muốn Kiểm tra email tồn tại	Story	Medium	Authentication
+Là Hệ thống, tôi muốn Gửi link đặt lại mật khẩu	Story	Medium	Authentication
+Là Người dùng, tôi muốn Đặt lại mật khẩu mới	Story	Medium	Authentication
+Là Hệ thống, tôi muốn Mã hoá mật khẩu trước khi lưu	Story	High	Authentication
+Là Hệ thống, tôi muốn Giới hạn số lần đăng nhập sai	Story	Medium	Authentication
+Là Hệ thống, tôi muốn Tự động đăng xuất khi không hoạt động	Story	Medium	Authentication
+Là Hệ thống, tôi muốn Ghi log đăng nhập để theo dõi	Story	Low	Authentication
+Map & Visualization	Epic		Map & Visualization
+Là Người dùng, tôi muốn Mở trang bản đồ để xem hạ tầng đô thị	Story	High	Map & Visualization
+Là Hệ thống, tôi muốn Tải bản đồ nền OpenStreetMap	Story	High	Map & Visualization
+Là Hệ thống, tôi muốn Hiển thị bản đồ khi trang được tải	Story	High	Map & Visualization
+Là Hệ thống, tôi muốn Đặt vị trí trung tâm bản đồ mặc định	Story	Medium	Map & Visualization
+Là Hệ thống, tôi muốn Thiết lập mức zoom mặc định	Story	Medium	Map & Visualization
+Là Người dùng, tôi muốn Zoom in bản đồ để xem chi tiết	Story	High	Map & Visualization
+Là Người dùng, tôi muốn Zoom out bản đồ để xem tổng quan	Story	High	Map & Visualization
+Là Người dùng, tôi muốn Kéo bản đồ để xem khu vực khác	Story	High	Map & Visualization
+Là Hệ thống, tôi muốn Cập nhật bản đồ khi người dùng di chuyển	Story	Medium	Map & Visualization
+Là Hệ thống, tôi muốn Giới hạn zoom để tránh lỗi hiển thị	Story	Low	Map & Visualization
+Là Hệ thống, tôi muốn Hiển thị marker cho mỗi thiết bị	Story	High	Map & Visualization
+Là Hệ thống, tôi muốn Đặt marker đúng vị trí GPS	Story	High	Map & Visualization
+Là Người dùng, tôi muốn Thấy các thiết bị trên bản đồ	Story	High	Map & Visualization
+Là Hệ thống, tôi muốn Dùng icon khác nhau cho từng loại thiết bị	Story	Medium	Map & Visualization
+Là Hệ thống, tôi muốn Cập nhật marker khi dữ liệu thay đổi	Story	Medium	Map & Visualization
+Là Người dùng, tôi muốn Click vào marker để xem thông tin	Story	High	Map & Visualization
+Là Hệ thống, tôi muốn Hiển thị popup khi click marker	Story	High	Map & Visualization
+Là Hệ thống, tôi muốn Hiển thị tên thiết bị trong popup	Story	High	Map & Visualization
+Là Hệ thống, tôi muốn Hiển thị trạng thái thiết bị	Story	High	Map & Visualization
+Là Người dùng, tôi muốn Xem chi tiết đầy đủ của thiết bị	Story	Medium	Map & Visualization
+Là Người dùng, tôi muốn Lọc thiết bị theo loại (điện/nước)	Story	High	Map & Visualization
+Là Người dùng, tôi muốn Tìm kiếm thiết bị theo tên	Story	High	Map & Visualization
+Là Hệ thống, tôi muốn Hiển thị kết quả tìm kiếm trên bản đồ	Story	High	Map & Visualization
+Là Hệ thống, tôi muốn Ẩn các thiết bị không phù hợp bộ lọc	Story	Medium	Map & Visualization
+Là Người dùng, tôi muốn Xoá bộ lọc để xem toàn bộ thiết bị	Story	Medium	Map & Visualization
+Là Hệ thống, tôi muốn Hiển thị tuyến điện trên bản đồ	Story	High	Map & Visualization
+Là Hệ thống, tôi muốn Hiển thị tuyến nước trên bản đồ	Story	High	Map & Visualization
+Là Hệ thống, tôi muốn Vẽ đường nối giữa các điểm thiết bị	Story	Medium	Map & Visualization
+Là Người dùng, tôi muốn Phân biệt tuyến điện và nước bằng màu sắc	Story	Medium	Map & Visualization
+Là Hệ thống, tôi muốn Cập nhật tuyến khi dữ liệu thay đổi	Story	Medium	Map & Visualization
+Là Người dùng, tôi muốn Xác định vị trí hiện tại của mình trên bản đồ	Story	Medium	Map & Visualization
+Là Hệ thống, tôi muốn Lấy vị trí GPS của người dùng	Story	Medium	Map & Visualization
+Là Hệ thống, tôi muốn Hiển thị vị trí người dùng trên bản đồ	Story	Medium	Map & Visualization
+Là Người dùng, tôi muốn Chọn điểm đến trên bản đồ	Story	Low	Map & Visualization
+Là Hệ thống, tôi muốn Tính đường đi đến vị trí thiết bị	Story	Low	Map & Visualization
+Là Người dùng, tôi muốn Xem đường đi trên bản đồ	Story	Low	Map & Visualization
+Là Hệ thống, tôi muốn Hiển thị màu marker theo trạng thái (tốt/lỗi)	Story	High	Map & Visualization
+Là Người dùng, tôi muốn Nhận biết thiết bị lỗi trên bản đồ	Story	High	Map & Visualization
+Là Hệ thống, tôi muốn Cập nhật trạng thái real-time	Story	Medium	Map & Visualization
+Là Người dùng, tôi muốn Reload dữ liệu bản đồ	Story	Medium	Map & Visualization
+Là Hệ thống, tôi muốn Tự động cập nhật dữ liệu định kỳ	Story	Medium	Map & Visualization
+Là Hệ thống, tôi muốn Tránh load lại toàn bộ bản đồ để tối ưu hiệu năng	Story	Low	Map & Visualization
+Asset Management	Epic		Asset Management
+Là Quản trị viên, tôi muốn Mở form thêm thiết bị để nhập thông tin	Story	High	Asset Management
+Là Quản trị viên, tôi muốn Nhập tên thiết bị để lưu trữ	Story	High	Asset Management
+Là Quản trị viên, tôi muốn Nhập loại thiết bị (điện/nước)	Story	High	Asset Management
+Là Quản trị viên, tôi muốn Nhập vị trí thiết bị (tọa độ)	Story	High	Asset Management
+Là Quản trị viên, tôi muốn Chọn vị trí trên bản đồ	Story	High	Asset Management
+Là Hệ thống, tôi muốn Lưu thiết bị vào database	Story	High	Asset Management
+Là Hệ thống, tôi muốn Kiểm tra dữ liệu nhập hợp lệ	Story	High	Asset Management
+Là Quản trị viên, tôi muốn Nhận thông báo thêm thành công	Story	Medium	Asset Management
+Là Hệ thống, tôi muốn Gán ID cho thiết bị	Story	High	Asset Management
+Là Quản trị viên, tôi muốn Chỉnh sửa thông tin thiết bị	Story	High	Asset Management
+Là Quản trị viên, tôi muốn Cập nhật tên thiết bị	Story	High	Asset Management
+Là Quản trị viên, tôi muốn Cập nhật vị trí thiết bị	Story	High	Asset Management
+Là Hệ thống, tôi muốn Lưu thông tin cập nhật	Story	High	Asset Management
+Là Hệ thống, tôi muốn Hiển thị thông tin mới sau khi cập nhật	Story	Medium	Asset Management
+Là Quản trị viên, tôi muốn Xoá thiết bị không còn sử dụng	Story	High	Asset Management
+Là Hệ thống, tôi muốn Xác nhận trước khi xoá	Story	High	Asset Management
+Là Hệ thống, tôi muốn Xoá dữ liệu thiết bị khỏi database	Story	High	Asset Management
+Là Hệ thống, tôi muốn Xoá marker trên bản đồ	Story	Medium	Asset Management
+Là Người dùng, tôi muốn Xem danh sách thiết bị	Story	High	Asset Management
+Là Hệ thống, tôi muốn Hiển thị danh sách thiết bị dạng bảng	Story	High	Asset Management
+Là Người dùng, tôi muốn Phân trang danh sách	Story	Medium	Asset Management
+Là Người dùng, tôi muốn Sắp xếp danh sách theo tên	Story	Medium	Asset Management
+Là Người dùng, tôi muốn Tìm kiếm trong danh sách	Story	High	Asset Management
+Là Người dùng, tôi muốn Xem thông tin chi tiết thiết bị	Story	High	Asset Management
+Là Hệ thống, tôi muốn Hiển thị đầy đủ thông tin thiết bị	Story	High	Asset Management
+Là Hệ thống, tôi muốn Hiển thị vị trí thiết bị trên bản đồ	Story	High	Asset Management
+Là Quản trị viên, tôi muốn Nhập công suất thiết bị	Story	Medium	Asset Management
+Là Quản trị viên, tôi muốn Nhập tình trạng hoạt động	Story	High	Asset Management
+Là Quản trị viên, tôi muốn Nhập ngày lắp đặt	Story	Medium	Asset Management
+Là Quản trị viên, tôi muốn Nhập thời gian bảo hành	Story	Medium	Asset Management
+Là Hệ thống, tôi muốn Lưu thông tin kỹ thuật	Story	High	Asset Management
+Là Hệ thống, tôi muốn Đánh dấu trạng thái (hoạt động/lỗi)	Story	High	Asset Management
+Là Người dùng, tôi muốn Xem trạng thái thiết bị	Story	High	Asset Management
+Là Hệ thống, tôi muốn Cập nhật trạng thái khi có thay đổi	Story	High	Asset Management
+Là Hệ thống, tôi muốn Hiển thị thiết bị trên bản đồ	Story	High	Asset Management
+Là Hệ thống, tôi muốn Cập nhật vị trí khi thay đổi	Story	High	Asset Management
+Là Hệ thống, tôi muốn Đồng bộ dữ liệu thiết bị với bản đồ	Story	High	Asset Management
+Là Quản trị viên, tôi muốn Phân loại thiết bị theo nhóm	Story	Medium	Asset Management
+Là Hệ thống, tôi muốn Lưu loại thiết bị	Story	High	Asset Management
+Là Người dùng, tôi muốn Xem thiết bị theo từng loại	Story	Medium	Asset Management
+Là Hệ thống, tôi muốn Lưu lịch sử sửa chữa thiết bị	Story	High	Asset Management
+Là Người dùng, tôi muốn Xem lịch sử sửa chữa	Story	High	Asset Management
+Là Hệ thống, tôi muốn Lưu thời gian cập nhật	Story	Medium	Asset Management
+Là Quản trị viên, tôi muốn Import danh sách thiết bị từ file	Story	Medium	Asset Management
+Là Hệ thống, tôi muốn Đọc dữ liệu từ file CSV/Excel	Story	Medium	Asset Management
+Là Quản trị viên, tôi muốn Export danh sách thiết bị	Story	Medium	Asset Management
+Là Hệ thống, tôi muốn Xuất dữ liệu ra file	Story	Medium	Asset Management
+Là Hệ thống, tôi muốn Kiểm tra dữ liệu nhập không bị thiếu	Story	High	Asset Management
+Là Hệ thống, tôi muốn Kiểm tra định dạng dữ liệu	Story	High	Asset Management
+Là Hệ thống, tôi muốn Cảnh báo khi nhập sai	Story	High	Asset Management
+Monitoring	Epic		Monitoring
+Là Nhân viên, tôi muốn Nhập dữ liệu tiêu thụ điện/nước	Story	High	Monitoring
+Là Nhân viên, tôi muốn Nhập số liệu tiêu thụ theo tháng	Story	High	Monitoring
+Là Nhân viên, tôi muốn Chọn thiết bị để nhập dữ liệu	Story	High	Monitoring
+Là Hệ thống, tôi muốn Lưu dữ liệu tiêu thụ	Story	High	Monitoring
+Là Hệ thống, tôi muốn Kiểm tra dữ liệu nhập hợp lệ	Story	High	Monitoring
+Là Nhân viên, tôi muốn Chỉnh sửa dữ liệu đã nhập	Story	Medium	Monitoring
+Là Nhân viên, tôi muốn Xoá dữ liệu nhập sai	Story	Medium	Monitoring
+Là Người dùng, tôi muốn Xem dữ liệu tiêu thụ điện/nước	Story	High	Monitoring
+Là Hệ thống, tôi muốn Hiển thị dữ liệu theo danh sách	Story	High	Monitoring
+Là Người dùng, tôi muốn Xem dữ liệu theo thiết bị	Story	High	Monitoring
+Là Người dùng, tôi muốn Lọc theo thời gian (ngày/tháng/năm)	Story	High	Monitoring
+Là Hệ thống, tôi muốn Hiển thị dữ liệu đã lọc	Story	High	Monitoring
+Là Người dùng, tôi muốn Xem lịch sử tiêu thụ	Story	High	Monitoring
+Là Hệ thống, tôi muốn Lưu lịch sử dữ liệu theo thời gian	Story	High	Monitoring
+Là Người dùng, tôi muốn Xem dữ liệu cũ	Story	Medium	Monitoring
+Là Người dùng, tôi muốn Xem tổng tiêu thụ theo ngày	Story	High	Monitoring
+Là Người dùng, tôi muốn Xem tổng tiêu thụ theo tháng	Story	High	Monitoring
+Là Hệ thống, tôi muốn Tính tổng dữ liệu tiêu thụ	Story	High	Monitoring
+Là Người dùng, tôi muốn So sánh dữ liệu giữa các khoảng thời gian	Story	Medium	Monitoring
+Là Hệ thống, tôi muốn Hiển thị kết quả so sánh	Story	Medium	Monitoring
+Là Người dùng, tôi muốn Xem biểu đồ tiêu thụ	Story	High	Monitoring
+Là Hệ thống, tôi muốn Vẽ biểu đồ theo dữ liệu	Story	High	Monitoring
+Là Người dùng, tôi muốn Chọn loại biểu đồ (cột/đường)	Story	Medium	Monitoring
+Là Hệ thống, tôi muốn Cập nhật biểu đồ khi dữ liệu thay đổi	Story	Medium	Monitoring
+Là Người dùng, tôi muốn Tìm kiếm dữ liệu tiêu thụ	Story	High	Monitoring
+Là Người dùng, tôi muốn Lọc theo thiết bị	Story	High	Monitoring
+Là Người dùng, tôi muốn Lọc theo khoảng thời gian	Story	High	Monitoring
+Là Hệ thống, tôi muốn Hiển thị kết quả lọc	Story	High	Monitoring
+Là Hệ thống, tôi muốn Phát hiện giá trị tiêu thụ bất thường	Story	Medium	Monitoring
+Là Hệ thống, tôi muốn So sánh với ngưỡng cho phép	Story	Medium	Monitoring
+Là Người dùng, tôi muốn Nhận cảnh báo khi có bất thường	Story	Medium	Monitoring
+Là Hệ thống, tôi muốn Lưu dữ liệu tiêu thụ vào database	Story	High	Monitoring
+Là Hệ thống, tôi muốn Cập nhật dữ liệu khi chỉnh sửa	Story	High	Monitoring
+Là Hệ thống, tôi muốn Xoá dữ liệu khi cần	Story	Medium	Monitoring
+Là Người dùng, tôi muốn Export dữ liệu tiêu thụ	Story	Medium	Monitoring
+Là Hệ thống, tôi muốn Xuất dữ liệu ra file Excel/CSV	Story	Medium	Monitoring
+Là Người dùng, tôi muốn Tải file về máy	Story	Medium	Monitoring
+Là Hệ thống, tôi muốn Hiển thị mức tiêu thụ trên bản đồ	Story	Medium	Monitoring
+Là Người dùng, tôi muốn Xem thiết bị tiêu thụ cao trên bản đồ	Story	Medium	Monitoring
+Là Hệ thống, tôi muốn Thay đổi màu theo mức tiêu thụ	Story	Medium	Monitoring
+Là Nhân viên, tôi muốn Nhập dữ liệu hàng loạt	Story	Medium	Monitoring
+Là Hệ thống, tôi muốn Xử lý file nhập dữ liệu	Story	Medium	Monitoring
+Là Hệ thống, tôi muốn Lưu dữ liệu sau khi import	Story	Medium	Monitoring
+Incident & Maintenance	Epic		Incident & Maintenance
+Là Người dân, tôi muốn Gửi báo cáo sự cố để thông báo cho hệ thống	Story	High	Incident & Maintenance
+Là Người dân, tôi muốn Nhập mô tả sự cố	Story	High	Incident & Maintenance
+Là Người dân, tôi muốn Chọn loại sự cố (điện/nước)	Story	High	Incident & Maintenance
+Là Người dân, tôi muốn Chọn vị trí sự cố trên bản đồ	Story	High	Incident & Maintenance
+Là Người dân, tôi muốn Tải lên hình ảnh sự cố	Story	High	Incident & Maintenance
+Là Hệ thống, tôi muốn Lưu thông tin sự cố	Story	High	Incident & Maintenance
+Là Hệ thống, tôi muốn Kiểm tra dữ liệu báo cáo hợp lệ	Story	High	Incident & Maintenance
+Là Người dân, tôi muốn Nhận thông báo gửi thành công	Story	Medium	Incident & Maintenance
+Là Nhân viên, tôi muốn Xem danh sách sự cố	Story	High	Incident & Maintenance
+Là Hệ thống, tôi muốn Hiển thị danh sách sự cố	Story	High	Incident & Maintenance
+Là Nhân viên, tôi muốn Xem chi tiết sự cố	Story	High	Incident & Maintenance
+Là Hệ thống, tôi muốn Hiển thị thông tin chi tiết sự cố	Story	High	Incident & Maintenance
+Là Nhân viên, tôi muốn Cập nhật trạng thái sự cố	Story	High	Incident & Maintenance
+Là Hệ thống, tôi muốn Lưu trạng thái sự cố	Story	High	Incident & Maintenance
+Là Nhân viên, tôi muốn Xoá sự cố không hợp lệ	Story	Medium	Incident & Maintenance
+Là Hệ thống, tôi muốn Hiển thị sự cố trên bản đồ	Story	High	Incident & Maintenance
+Là Hệ thống, tôi muốn Đặt marker tại vị trí sự cố	Story	High	Incident & Maintenance
+Là Người dùng, tôi muốn Click vào sự cố để xem chi tiết	Story	High	Incident & Maintenance
+Là Hệ thống, tôi muốn Hiển thị popup sự cố	Story	High	Incident & Maintenance
+Là Quản trị viên, tôi muốn Phân công kỹ thuật viên xử lý sự cố	Story	High	Incident & Maintenance
+Là Quản trị viên, tôi muốn Chọn kỹ thuật viên	Story	High	Incident & Maintenance
+Là Hệ thống, tôi muốn Lưu thông tin phân công	Story	High	Incident & Maintenance
+Là Kỹ thuật viên, tôi muốn Nhận thông báo được phân công	Story	High	Incident & Maintenance
+Là Hệ thống, tôi muốn Tạo phiếu công việc từ sự cố	Story	High	Incident & Maintenance
+Là Hệ thống, tôi muốn Gắn sự cố với phiếu công việc	Story	High	Incident & Maintenance
+Là Nhân viên, tôi muốn Xem danh sách phiếu công việc	Story	High	Incident & Maintenance
+Là Nhân viên, tôi muốn Xem chi tiết phiếu	Story	High	Incident & Maintenance
+Là Hệ thống, tôi muốn Lưu thông tin phiếu công việc	Story	High	Incident & Maintenance
+Là Kỹ thuật viên, tôi muốn Cập nhật trạng thái sửa chữa	Story	High	Incident & Maintenance
+Là Kỹ thuật viên, tôi muốn Đánh dấu “đang xử lý”	Story	High	Incident & Maintenance
+Là Kỹ thuật viên, tôi muốn Đánh dấu “đã hoàn thành”	Story	High	Incident & Maintenance
+Là Hệ thống, tôi muốn Lưu tiến độ công việc	Story	High	Incident & Maintenance
+Là Người quản lý, tôi muốn Theo dõi tiến độ sửa chữa	Story	High	Incident & Maintenance
+Là Quản trị viên, tôi muốn Tạo lịch bảo trì định kỳ	Story	High	Incident & Maintenance
+Là Quản trị viên, tôi muốn Chọn thiết bị cần bảo trì	Story	High	Incident & Maintenance
+Là Hệ thống, tôi muốn Lưu lịch bảo trì	Story	High	Incident & Maintenance
+Là Hệ thống, tôi muốn Nhắc lịch bảo trì	Story	Medium	Incident & Maintenance
+Là Nhân viên, tôi muốn Xem lịch bảo trì	Story	Medium	Incident & Maintenance
+Là Hệ thống, tôi muốn Lưu lịch sử sửa chữa	Story	High	Incident & Maintenance
+Là Người dùng, tôi muốn Xem lịch sử sửa chữa	Story	High	Incident & Maintenance
+Là Hệ thống, tôi muốn Hiển thị chi tiết từng lần sửa	Story	Medium	Incident & Maintenance
+Là Hệ thống, tôi muốn Đánh dấu mức độ nghiêm trọng	Story	High	Incident & Maintenance
+Là Quản trị viên, tôi muốn Phân loại sự cố theo mức độ	Story	High	Incident & Maintenance
+Là Nhân viên, tôi muốn Xử lý sự cố ưu tiên trước	Story	High	Incident & Maintenance
+Là Người dùng, tôi muốn Tìm kiếm sự cố	Story	Medium	Incident & Maintenance
+Là Người dùng, tôi muốn Lọc theo trạng thái	Story	Medium	Incident & Maintenance
+Là Người dùng, tôi muốn Lọc theo thời gian	Story	Medium	Incident & Maintenance
+Là Hệ thống, tôi muốn Hiển thị kết quả lọc	Story	Medium	Incident & Maintenance
+Là Hệ thống, tôi muốn Gửi thông báo khi có sự cố mới	Story	High	Incident & Maintenance
+Là Hệ thống, tôi muốn Gửi thông báo khi phân công	Story	High	Incident & Maintenance
+Là Hệ thống, tôi muốn Gửi thông báo khi hoàn thành	Story	Medium	Incident & Maintenance
+Là Kỹ thuật viên, tôi muốn Upload ảnh sau khi sửa	Story	Medium	Incident & Maintenance
+Là Kỹ thuật viên, tôi muốn Ghi chú quá trình sửa	Story	Medium	Incident & Maintenance
+Là Hệ thống, tôi muốn Lưu dữ liệu sửa chữa	Story	Medium	Incident & Maintenance
+User Management	Epic		User Management
+Là Quản trị viên, tôi muốn Xem danh sách người dùng để quản lý	Story	High	User Management
+Là Hệ thống, tôi muốn Hiển thị danh sách người dùng	Story	High	User Management
+Là Quản trị viên, tôi muốn Phân trang danh sách	Story	Medium	User Management
+Là Quản trị viên, tôi muốn Sắp xếp danh sách theo tên	Story	Medium	User Management
+Là Quản trị viên, tôi muốn Tìm kiếm người dùng	Story	High	User Management
+Là Quản trị viên, tôi muốn Xem thông tin chi tiết người dùng	Story	High	User Management
+Là Hệ thống, tôi muốn Hiển thị thông tin người dùng	Story	High	User Management
+Là Quản trị viên, tôi muốn Xem vai trò người dùng	Story	High	User Management
+Là Quản trị viên, tôi muốn Xem trạng thái tài khoản	Story	High	User Management
+Là Quản trị viên, tôi muốn Tạo tài khoản mới	Story	High	User Management
+Là Quản trị viên, tôi muốn Nhập thông tin người dùng	Story	High	User Management
+Là Quản trị viên, tôi muốn Chọn vai trò cho người dùng	Story	High	User Management
+Là Hệ thống, tôi muốn Kiểm tra dữ liệu hợp lệ	Story	High	User Management
+Là Hệ thống, tôi muốn Lưu tài khoản mới	Story	High	User Management
+Là Quản trị viên, tôi muốn Nhận thông báo tạo thành công	Story	Medium	User Management
+Là Quản trị viên, tôi muốn Chỉnh sửa thông tin người dùng	Story	High	User Management
+Là Quản trị viên, tôi muốn Cập nhật tên người dùng	Story	Medium	User Management
+Là Quản trị viên, tôi muốn Cập nhật vai trò	Story	High	User Management
+Là Hệ thống, tôi muốn Lưu thông tin cập nhật	Story	High	User Management
+Là Hệ thống, tôi muốn Hiển thị thông tin mới	Story	Medium	User Management
+Là Quản trị viên, tôi muốn Xoá tài khoản người dùng	Story	High	User Management
+Là Hệ thống, tôi muốn Xác nhận trước khi xoá	Story	High	User Management
+Là Hệ thống, tôi muốn Xoá dữ liệu người dùng	Story	High	User Management
+Là Quản trị viên, tôi muốn Khoá tài khoản người dùng	Story	High	User Management
+Là Hệ thống, tôi muốn Ngăn người dùng đăng nhập khi bị khoá	Story	High	User Management
+Là Quản trị viên, tôi muốn Mở khoá tài khoản	Story	High	User Management
+Là Hệ thống, tôi muốn Cập nhật trạng thái tài khoản	Story	High	User Management
+Là Quản trị viên, tôi muốn Gán vai trò cho người dùng	Story	High	User Management
+Là Hệ thống, tôi muốn Lưu quyền truy cập	Story	High	User Management
+Là Hệ thống, tôi muốn Kiểm tra quyền khi người dùng thao tác	Story	High	User Management
+Là Người dùng, tôi muốn Xem thông tin cá nhân	Story	Medium	User Management
+Là Người dùng, tôi muốn Chỉnh sửa thông tin cá nhân	Story	Medium	User Management
+Là Hệ thống, tôi muốn Lưu thông tin cá nhân	Story	Medium	User Management
+Là Hệ thống, tôi muốn Ghi lại hoạt động người dùng	Story	Medium	User Management
+Là Quản trị viên, tôi muốn Xem lịch sử hoạt động	Story	Medium	User Management
+Là Hệ thống, tôi muốn Lưu log vào database	Story	Medium	User Management
+Là Hệ thống, tôi muốn Hiển thị trạng thái online/offline	Story	Low	User Management
+Là Quản trị viên, tôi muốn Xem người dùng đang hoạt động	Story	Low	User Management
+Public Interaction	Epic		Public Interaction
+Là Người dân, tôi muốn Truy cập chức năng tra cứu để tìm thông tin	Story	High	Public Interaction
+Là Người dân, tôi muốn Nhập từ khóa tìm kiếm thiết bị	Story	High	Public Interaction
+Là Hệ thống, tôi muốn Xử lý từ khóa tìm kiếm	Story	High	Public Interaction
+Là Hệ thống, tôi muốn Hiển thị kết quả tìm kiếm	Story	High	Public Interaction
+Là Người dân, tôi muốn Xem danh sách kết quả	Story	High	Public Interaction
+Là Người dân, tôi muốn Click vào kết quả để xem chi tiết	Story	High	Public Interaction
+Là Hệ thống, tôi muốn Hiển thị thông tin chi tiết thiết bị	Story	High	Public Interaction
+Là Người dân, tôi muốn Xem thiết bị trên bản đồ	Story	High	Public Interaction
+Là Hệ thống, tôi muốn Hiển thị marker thiết bị	Story	High	Public Interaction
+Là Người dân, tôi muốn Click vào thiết bị trên bản đồ	Story	High	Public Interaction
+Là Hệ thống, tôi muốn Hiển thị popup thông tin	Story	High	Public Interaction
+Là Người dân, tôi muốn Xác định vị trí thiết bị gần mình	Story	Medium	Public Interaction
+Là Người dân, tôi muốn Tra cứu mức tiêu thụ điện/nước	Story	Medium	Public Interaction
+Là Người dân, tôi muốn Nhập mã thiết bị hoặc khu vực	Story	Medium	Public Interaction
+Là Hệ thống, tôi muốn Hiển thị dữ liệu tiêu thụ	Story	Medium	Public Interaction
+Là Người dân, tôi muốn Xem lịch sử tiêu thụ	Story	Medium	Public Interaction
+Là Người dân, tôi muốn Gửi phản ánh sự cố	Story	High	Public Interaction
+Là Người dân, tôi muốn Nhập mô tả sự cố	Story	High	Public Interaction
+Là Người dân, tôi muốn Chọn loại sự cố	Story	High	Public Interaction
+Là Người dân, tôi muốn Chọn vị trí sự cố trên bản đồ	Story	High	Public Interaction
+Là Hệ thống, tôi muốn Ghi nhận vị trí sự cố	Story	High	Public Interaction
+Là Hệ thống, tôi muốn Lưu thông tin phản ánh	Story	High	Public Interaction
+Là Người dân, tôi muốn Nhận thông báo gửi thành công	Story	Medium	Public Interaction
+Là Người dân, tôi muốn Tải ảnh sự cố lên hệ thống	Story	High	Public Interaction
+Là Hệ thống, tôi muốn Kiểm tra định dạng ảnh	Story	Medium	Public Interaction
+Là Hệ thống, tôi muốn Lưu ảnh	Story	Medium	Public Interaction
+Là Người dân, tôi muốn Xem lại ảnh đã chọn	Story	Medium	Public Interaction
+Là Người dân, tôi muốn Xem danh sách phản ánh của mình	Story	Medium	Public Interaction
+Là Hệ thống, tôi muốn Hiển thị danh sách phản ánh	Story	Medium	Public Interaction
+Là Người dân, tôi muốn Xem trạng thái xử lý	Story	High	Public Interaction
+Là Hệ thống, tôi muốn Cập nhật trạng thái phản ánh	Story	High	Public Interaction
+Là Người dân, tôi muốn Tìm kiếm phản ánh	Story	Medium	Public Interaction
+Là Người dân, tôi muốn Lọc theo trạng thái	Story	Medium	Public Interaction
+Là Người dân, tôi muốn Lọc theo thời gian	Story	Medium	Public Interaction
+Là Hệ thống, tôi muốn Hiển thị kết quả lọc	Story	Medium	Public Interaction
+Là Người dân, tôi muốn Bổ sung thông tin phản ánh	Story	Medium	Public Interaction
+Là Người dân, tôi muốn Cập nhật mô tả	Story	Medium	Public Interaction
+Là Hệ thống, tôi muốn Lưu thông tin cập nhật	Story	Medium	Public Interaction
+Là Người dân, tôi muốn Đánh giá chất lượng xử lý	Story	Low	Public Interaction
+Là Người dân, tôi muốn Cho điểm mức độ hài lòng	Story	Low	Public Interaction
+Là Hệ thống, tôi muốn Lưu đánh giá	Story	Low	Public Interaction
+Là Hệ thống, tôi muốn Gửi thông báo khi phản ánh được xử lý	Story	Medium	Public Interaction
+Là Người dân, tôi muốn Nhận thông báo cập nhật	Story	Medium	Public Interaction
+Là Hệ thống, tôi muốn Gửi thông báo qua hệ thống	Story	Medium	Public Interaction
+Là Người dân, tôi muốn Chỉnh sửa phản ánh khi chưa xử lý	Story	Medium	Public Interaction
+Là Hệ thống, tôi muốn Cập nhật thông tin phản ánh	Story	Medium	Public Interaction
+Là Người dân, tôi muốn Xoá phản ánh	Story	Low	Public Interaction
+Là Hệ thống, tôi muốn Xoá dữ liệu phản ánh	Story	Low	Public Interaction
+Là Hệ thống, tôi muốn Kiểm tra dữ liệu nhập không rỗng	Story	High	Public Interaction
+Là Hệ thống, tôi muốn Kiểm tra độ dài mô tả	Story	Medium	Public Interaction
+Là Hệ thống, tôi muốn Cảnh báo lỗi khi nhập sai	Story	High	Public Interaction
+Notification & Alert	Epic		Notification & Alert
+Là Hệ thống, tôi muốn Tạo thông báo để gửi cho người dùng	Story	High	Notification & Alert
+Là Hệ thống, tôi muốn Lưu nội dung thông báo	Story	High	Notification & Alert
+Là Hệ thống, tôi muốn Gắn thời gian cho thông báo	Story	High	Notification & Alert
+Là Người dùng, tôi muốn Xem danh sách thông báo	Story	High	Notification & Alert
+Là Hệ thống, tôi muốn Hiển thị danh sách thông báo	Story	High	Notification & Alert
+Là Hệ thống, tôi muốn Gửi thông báo khi có sự cố mới	Story	High	Notification & Alert
+Là Nhân viên, tôi muốn Nhận thông báo sự cố	Story	High	Notification & Alert
+Là Hệ thống, tôi muốn Hiển thị nội dung sự cố trong thông báo	Story	High	Notification & Alert
+Là Người dùng, tôi muốn Click vào thông báo để xem chi tiết	Story	High	Notification & Alert
+Là Hệ thống, tôi muốn Gửi thông báo khi có phân công	Story	High	Notification & Alert
+Là Kỹ thuật viên, tôi muốn Nhận thông báo công việc	Story	High	Notification & Alert
+Là Hệ thống, tôi muốn Hiển thị thông thông tin công việc trong thông báo	Story	High	Notification & Alert
+Là Hệ thống, tôi muốn Gửi thông báo khi trạng thái thay đổi	Story	High	Notification & Alert
+Là Người quản lý, tôi muốn Nhận thông báo tiến độ	Story	High	Notification & Alert
+Là Hệ thống, tôi muốn Cập nhật thông báo theo trạng thái	Story	Medium	Notification & Alert
+Là Hệ thống, tôi muốn Gửi thông báo khi công việc hoàn thành	Story	High	Notification & Alert
+Là Người dùng, tôi muốn Biết khi sự cố đã xử lý xong	Story	High	Notification & Alert
+Là Hệ thống, tôi muốn Hiển thị thông tin hoàn thành	Story	Medium	Notification & Alert
+Là Hệ thống, tôi muốn Tạo cảnh báo khi phát hiện bất thường	Story	High	Notification & Alert
+Là Hệ thống, tôi muốn Xác định ngưỡng cảnh báo	Story	Medium	Notification & Alert
+Là Người dùng, tôi muốn Nhận cảnh báo	Story	High	Notification & Alert
+Là Hệ thống, tôi muốn Hiển thị cảnh báo nổi bật	Story	Medium	Notification & Alert
+Là Hệ thống, tôi muốn Gửi thông báo lịch bảo trì	Story	Medium	Notification & Alert
+Là Nhân viên, tôi muốn Nhận nhắc lịch bảo trì	Story	Medium	Notification & Alert
+Là Hệ thống, tôi muốn Gửi thông báo trước thời gian bảo trì	Story	Medium	Notification & Alert
+Là Hệ thống, tôi muốn Đánh dấu thông báo đã đọc	Story	High	Notification & Alert
+Là Người dùng, tôi muốn Đánh dấu đã đọc	Story	Medium	Notification & Alert
+Là Hệ thống, tôi muốn Lưu trạng thái đã đọc/chưa đọc	Story	High	Notification & Alert
+Là Người dùng, tôi muốn Xem thông báo chưa đọc	Story	High	Notification & Alert
+Là Người dùng, tôi muốn Xoá thông báo	Story	Low	Notification & Alert
+Là Hệ thống, tôi muốn Xoá dữ liệu thông báo	Story	Low	Notification & Alert
+Là Người dùng, tôi muốn Bật/tắt thông báo	Story	Medium	Notification & Alert
+Là Người dùng, tôi muốn Chọn loại thông báo nhận	Story	Medium	Notification & Alert
+Là Hệ thống, tôi muốn Lưu cấu hình thông báo	Story	Medium	Notification & Alert
+Là Hệ thống, tôi muốn Gửi thông báo theo vai trò	Story	High	Notification & Alert
+Là Hệ thống, tôi muốn Gửi thông báo cho nhiều người	Story	High	Notification & Alert
+Là Hệ thống, tôi muốn Phân loại người nhận	Story	Medium	Notification & Alert
+Là Hệ thống, tôi muốn Hiển thị thông báo dạng popup	Story	Medium	Notification & Alert
+Là Hệ thống, tôi muốn Hiển thị badge số lượng thông báo	Story	Medium	Notification & Alert
+Là Người dùng, tôi muốn Thấy số thông báo mới	Story	Medium	Notification & Alert
+Là Hệ thống, tôi muốn Lưu lịch sử thông báo	Story	Medium	Notification & Alert
+Là Người dùng, tôi muốn Xem lại thông báo cũ	Story	Medium	Notification & Alert
+Là Hệ thống, tôi muốn Hiển thị lịch sử thông báo	Story	Medium	Notification & Alert
+Là Hệ thống, tôi muốn Kiểm tra nội dung thông báo hợp lệ	Story	Medium	Notification & Alert
+Là Hệ thống, tôi muốn Kiểm tra người nhận tồn tại	Story	Medium	Notification & Alert
+Là Hệ thống, tôi muốn Xử lý lỗi khi gửi thông báo	Story	Medium	Notification & Alert
+Reporting & Analytics	Epic		Reporting & Analytics
+Là Quản trị viên, tôi muốn Xem báo cáo tổng quan hệ thống	Story	High	Reporting & Analytics
+Là Hệ thống, tôi muốn Hiển thị dashboard tổng quan	Story	High	Reporting & Analytics
+Là Hệ thống, tôi muốn Hiển thị số lượng thiết bị	Story	High	Reporting & Analytics
+Là Hệ thống, tôi muốn Hiển thị số lượng sự cố	Story	High	Reporting & Analytics
+Là Hệ thống, tôi muốn Hiển thị số lượng đang xử lý	Story	High	Reporting & Analytics
+Là Quản trị viên, tôi muốn Xem báo cáo thiết bị	Story	High	Reporting & Analytics
+Là Hệ thống, tôi muốn Thống kê số lượng thiết bị theo loại	Story	High	Reporting & Analytics
+Là Hệ thống, tôi muốn Thống kê thiết bị đang hoạt động	Story	High	Reporting & Analytics
+Là Hệ thống, tôi muốn Thống kê thiết bị bị lỗi	Story	High	Reporting & Analytics
+Là Người dùng, tôi muốn Xem chi tiết từng loại thiết bị	Story	Medium	Reporting & Analytics
+Là Quản trị viên, tôi muốn Xem báo cáo sự cố	Story	High	Reporting & Analytics
+Là Hệ thống, tôi muốn Thống kê số lượng sự cố	Story	High	Reporting & Analytics
+Là Hệ thống, tôi muốn Thống kê theo trạng thái	Story	High	Reporting & Analytics
+Là Hệ thống, tôi muốn Thống kê theo mức độ nghiêm trọng	Story	High	Reporting & Analytics
+Là Người dùng, tôi muốn Xem danh sách sự cố trong báo cáo	Story	Medium	Reporting & Analytics
+Là Người dùng, tôi muốn Xem báo cáo tiêu thụ điện/nước	Story	High	Reporting & Analytics
+Là Hệ thống, tôi muốn Tính tổng tiêu thụ	Story	High	Reporting & Analytics
+Là Hệ thống, tôi muốn Thống kê theo thời gian	Story	High	Reporting & Analytics
+Là Người dùng, tôi muốn So sánh tiêu thụ giữa các kỳ	Story	Medium	Reporting & Analytics
+Là Người dùng, tôi muốn Lọc báo cáo theo thời gian	Story	High	Reporting & Analytics
+Là Người dùng, tôi muốn Lọc theo loại thiết bị	Story	High	Reporting & Analytics
+Là Người dùng, tôi muốn Lọc theo khu vực	Story	Medium	Reporting & Analytics
+Là Hệ thống, tôi muốn Hiển thị báo cáo theo bộ lọc	Story	High	Reporting & Analytics
+Là Người dùng, tôi muốn Reset bộ lọc	Story	Medium	Reporting & Analytics
+Là Người dùng, tôi muốn Xem biểu đồ thống kê	Story	High	Reporting & Analytics
+Là Hệ thống, tôi muốn Hiển thị biểu đồ cột	Story	Medium	Reporting & Analytics
+Là Hệ thống, tôi muốn Hiển thị biểu đồ đường	Story	Medium	Reporting & Analytics
+Là Hệ thống, tôi muốn Hiển thị biểu đồ tròn	Story	Medium	Reporting & Analytics
+Là Người dùng, tôi muốn Chọn loại biểu đồ	Story	Medium	Reporting & Analytics
+Là Người dùng, tôi muốn Xuất báo cáo ra file	Story	High	Reporting & Analytics
+Là Hệ thống, tôi muốn Xuất file Excel	Story	High	Reporting & Analytics
+Là Hệ thống, tôi muốn Xuất file PDF	Story	Medium	Reporting & Analytics
+Là Người dùng, tôi muốn Tải file về máy	Story	Medium	Reporting & Analytics
+Là Người dùng, tôi muốn Xem báo cáo theo ngày	Story	Medium	Reporting & Analytics
+Là Người dùng, tôi muốn Xem báo cáo theo tháng	Story	High	Reporting & Analytics
+Là Người dùng, tôi muốn Xem báo cáo theo năm	Story	Medium	Reporting & Analytics
+Là Hệ thống, tôi muốn Tổng hợp dữ liệu theo thời gian	Story	High	Reporting & Analytics
+Là Quản trị viên, tôi muốn Xem hiệu suất xử lý sự cố	Story	Medium	Reporting & Analytics
+Là Hệ thống, tôi muốn Tính thời gian xử lý trung bình	Story	Medium	Reporting & Analytics
+Là Hệ thống, tôi muốn Thống kê số lượng công việc hoàn thành	Story	Medium	Reporting & Analytics
+Là Quản trị viên, tôi muốn So sánh hiệu suất giữa nhân viên	Story	Medium	Reporting & Analytics
+Là Hệ thống, tôi muốn Hiển thị dữ liệu thống kê trên bản đồ	Story	Medium	Reporting & Analytics
+Là Người dùng, tôi muốn Xem khu vực có nhiều sự cố	Story	Medium	Reporting & Analytics
+Là Hệ thống, tôi muốn Tô màu khu vực theo dữ liệu	Story	Medium	Reporting & Analytics
+Là Hệ thống, tôi muốn Lưu lịch sử báo cáo	Story	Medium	Reporting & Analytics
+Là Người dùng, tôi muốn Xem lại báo cáo cũ	Story	Medium	Reporting & Analytics
+Là Hệ thống, tôi muốn Xoá báo cáo cũ	Story	Low	Reporting & Analytics
+Là Hệ thống, tôi muốn Kiểm tra dữ liệu trước khi thống kê	Story	High	Reporting & Analytics
+Là Hệ thống, tôi muốn Xử lý dữ liệu thiếu	Story	Medium	Reporting & Analytics
+Là Hệ thống, tôi muốn Hiển thị lỗi khi dữ liệu sai	Story	Medium	Reporting & Analytics
+Là Hệ thống, tôi muốn Tự động tạo báo cáo định kỳ	Story	Medium	Reporting & Analytics
+Là Hệ thống, tôi muốn Gửi báo cáo cho quản trị viên	Story	Medium	Reporting & Analytics
+Là Người dùng, tôi muốn Nhận báo cáo tự động	Story	Medium	Reporting & Analytics
+Là Người dùng, tôi muốn So sánh dữ liệu giữa các khu vực	Story	Medium	Reporting & Analytics
+Là Người dùng, tôi muốn So sánh giữa các thời điểm	Story	Medium	Reporting & Analytics
+Là Hệ thống, tôi muốn Hiển thị kết quả so sánh	Story	Medium	Reporting & Analytics
+System & Technical	Epic		System & Technical
+Là Hệ thống, tôi muốn Kết nối database để lưu dữ liệu	Story	High	System & Technical
+Là Hệ thống, tôi muốn Kiểm tra kết nối database	Story	High	System & Technical
+Là Hệ thống, tôi muốn Xử lý lỗi kết nối database	Story	High	System & Technical
+Là Hệ thống, tôi muốn Đóng kết nối sau khi sử dụng	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Tối ưu truy vấn dữ liệu	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Cung cấp API để frontend gọi dữ liệu	Story	High	System & Technical
+Là Hệ thống, tôi muốn Tạo API lấy danh sách thiết bị	Story	High	System & Technical
+Là Hệ thống, tôi muốn Tạo API thêm thiết bị	Story	High	System & Technical
+Là Hệ thống, tôi muốn Tạo API cập nhật thiết bị	Story	High	System & Technical
+Là Hệ thống, tôi muốn Tạo API xoá thiết bị	Story	High	System & Technical
+Là Hệ thống, tôi muốn Trả dữ liệu dạng JSON	Story	High	System & Technical
+Là Hệ thống, tôi muốn Xử lý request từ client	Story	High	System & Technical
+Là Hệ thống, tôi muốn Mã hoá mật khẩu	Story	High	System & Technical
+Là Hệ thống, tôi muốn Kiểm tra token xác thực	Story	High	System & Technical
+Là Hệ thống, tôi muốn Ngăn chặn truy cập trái phép	Story	High	System & Technical
+Là Hệ thống, tôi muốn Giới hạn request (rate limit)	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Bảo vệ API khỏi tấn công	Story	High	System & Technical
+Là Hệ thống, tôi muốn Kiểm tra quyền truy cập	Story	High	System & Technical
+Là Hệ thống, tôi muốn Ghi log hoạt động	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Ghi log lỗi	Story	High	System & Technical
+Là Hệ thống, tôi muốn Lưu log vào file	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Xem log khi cần	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Xử lý lỗi khi API thất bại	Story	High	System & Technical
+Là Hệ thống, tôi muốn Hiển thị thông báo lỗi	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Tránh crash hệ thống	Story	High	System & Technical
+Là Hệ thống, tôi muốn Ghi lại lỗi	Story	High	System & Technical
+Là Hệ thống, tôi muốn Tối ưu tốc độ load dữ liệu	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Cache dữ liệu	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Giảm số lần gọi API	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Tối ưu truy vấn database	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Đồng bộ dữ liệu giữa backend và frontend	Story	High	System & Technical
+Là Hệ thống, tôi muốn Cập nhật dữ liệu khi thay đổi	Story	High	System & Technical
+Là Hệ thống, tôi muốn Tránh xung đột dữ liệu	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Tạo session khi đăng nhập	Story	High	System & Technical
+Là Hệ thống, tôi muốn Kiểm tra session hợp lệ	Story	High	System & Technical
+Là Hệ thống, tôi muốn Xoá session khi logout	Story	High	System & Technical
+Là Hệ thống, tôi muốn Hết hạn session sau thời gian	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Đọc file cấu hình	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Lưu cấu hình hệ thống	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Thay đổi cấu hình dễ dàng	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Backup dữ liệu	Story	High	System & Technical
+Là Hệ thống, tôi muốn Restore dữ liệu	Story	High	System & Technical
+Là Hệ thống, tôi muốn Lên lịch backup	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Kiểm tra trạng thái hệ thống	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Kiểm tra API hoạt động	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Cảnh báo khi lỗi hệ thống	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Deploy ứng dụng	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Cấu hình server	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Chạy ứng dụng trên server	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Viết unit test	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Kiểm tra API	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Kiểm tra lỗi hệ thống	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Tối ưu load trang	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Giảm thời gian render	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Tối ưu hiển thị bản đồ	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Lưu file upload	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Kiểm tra dung lượng file	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Xoá file không cần thiết	Story	Low	System & Technical
+Là Hệ thống, tôi muốn Kiểm tra version API	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Hỗ trợ nhiều client	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Ghi log truy cập API	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Kiểm tra timeout request	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Retry khi request thất bại	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Giới hạn dung lượng response	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Kiểm tra dữ liệu đầu vào API	Story	High	System & Technical
+Là Hệ thống, tôi muốn Validate JSON request	Story	High	System & Technical
+Là Hệ thống, tôi muốn Chuẩn hoá response	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Xử lý exception global	Story	High	System & Technical
+Là Hệ thống, tôi muốn Theo dõi hiệu năng API	Story	Medium	System & Technical
+Là Hệ thống, tôi muốn Cảnh báo khi server quá tải	Story	High	System & Technical
+Là Hệ thống, tôi muốn Restart service khi lỗi	Story	High	System & Technical
+Là Hệ thống, tôi muốn Kiểm tra bảo mật hệ thống	Story	High	System & Technical
+Là Hệ thống, tôi muốn Log hành vi bất thường	Story	High	System & Technical
+Là Hệ thống, tôi muốn Theo dõi session bất thường	Story	High	System & Technical
+Là Hệ thống, tôi muốn Bảo vệ dữ liệu người dùng	Story	High	System & Technical
+Là Hệ thống, tôi muốn Đảm bảo tính toàn vẹn dữ liệu	Story	High	System & Technical
+Là Hệ thống, tôi muốn Mã hoá dữ liệu nhạy cảm trong database để bảo mật thông tin	Story	High	System & Technical
+Là Hệ thống, tôi muốn Kiểm tra tính toàn vẹn dữ liệu khi ghi xuống database để tránh sai lệch	Story	High	System & Technical
+Là Hệ thống, tôi muốn Tự động ghi log khi có thay đổi dữ liệu quan trọng để phục vụ kiểm tra sau này	Story	Medium	System & Technical

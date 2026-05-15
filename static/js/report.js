@@ -1,0 +1,148 @@
+/* report.js — Báo cáo Sự cố */
+'use strict';
+(() => {
+  const STORAGE = { access: 'infra_access', refresh: 'infra_refresh', role: 'infra_role', username: 'infra_username' };
+  const API = { incidents: '/api/incidents/', devices: '/api/devices/?page_size=999', notifications: '/api/notifications/', logout: '/api/auth/logout/' };
+
+  async function apiFetch(url, opts = {}) {
+    const token = localStorage.getItem(STORAGE.access);
+    const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...opts.headers };
+    return fetch(url, { ...opts, headers });
+  }
+
+  function setupNav() {
+    const u = localStorage.getItem(STORAGE.username) || '';
+    const role = localStorage.getItem(STORAGE.role) || '';
+    const el = document.getElementById('nav-user');
+    const roleEl = document.getElementById('nav-role');
+    if (el) el.textContent = u ? `Xin chào, ${u}` : '';
+    if (roleEl) {
+      const labels = { ADMIN: 'Quản trị', OPERATOR: 'Vận hành', TECHNICIAN: 'Kỹ thuật', CITIZEN: 'Người dân' };
+      roleEl.textContent = labels[role] || role;
+    }
+    document.getElementById('btn-logout')?.addEventListener('click', async () => {
+      const refresh = localStorage.getItem(STORAGE.refresh);
+      await apiFetch(API.logout, { method: 'POST', body: JSON.stringify({ refresh }) });
+      localStorage.clear();
+      window.location.href = '/login/';
+    });
+  }
+
+  async function pollNotifBadge() {
+    try {
+      const res = await apiFetch('/api/notifications/unread-count/');
+      if (!res.ok) return;
+      const { unread_count } = await res.json();
+      const badge = document.getElementById('notif-badge');
+      if (badge) {
+        if (unread_count > 0) { badge.textContent = unread_count > 99 ? '99+' : unread_count; badge.classList.remove('d-none'); }
+        else badge.classList.add('d-none');
+      }
+    } catch {}
+  }
+
+  let reportMap, reportMarker;
+  function initMap() {
+    reportMap = L.map('report-map').setView([16.0544, 108.2022], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(reportMap);
+
+    reportMap.on('click', (e) => {
+      const { lat, lng } = e.latlng;
+      document.getElementById('report-lat').value = lat.toFixed(6);
+      document.getElementById('report-lng').value = lng.toFixed(6);
+      if (reportMarker) reportMap.removeLayer(reportMarker);
+      reportMarker = L.marker([lat, lng], { icon: L.divIcon({ className: '', html: '<div style="background:#ef4444;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>', iconAnchor: [8, 8] }) }).addTo(reportMap);
+    });
+  }
+
+  async function loadDevices() {
+    const res = await apiFetch(API.devices);
+    if (!res.ok) return;
+    const data = await res.json();
+    const devices = data.results ?? data;
+    const select = document.getElementById('report-device');
+    if (!select) return;
+    const LABELS = { ELECTRIC_POLE: 'Trụ điện', ELECTRIC_METER: 'Công tơ', WATER_METER: 'Đồng hồ nước', TRANSFORMER: 'Trạm biến áp', VALVE: 'Van nước' };
+    select.innerHTML = '<option value="">-- Không rõ --</option>' + devices.map(d => `<option value="${d.id}">${d.name} (${LABELS[d.device_type] || d.device_type})</option>`).join('');
+  }
+
+  async function loadMyIncidents() {
+    const res = await apiFetch(API.incidents);
+    if (!res.ok) return;
+    const data = await res.json();
+    const incidents = data.results ?? data;
+    const el = document.getElementById('my-incidents-list');
+    if (!el) return;
+
+    if (!incidents.length) {
+      el.innerHTML = '<div class="text-center text-muted small py-4">Chưa có sự cố nào.</div>';
+      return;
+    }
+
+    const STATUS_COLOR = { OPEN: 'danger', ASSIGNED: 'warning', IN_PROGRESS: 'info', RESOLVED: 'success', CLOSED: 'secondary' };
+    el.innerHTML = incidents.map(inc => `
+      <div class="px-3 py-2 border-bottom">
+        <div class="fw-semibold small">${inc.title}</div>
+        <div class="d-flex gap-2 mt-1">
+          <span class="badge bg-${STATUS_COLOR[inc.status] || 'secondary'} bg-opacity-75">${inc.status_display}</span>
+          <span class="text-muted small">${new Date(inc.created_at).toLocaleDateString('vi-VN')}</span>
+        </div>
+      </div>`).join('');
+  }
+
+  function showAlert(msg, isSuccess = false) {
+    const el = document.getElementById('app-alert');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = `alert py-2 small ${isSuccess ? 'alert-success' : 'alert-danger'}`;
+    el.classList.remove('d-none');
+    if (isSuccess) setTimeout(() => el.classList.add('d-none'), 4000);
+  }
+
+  document.getElementById('report-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = document.getElementById('report-title').value.trim();
+    const desc = document.getElementById('report-desc').value.trim();
+    const lat = parseFloat(document.getElementById('report-lat').value);
+    const lng = parseFloat(document.getElementById('report-lng').value);
+
+    if (!title || !desc) { showAlert('Vui lòng nhập tiêu đề và mô tả.'); return; }
+    if (isNaN(lat) || isNaN(lng)) { showAlert('Vui lòng chọn vị trí trên bản đồ.'); return; }
+
+    const body = {
+      title,
+      description: desc,
+      incident_type: document.getElementById('report-type').value,
+      severity: document.getElementById('report-severity').value,
+      latitude: lat,
+      longitude: lng,
+      device: document.getElementById('report-device').value || null,
+    };
+
+    const btn = document.getElementById('btn-submit-report');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang gửi...';
+
+    try {
+      const res = await apiFetch(API.incidents, { method: 'POST', body: JSON.stringify(body) });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showAlert('✅ Báo cáo sự cố đã được gửi thành công!', true);
+        document.getElementById('report-form').reset();
+        if (reportMarker) { reportMap.removeLayer(reportMarker); reportMarker = null; }
+        loadMyIncidents();
+      } else {
+        const msg = Object.values(data).flat().join(' ') || 'Gửi báo cáo thất bại.';
+        showAlert(msg);
+      }
+    } catch { showAlert('Lỗi kết nối.'); }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="bi bi-send me-1"></i> Gửi báo cáo'; }
+  });
+
+  setupNav();
+  initMap();
+  loadDevices();
+  loadMyIncidents();
+  pollNotifBadge();
+  setInterval(pollNotifBadge, 30000);
+})();

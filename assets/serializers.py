@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Device
+from .models import Device, ConsumptionLog
 
 
 class DeviceSerializer(serializers.ModelSerializer):
@@ -10,6 +10,8 @@ class DeviceSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "device_type",
+            "parent",
+            "attributes",
             "latitude",
             "longitude",
             "is_active",
@@ -32,4 +34,27 @@ class DeviceSerializer(serializers.ModelSerializer):
         value = value.strip()
         if not value:
             raise serializers.ValidationError("Tên thiết bị không được để trống.")
+        return value
+
+class ConsumptionLogSerializer(serializers.ModelSerializer):
+    device_name = serializers.CharField(source='device.name', read_only=True)
+    device_type = serializers.CharField(source='device.device_type', read_only=True)
+
+    class Meta:
+        model = ConsumptionLog
+        fields = (
+            "id",
+            "device",
+            "device_name",
+            "device_type",
+            "date",
+            "value",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "created_at", "updated_at")
+
+    def validate_value(self, value: float) -> float:
+        if value < 0:
+            raise serializers.ValidationError("Chỉ số tiêu thụ không được âm.")
         return value

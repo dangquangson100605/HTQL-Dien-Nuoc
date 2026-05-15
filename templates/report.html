@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Báo cáo Sự cố{% endblock %}
+
+{% block body %}
+<nav class="navbar navbar-expand-lg navbar-light sticky-top">
+  <div class="container-fluid px-3">
+    <span class="navbar-brand"><i class="bi bi-exclamation-triangle-fill text-warning me-1"></i> Báo cáo Sự cố</span>
+    <div class="d-flex align-items-center gap-3">
+      <a href="/app/" class="text-secondary text-decoration-none small hover-lift"><i class="bi bi-map"></i> Bản đồ</a>
+      <a href="/incidents/" class="text-secondary text-decoration-none small hover-lift"><i class="bi bi-list-ul"></i> Danh sách sự cố</a>
+      <div class="d-flex align-items-center gap-2 small">
+        <span id="nav-user" class="d-none d-md-inline fw-medium text-dark"></span>
+        <span id="nav-role" class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-2 py-1"></span>
+        <a href="/notifications/" class="position-relative text-secondary me-1" id="notif-bell-link" title="Thông báo">
+          <i class="bi bi-bell fs-5"></i>
+          <span id="notif-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size:0.6rem;"></span>
+        </a>
+        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill ms-2" id="btn-logout" title="Đăng xuất"><i class="bi bi-box-arrow-right"></i></button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="container py-4" style="max-width:900px;">
+  <div id="app-alert" class="alert py-2 small d-none" role="alert"></div>
+
+  <div class="row g-4">
+    <!-- Form báo cáo -->
+    <div class="col-lg-5">
+      <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-2 fw-semibold"><i class="bi bi-pencil-square text-warning me-1"></i> Thông tin sự cố</div>
+        <div class="card-body">
+          <form id="report-form" novalidate>
+            <div class="mb-3">
+              <label class="form-label">Tiêu đề sự cố <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="report-title" required maxlength="200" placeholder="Mô tả ngắn sự cố...">
+              <div class="invalid-feedback">Vui lòng nhập tiêu đề.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Mô tả chi tiết <span class="text-danger">*</span></label>
+              <textarea class="form-control" id="report-desc" rows="3" required placeholder="Mô tả chi tiết tình trạng..."></textarea>
+              <div class="invalid-feedback">Vui lòng nhập mô tả.</div>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label">Loại sự cố</label>
+                <select class="form-select" id="report-type">
+                  <option value="ELECTRIC">⚡ Điện</option>
+                  <option value="WATER">💧 Nước</option>
+                  <option value="OTHER">🔧 Khác</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Mức độ</label>
+                <select class="form-select" id="report-severity">
+                  <option value="LOW">🟢 Thấp</option>
+                  <option value="MEDIUM" selected>🟡 Trung bình</option>
+                  <option value="HIGH">🔴 Cao</option>
+                  <option value="CRITICAL">🚨 Khẩn cấp</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Thiết bị liên quan (tùy chọn)</label>
+              <select class="form-select" id="report-device">
+                <option value="">-- Không rõ --</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Vị trí <span class="text-danger">*</span></label>
+              <div class="input-group mb-1">
+                <input type="number" step="any" class="form-control" id="report-lat" placeholder="Vĩ độ" required>
+                <input type="number" step="any" class="form-control" id="report-lng" placeholder="Kinh độ" required>
+              </div>
+              <div class="form-text"><i class="bi bi-cursor-fill text-primary"></i> Click lên bản đồ để chọn vị trí.</div>
+            </div>
+            <button type="submit" class="btn btn-warning w-100 fw-semibold" id="btn-submit-report">
+              <i class="bi bi-send me-1"></i> Gửi báo cáo
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Sự cố của tôi -->
+      <div class="card shadow-sm border-0 mt-3">
+        <div class="card-header bg-white py-2 fw-semibold"><i class="bi bi-clock-history me-1"></i> Sự cố đã báo cáo</div>
+        <div class="card-body p-0">
+          <div id="my-incidents-list" style="max-height:300px;overflow-y:auto;">
+            <div class="text-center text-muted py-4 small">
+              <div class="spinner-border spinner-border-sm text-warning" role="status"></div>
+              <span class="ms-2">Đang tải...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bản đồ chọn vị trí -->
+    <div class="col-lg-7">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-header bg-white py-2 fw-semibold"><i class="bi bi-geo-alt-fill text-danger me-1"></i> Chọn vị trí trên bản đồ</div>
+        <div class="card-body p-0">
+          <div id="report-map" style="height:500px;border-radius:0 0 12px 12px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="{% static 'js/report.js' %}?v=1"></script>
+{% endblock %}

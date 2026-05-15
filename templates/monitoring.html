@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Theo dõi tiêu thụ{% endblock %}
+
+{% block body %}
+<nav class="navbar navbar-expand-lg navbar-light sticky-top">
+  <div class="container-fluid px-3">
+    <span class="navbar-brand"><i class="bi bi-graph-up me-1"></i> Theo dõi tiêu thụ</span>
+    <div class="d-flex align-items-center gap-3">
+      <a href="/app/" class="text-secondary text-decoration-none small hover-lift"><i class="bi bi-map"></i> Bản đồ</a>
+      <a href="/users/" id="nav-users-link" class="text-secondary text-decoration-none small hover-lift d-none"><i class="bi bi-people"></i> Tài khoản</a>
+      <div class="d-flex align-items-center gap-2 small">
+        <span id="nav-user" class="d-none d-md-inline fw-medium text-dark"></span>
+        <span id="nav-role" class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-2 py-1"></span>
+        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill ms-2" id="btn-logout" title="Đăng xuất"><i class="bi bi-box-arrow-right"></i></button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid py-4">
+  <div id="app-alert" class="alert py-2 small d-none" role="alert"></div>
+
+  <div class="row g-3">
+    <!-- Cột Nhập liệu & Bộ lọc -->
+    <div class="col-lg-4">
+      <!-- Form nhập liệu -->
+      <div class="card shadow-sm border-0 mb-3" id="input-card">
+        <div class="card-header bg-white py-2 fw-semibold">Ghi nhận chỉ số</div>
+        <div class="card-body">
+          <form id="monitoring-form">
+            <div class="mb-3">
+              <label class="form-label">Thiết bị</label>
+              <select class="form-select" id="input-device" required>
+                <option value="">-- Chọn thiết bị --</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Ngày ghi nhận</label>
+              <input type="date" class="form-control" id="input-date" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Chỉ số tiêu thụ</label>
+              <input type="number" step="any" class="form-control" id="input-value" required>
+              <div class="invalid-feedback">Vui lòng nhập số dương.</div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Lưu dữ liệu</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Bộ lọc -->
+      <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-2 fw-semibold">Bộ lọc tìm kiếm</div>
+        <div class="card-body">
+          <form id="filter-form">
+            <div class="mb-3">
+              <label class="form-label">Thiết bị</label>
+              <select class="form-select" id="filter-device">
+                <option value="">Tất cả thiết bị</option>
+              </select>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label">Từ ngày</label>
+                <input type="date" class="form-control" id="filter-start">
+              </div>
+              <div class="col-6">
+                <label class="form-label">Đến ngày</label>
+                <input type="date" class="form-control" id="filter-end">
+              </div>
+            </div>
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-secondary w-100">Lọc</button>
+              <button type="button" class="btn btn-light w-100" id="btn-clear-filter">Xóa lọc</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cột Bảng dữ liệu & Biểu đồ -->
+    <div class="col-lg-8">
+      <div class="card shadow-sm border-0 mb-3">
+        <div class="card-header bg-white py-2 fw-semibold">Biểu đồ tổng tiêu thụ theo ngày</div>
+        <div class="card-body">
+          <canvas id="consumptionChart" style="max-height: 300px;"></canvas>
+        </div>
+      </div>
+
+      <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-2 fw-semibold">Bảng dữ liệu chi tiết</div>
+        <div class="card-body p-0 table-responsive" style="max-height: 400px; overflow-y: auto;">
+          <table class="table table-hover table-sm mb-0 align-middle text-center">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>Thiết bị</th>
+                <th>Ngày ghi nhận</th>
+                <th>Chỉ số</th>
+                <th class="admin-only d-none">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="monitoring-table-body">
+              <tr><td colspan="4" class="text-center text-muted py-5">
+                <div class="spinner-border spinner-border-sm text-primary" role="status"></div><span class="ms-2">Đang tải...</span>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/monitoring.js' %}?v=4"></script>
+{% endblock %}

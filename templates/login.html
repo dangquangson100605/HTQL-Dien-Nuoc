@@ -1,41 +1,97 @@
 {% extends "base.html" %}
-{% load static %}
 
-{% block title %}Đăng nhập · Hạ tầng điện nước{% endblock %}
+{% block title %}Đăng nhập — Quản lý hạ tầng{% endblock %}
 
 {% block body %}
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-  <div class="container">
-    <span class="navbar-brand mb-0 h1">Quản lý hạ tầng</span>
-  </div>
-</nav>
-
-<div class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-md-5 col-lg-4">
-      <div class="card shadow-sm border-0">
-        <div class="card-body p-4">
-          <h2 class="h4 mb-3 text-center">Đăng nhập</h2>
-          <p class="text-muted small text-center mb-4">Sử dụng tài khoản được cấp để vào bản đồ và danh sách thiết bị.</p>
-          <div id="login-alert" class="alert alert-danger py-2 small d-none" role="alert"></div>
-          <form id="login-form" novalidate>
-            <div class="mb-3">
-              <label for="username" class="form-label">Tên đăng nhập</label>
-              <input type="text" class="form-control" id="username" name="username" required autocomplete="username">
-            </div>
-            <div class="mb-3">
-              <label for="password" class="form-label">Mật khẩu</label>
-              <input type="password" class="form-control" id="password" name="password" required autocomplete="current-password">
-            </div>
-            <button type="submit" class="btn btn-primary w-100" id="login-submit">Đăng nhập</button>
-          </form>
+<div class="login-wrapper">
+  <div class="login-card">
+    <div class="text-center mb-4">
+      <i class="bi bi-geo-alt-fill text-primary" style="font-size: 3rem;"></i>
+    </div>
+    <h1 class="login-title">Đăng nhập</h1>
+    <p class="login-subtitle">Hệ thống Quản lý Hạ tầng Đô thị</p>
+    
+    <div id="login-alert" class="alert alert-danger py-2 small d-none" role="alert"></div>
+    
+    <form id="login-form">
+      <div class="mb-3">
+        <label for="username" class="form-label fw-semibold small text-muted">Tên đăng nhập</label>
+        <div class="input-group">
+          <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-person text-muted"></i></span>
+          <input type="text" class="form-control border-start-0 ps-0" id="username" required placeholder="Nhập tài khoản...">
         </div>
       </div>
+      <div class="mb-4">
+        <label for="password" class="form-label fw-semibold small text-muted">Mật khẩu</label>
+        <div class="input-group">
+          <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-lock text-muted"></i></span>
+          <input type="password" class="form-control border-start-0 ps-0" id="password" required placeholder="Nhập mật khẩu...">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary w-100 py-2 d-flex align-items-center justify-content-center gap-2" id="btn-submit">
+        <span>Đăng nhập</span>
+        <div class="spinner-border spinner-border-sm d-none" id="login-spinner" role="status"></div>
+      </button>
+    </form>
+    
+    <div class="text-center mt-4 pt-3 border-top">
+      <p class="text-muted small mb-0">&copy; 2026 Nhóm 2 - Quản lý Dự án</p>
     </div>
   </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/login.js' %}?v=3"></script>
+<script>
+  const API_LOGIN = '/api/auth/login/';
+  const form = document.getElementById('login-form');
+  const alertEl = document.getElementById('login-alert');
+  const btnSubmit = document.getElementById('btn-submit');
+  const spinner = document.getElementById('login-spinner');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    alertEl.classList.add('d-none');
+    
+    // Show spinner
+    btnSubmit.disabled = true;
+    spinner.classList.remove('d-none');
+    
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+
+    try {
+      const res = await fetch(API_LOGIN, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json().catch(() => ({}));
+      
+      if (!res.ok) {
+        const errMsg = data.detail || '';
+        const msgVi = errMsg.toLowerCase().includes('no active account')
+          ? 'Tên đăng nhập hoặc mật khẩu không chính xác.'
+          : errMsg.toLowerCase().includes('locked') || errMsg.toLowerCase().includes('disabled')
+          ? 'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.'
+          : errMsg || 'Đăng nhập thất bại. Kiểm tra lại thông tin.';
+        alertEl.textContent = msgVi;
+        alertEl.classList.remove('d-none');
+      } else {
+        localStorage.setItem('infra_access', data.access);
+        localStorage.setItem('infra_refresh', data.refresh);
+        localStorage.setItem('infra_role', data.role);
+        localStorage.setItem('infra_username', data.username);
+        window.location.href = '/app/';
+      }
+    } catch (err) {
+      alertEl.textContent = 'Lỗi kết nối máy chủ.';
+      alertEl.classList.remove('d-none');
+    } finally {
+      // Hide spinner
+      btnSubmit.disabled = false;
+      spinner.classList.add('d-none');
+    }
+  });
+</script>
 {% endblock %}

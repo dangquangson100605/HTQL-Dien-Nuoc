@@ -79,6 +79,24 @@ Dang nhap/phan quyen chay duoc + map co ban + CRUD asset toi thieu.
 ### Tong uoc luong Sprint 1
 - **Tong SP (cac chunk): 50**
 
+### Stretch Goals (Additional Backlogs) de lam them neu xong som
+8. **Advanced Authentication** (Owner: A_BE + B_FE, Labels: nice_to_have week1)
+   - PB30: "Là Người dùng, tôi muốn Mở form đổi mật khẩu"
+   - PB31: "Là Người dùng, tôi muốn Nhập mật khẩu cũ để xác nhận"
+   - PB32: "Là Người dùng, tôi muốn Nhập mật khẩu mới"
+   - PB33: "Là Hệ thống, tôi muốn Kiểm tra mật khẩu cũ đúng"
+   - PB34: "Là Hệ thống, tôi muốn Cập nhật mật khẩu mới"
+   - PB41: "Là Hệ thống, tôi muốn Giới hạn số lần đăng nhập sai"
+   - PB42: "Là Hệ thống, tôi muốn Tự động đăng xuất khi không hoạt động"
+9. **User Management Enhancement** (Owner: C_FS_QA, Labels: nice_to_have week1)
+   - PB26: "Là Quản trị viên, tôi muốn Khoá tài khoản để ngăn truy cập"
+   - PB27: "Là Hệ thống, tôi muốn Từ chối đăng nhập nếu tài khoản bị khoá"
+   - PB28: "Là Người dùng, tôi muốn Thấy thông báo khi tài khoản bị khoá"
+   - PB29: "Là Quản trị viên, tôi muốn Mở khoá tài khoản để cho phép sử dụng lại"
+   - PB277: "Là Hệ thống, tôi muốn Ghi lại hoạt động người dùng"
+   - PB278: "Là Quản trị viên, tôi muốn Xem lịch sử hoạt động"
+   - PB279: "Là Hệ thống, tôi muốn Lưu log vào database"
+
 ## Sprint 2 (Week 2) - Asset finish + Monitoring
 ### Goal
 Hoan tat quan ly thiet bi + nhap/xem monitoring.
@@ -116,6 +134,24 @@ Hoan tat quan ly thiet bi + nhap/xem monitoring.
 
 ### Tong uoc luong Sprint 2
 - **Tong SP (cac chunk): 40**
+
+### Stretch Goals (Additional Backlogs) de lam them neu xong som
+7. **Asset Advanced UX** (Owner: B_FE, Labels: nice_to_have week2)
+   - PB67: "Là Người dùng, tôi muốn Lọc thiết bị theo loại (điện/nước)"
+   - PB68: "Là Người dùng, tôi muốn Tìm kiếm thiết bị theo tên"
+   - PB111: "Là Người dùng, tôi muốn Phân trang danh sách"
+   - PB112: "Là Người dùng, tôi muốn Sắp xếp danh sách theo tên"
+8. **Import / Export** (Owner: A_BE, Labels: nice_to_have week2)
+   - PB133: "Là Quản trị viên, tôi muốn Import danh sách thiết bị từ file"
+   - PB134: "Là Hệ thống, tôi muốn Đọc dữ liệu từ file CSV/Excel"
+   - PB135: "Là Quản trị viên, tôi muốn Export danh sách thiết bị"
+   - PB136: "Là Hệ thống, tôi muốn Xuất dữ liệu ra file"
+9. **Map Routing (Mở rộng)** (Owner: B_FE, Labels: nice_to_have week2)
+   - PB72: "Là Hệ thống, tôi muốn Hiển thị tuyến điện trên bản đồ"
+   - PB73: "Là Hệ thống, tôi muốn Hiển thị tuyến nước trên bản đồ"
+   - PB74: "Là Hệ thống, tôi muốn Vẽ đường nối giữa các điểm thiết bị"
+   - PB75: "Là Người dùng, tôi muốn Phân biệt tuyến điện và nước bằng màu sắc"
+   - PB76: "Là Hệ thống, tôi muốn Cập nhật tuyến khi dữ liệu thay đổi"
 
 ## Sprint 3 (Week 3) - Incident workflow
 ### Goal
@@ -155,6 +191,21 @@ Public bao su co -> nhan vien xem -> admin phan cong -> ky thuat vien cap nhat.
 ### Tong uoc luong Sprint 3
 - **Tong SP (cac chunk): 50**
 
+### Stretch Goals (Additional Backlogs) de lam them neu xong som
+7. **Incident Advanced Workflow** (Owner: A_BE + C_FS_QA, Labels: nice_to_have week3)
+   - PB227: "Là Quản trị viên, tôi muốn Phân loại sự cố theo mức độ"
+   - PB320: "Là Kỹ thuật viên, tôi muốn Upload ảnh sau khi sửa"
+   - PB321: "Là Kỹ thuật viên, tôi muốn Ghi chú quá trình sửa"
+   - PB322: "Là Hệ thống, tôi muốn Lưu dữ liệu sửa chữa"
+8. **Public Portal Enhancement** (Owner: B_FE, Labels: nice_to_have week3)
+   - PB297: "Là Người dân, tôi muốn Tra cứu mức tiêu thụ điện/nước"
+   - PB298: "Là Người dân, tôi muốn Nhập mã thiết bị hoặc khu vực"
+   - PB299: "Là Hệ thống, tôi muốn Hiển thị dữ liệu tiêu thụ"
+   - PB300: "Là Người dân, tôi muốn Xem lịch sử tiêu thụ"
+   - PB324: "Là Người dân, tôi muốn Đánh giá chất lượng xử lý"
+   - PB325: "Là Người dân, tôi muốn Cho điểm mức độ hài lòng"
+   - PB326: "Là Hệ thống, tôi muốn Lưu đánh giá"
+
 ## Sprint 4 (Week 4) - Notification + Reporting + hardening
 ### Goal
 Thong bao theo vong doi su co, dashboard tong quan, chot demo on dinh.
@@ -186,6 +237,16 @@ Thong bao theo vong doi su co, dashboard tong quan, chot demo on dinh.
 
 ### Tong uoc luong Sprint 4
 - **Tong SP (cac chunk): 45**
+
+### Stretch Goals (Additional Backlogs) de lam them neu xong som
+6. **Advanced Notification** (Owner: A_BE + B_FE, Labels: nice_to_have week4)
+   - PB364: "Là Người dùng, tôi muốn Bật/tắt thông báo"
+   - PB365: "Là Người dùng, tôi muốn Chọn loại thông báo nhận"
+   - PB371: "Là Người dùng, tôi muốn Thấy số thông báo mới"
+7. **Advanced Reporting** (Owner: C_FS_QA, Labels: nice_to_have week4)
+   - PB402: "Là Hệ thống, tôi muốn Xuất file Excel"
+   - PB403: "Là Hệ thống, tôi muốn Xuất file PDF"
+   - PB417: "Là Hệ thống, tôi muốn Hiển thị dữ liệu thống kê trên bản đồ"
 
 ---
 

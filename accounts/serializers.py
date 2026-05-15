@@ -1,7 +1,8 @@
 from django.contrib.auth import login as django_login
+from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .models import User
+from .models import User, AuditLog
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -25,3 +26,39 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data["username"] = user.username
         data["user_id"] = user.id
         return data
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "username", "email", "role", "password", "is_active"]
+        extra_kwargs = {"password": {"write_only": True, "required": False}}
+
+    def create(self, validated_data):
+        password = validated_data.pop("password", None)
+        user = super().create(validated_data)
+        if password:
+            user.set_password(password)
+            user.save()
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop("password", None)
+        user = super().update(instance, validated_data)
+        if password:
+            user.set_password(password)
+            user.save()
+        return user
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = AuditLog
+        fields = ['id', 'user', 'username', 'action', 'path', 'ip_address', 'timestamp', 'details']

@@ -1,7 +1,107 @@
+:root {
+  --primary: #0ea5e9;
+  --primary-dark: #0284c7;
+  --bg-light: #f8fafc;
+  --text-main: #1e293b;
+  --card-bg: rgba(255, 255, 255, 0.95);
+  --glass-bg: rgba(255, 255, 255, 0.85);
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-light);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Glassmorphism Navbar */
+.navbar {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.navbar-brand {
+  color: var(--primary-dark) !important;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.navbar .nav-link, .navbar a.text-white {
+  color: var(--text-main) !important;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.navbar a.text-white:hover {
+  color: var(--primary) !important;
+}
+
+/* Cards & Containers */
+.card {
+  background: var(--card-bg);
+  border: 1px solid rgba(0,0,0,0.04) !important;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-header {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+}
+
+/* Buttons */
+.btn {
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+
+/* Tables */
+.table {
+  --bs-table-bg: transparent;
+}
+.table th {
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+  border-bottom-width: 1px;
+}
+.table td {
+  vertical-align: middle;
+  padding: 1rem 0.75rem;
+}
+.table-hover tbody tr {
+  transition: background-color 0.15s ease;
+}
+.table-hover tbody tr:hover {
+  background-color: rgba(14, 165, 233, 0.05) !important;
+}
+
+/* Specific App styles */
 .map-shell {
   height: min(70vh, 560px);
   min-height: 320px;
   width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
   z-index: 1;
 }
 
@@ -10,27 +110,109 @@
   overflow-y: auto;
 }
 
-.table td {
-  vertical-align: middle;
-}
-
 .leaflet-popup-content {
-  margin: 10px 12px;
-  line-height: 1.4;
+  margin: 12px 16px;
+  line-height: 1.5;
+  font-family: 'Inter', sans-serif;
 }
 
 .device-popup-title {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 1.1rem;
   margin-bottom: 0.25rem;
+  color: var(--text-main);
 }
 
-/* Tắt chế độ chặn click của lớp mờ Modal Bootstrap */
-#device-modal.modal {
-  pointer-events: none;
-}
-
-/* Đảm bảo khung nhập liệu màu trắng (Modal Content) vẫn bấm được */
+/* Modal tweaks */
+#device-modal.modal { pointer-events: none; }
 #device-modal .modal-content {
   pointer-events: auto;
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15); /* Thêm đổ bóng cho đẹp vì đã tắt lớp nền đen */
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Forms */
+.form-control, .form-select {
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  padding: 0.5rem 0.75rem;
+  transition: all 0.2s;
+}
+.form-control:focus, .form-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.25);
+}
+
+/* Alerts */
+.alert {
+  border-radius: 10px;
+  border: none;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+}
+
+/* Spinners & Animations */
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Map Route Animation */
+.route-animated {
+  stroke-dasharray: 10, 10;
+  animation: dash 20s linear infinite;
+}
+@keyframes dash {
+  to {
+    stroke-dashoffset: -1000;
+  }
+}
+
+/* Custom Login Page */
+.login-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  position: relative;
+  overflow: hidden;
+}
+.login-wrapper::before {
+  content: '';
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(14,165,233,0.1) 0%, rgba(255,255,255,0) 70%);
+  top: -200px;
+  left: -200px;
+  border-radius: 50%;
+}
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--card-bg);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  padding: 2.5rem;
+  position: relative;
+  z-index: 10;
+  animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.login-title {
+  font-weight: 800;
+  font-size: 1.75rem;
+  color: var(--text-main);
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+.login-subtitle {
+  color: #64748b;
+  text-align: center;
+  margin-bottom: 2rem;
+  font-size: 0.95rem;
 }

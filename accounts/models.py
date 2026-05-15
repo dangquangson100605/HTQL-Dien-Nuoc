@@ -17,6 +17,7 @@ class User(AbstractUser):
         default=Role.CITIZEN,
         verbose_name="Vai trò",
     )
+    failed_login_attempts = models.IntegerField(default=0, verbose_name="Số lần đăng nhập sai")
 
     def save(self, *args, **kwargs):
         if self.is_superuser:
@@ -25,3 +26,18 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
+
+
+class AuditLog(models.Model):
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='audit_logs', verbose_name="Người dùng")
+    action = models.CharField(max_length=50, verbose_name="Hành động")
+    path = models.CharField(max_length=255, verbose_name="Đường dẫn", blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name="Địa chỉ IP")
+    timestamp = models.DateTimeField(auto_now_add=True, verbose_name="Thời gian")
+    details = models.JSONField(null=True, blank=True, verbose_name="Chi tiết")
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.user} - {self.action} at {self.timestamp}"
