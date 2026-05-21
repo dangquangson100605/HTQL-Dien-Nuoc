@@ -78,18 +78,51 @@
   }
 
   async function loadStats() {
-    const res = await apiFetch('/api/incidents/stats/');
-    if (!res.ok) {
-      document.querySelectorAll('.display-6').forEach(el => el.textContent = 'N/A');
+    // Fetch network summary (accessible to all authenticated users)
+    let summary = null;
+    try {
+      const summaryRes = await apiFetch('/api/network/summary/');
+      if (summaryRes.ok) {
+        summary = await summaryRes.json();
+      }
+    } catch (e) {
+      console.error("Failed to fetch network summary:", e);
+    }
+
+    // Populate KPI cards if summary was successfully fetched
+    if (summary) {
+      document.getElementById('stat-devices').textContent = summary.total_devices ?? 0;
+      document.getElementById('stat-total-edges').textContent = summary.total_edges ?? 0;
+      document.getElementById('stat-fault-devices').textContent = summary.fault_devices ?? 0;
+      document.getElementById('stat-fault-edges').textContent = summary.fault_edges ?? 0;
+      document.getElementById('stat-open').textContent = summary.open_incidents ?? 0;
+      document.getElementById('stat-in-progress').textContent = (summary.in_progress_incidents ?? 0) + (summary.assigned_incidents ?? 0);
+      document.getElementById('stat-resolved').textContent = summary.resolved_incidents ?? 0;
+    } else {
+      document.getElementById('stat-devices').textContent = 'N/A';
+      document.getElementById('stat-total-edges').textContent = 'N/A';
+      document.getElementById('stat-fault-devices').textContent = 'N/A';
+      document.getElementById('stat-fault-edges').textContent = 'N/A';
+      document.getElementById('stat-open').textContent = 'N/A';
+      document.getElementById('stat-in-progress').textContent = 'N/A';
+      document.getElementById('stat-resolved').textContent = 'N/A';
+    }
+
+    // Fetch detailed stats for charts (accessible only to ADMIN)
+    let stats = null;
+    try {
+      const res = await apiFetch('/api/incidents/stats/');
+      if (res.ok) {
+        stats = await res.json();
+      }
+    } catch (e) {
+      console.error("Failed to fetch detailed incident stats:", e);
+    }
+
+    if (!stats) {
+      console.log("Detailed stats not available (likely non-ADMIN role), skipping charts.");
       return;
     }
-    const stats = await res.json();
-
-    // Cards
-    document.getElementById('stat-devices').textContent = stats.total_devices ?? 0;
-    document.getElementById('stat-open').textContent = stats.by_status?.OPEN ?? 0;
-    document.getElementById('stat-in-progress').textContent = (stats.by_status?.IN_PROGRESS ?? 0) + (stats.by_status?.ASSIGNED ?? 0);
-    document.getElementById('stat-resolved').textContent = stats.by_status?.RESOLVED ?? 0;
 
     // Chart: status
     const statusLabels = { OPEN: 'Mới', ASSIGNED: 'Phân công', IN_PROGRESS: 'Đang xử lý', RESOLVED: 'Đã xử lý', CLOSED: 'Đóng' };

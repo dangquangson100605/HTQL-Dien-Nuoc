@@ -27,10 +27,10 @@
 
 <div class="container-fluid py-3">
 
-  <!-- Thẻ thống kê tổng quan -->
+  <!-- Thẻ thống kê hạ tầng mạng lưới -->
   <div class="row g-3 mb-3">
     <div class="col-6 col-lg-3">
-      <div class="card border-0 shadow-sm text-center py-3 h-100">
+      <div class="card border-0 shadow-sm text-center py-3 h-100" style="border-left: 4px solid #0ea5e9 !important;">
         <div class="card-body">
           <div class="display-6 fw-bold text-primary" id="stat-devices">—</div>
           <div class="text-muted small mt-1"><i class="bi bi-cpu me-1"></i> Tổng thiết bị</div>
@@ -38,26 +38,54 @@
       </div>
     </div>
     <div class="col-6 col-lg-3">
+      <div class="card border-0 shadow-sm text-center py-3 h-100" style="border-left: 4px solid #3b82f6 !important;">
+        <div class="card-body">
+          <div class="display-6 fw-bold text-info" id="stat-total-edges">—</div>
+          <div class="text-muted small mt-1"><i class="bi bi-bezier2 me-1"></i> Tổng tuyến</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card border-0 shadow-sm text-center py-3 h-100" style="border-left: 4px solid #f97316 !important;">
+        <div class="card-body">
+          <div class="display-6 fw-bold text-warning" id="stat-fault-devices">—</div>
+          <div class="text-muted small mt-1"><i class="bi bi-exclamation-triangle me-1"></i> Thiết bị đang lỗi</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card border-0 shadow-sm text-center py-3 h-100" style="border-left: 4px solid #ef4444 !important;">
+        <div class="card-body">
+          <div class="display-6 fw-bold text-danger" id="stat-fault-edges">—</div>
+          <div class="text-muted small mt-1"><i class="bi bi-slash-circle me-1"></i> Tuyến đang lỗi</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Thẻ thống kê sự cố -->
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-4">
       <div class="card border-0 shadow-sm text-center py-3 h-100" style="border-left: 4px solid #ef4444 !important;">
         <div class="card-body">
           <div class="display-6 fw-bold text-danger" id="stat-open">—</div>
-          <div class="text-muted small mt-1"><i class="bi bi-exclamation-circle me-1"></i> Sự cố mới</div>
+          <div class="text-muted small mt-1"><i class="bi bi-exclamation-circle me-1"></i> Sự cố đang mở</div>
         </div>
       </div>
     </div>
-    <div class="col-6 col-lg-3">
+    <div class="col-12 col-md-4">
       <div class="card border-0 shadow-sm text-center py-3 h-100" style="border-left: 4px solid #f59e0b !important;">
         <div class="card-body">
           <div class="display-6 fw-bold text-warning" id="stat-in-progress">—</div>
-          <div class="text-muted small mt-1"><i class="bi bi-tools me-1"></i> Đang xử lý</div>
+          <div class="text-muted small mt-1"><i class="bi bi-tools me-1"></i> Sự cố đang xử lý</div>
         </div>
       </div>
     </div>
-    <div class="col-6 col-lg-3">
+    <div class="col-12 col-md-4">
       <div class="card border-0 shadow-sm text-center py-3 h-100" style="border-left: 4px solid #22c55e !important;">
         <div class="card-body">
           <div class="display-6 fw-bold text-success" id="stat-resolved">—</div>
-          <div class="text-muted small mt-1"><i class="bi bi-check-circle me-1"></i> Đã giải quyết</div>
+          <div class="text-muted small mt-1"><i class="bi bi-check-circle me-1"></i> Sự cố đã hoàn thành</div>
         </div>
       </div>
     </div>

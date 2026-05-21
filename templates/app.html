@@ -5,6 +5,43 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+  .custom-device-marker {
+    background: transparent !important;
+    border: none !important;
+  }
+  .marker-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid white;
+    color: white;
+    font-size: 14px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+    transition: all 0.2s ease-in-out;
+  }
+  .marker-wrapper:hover {
+    transform: scale(1.15);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  }
+  @keyframes pulse-danger-glow {
+    0% {
+      box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+    }
+  }
+  .pulse-danger {
+    animation: pulse-danger-glow 1.5s infinite;
+  }
+</style>
 {% endblock %}
 
 {% block body %}
@@ -65,11 +102,21 @@
             <div class="col-6 col-md-4">
               <select id="filter-type" class="form-select form-select-sm">
                 <option value="">Tất cả loại</option>
-                <option value="ELECTRIC_POLE">Trụ điện</option>
-                <option value="ELECTRIC_METER">Công tơ điện</option>
-                <option value="WATER_METER">Đồng hồ nước</option>
-                <option value="TRANSFORMER">Trạm biến áp</option>
-                <option value="VALVE">Van nước</option>
+                <optgroup label="Nhóm điện">
+                  <option value="TRANSFORMER">Trạm biến áp</option>
+                  <option value="DISTRIBUTION_BOX">Tủ điện / tủ phân phối</option>
+                  <option value="ELECTRIC_POLE">Trụ điện</option>
+                  <option value="ELECTRIC_JUNCTION">Điểm nối điện</option>
+                  <option value="ELECTRIC_METER">Công tơ điện</option>
+                </optgroup>
+                <optgroup label="Nhóm nước">
+                  <option value="WATER_TANK">Bể nước</option>
+                  <option value="PUMP_STATION">Trạm bơm</option>
+                  <option value="MAIN_VALVE">Van tổng</option>
+                  <option value="BRANCH_VALVE">Van nhánh</option>
+                  <option value="WATER_JUNCTION">Điểm nối nước</option>
+                  <option value="WATER_METER">Đồng hồ nước</option>
+                </optgroup>
               </select>
             </div>
             <div class="col-6 col-md-3">
@@ -133,19 +180,48 @@
             <div class="col-md-6">
               <label for="device-type" class="form-label">Loại</label>
               <select class="form-select" id="device-type" required>
-                <option value="ELECTRIC_POLE">Trụ điện</option>
-                <option value="ELECTRIC_METER">Công tơ điện</option>
-                <option value="WATER_METER">Đồng hồ nước</option>
-                <option value="TRANSFORMER">Trạm biến áp</option>
-                <option value="VALVE">Van nước</option>
+                <optgroup label="Nhóm điện">
+                  <option value="TRANSFORMER">Trạm biến áp</option>
+                  <option value="DISTRIBUTION_BOX">Tủ điện / tủ phân phối</option>
+                  <option value="ELECTRIC_POLE">Trụ điện</option>
+                  <option value="ELECTRIC_JUNCTION">Điểm nối điện</option>
+                  <option value="ELECTRIC_METER">Công tơ điện</option>
+                </optgroup>
+                <optgroup label="Nhóm nước">
+                  <option value="WATER_TANK">Bể nước</option>
+                  <option value="PUMP_STATION">Trạm bơm</option>
+                  <option value="MAIN_VALVE">Van tổng</option>
+                  <option value="BRANCH_VALVE">Van nhánh</option>
+                  <option value="WATER_JUNCTION">Điểm nối nước</option>
+                  <option value="WATER_METER">Đồng hồ nước</option>
+                </optgroup>
               </select>
             </div>
+            <div class="col-md-6">
+              <label for="device-status" class="form-label">Trạng thái mạng</label>
+              <select class="form-select" id="device-status" required>
+                <option value="ACTIVE">Hoạt động</option>
+                <option value="FAULT">Lỗi trực tiếp</option>
+                <option value="MAINTENANCE">Đang bảo trì</option>
+                <option value="INACTIVE">Ngưng hoạt động</option>
+              </select>
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
             <div class="col-md-6">
               <label for="device-parent" class="form-label">Nguồn cấp (Tùy chọn)</label>
               <select class="form-select" id="device-parent">
                 <option value="">-- Không có --</option>
               </select>
             </div>
+            <div class="col-md-6">
+              <label for="device-area" class="form-label">Khu vực</label>
+              <input type="text" class="form-control" id="device-area" placeholder="Khu vực Q1, Q2...">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="device-address" class="form-label">Địa chỉ</label>
+            <input type="text" class="form-control" id="device-address" placeholder="Địa chỉ chi tiết...">
           </div>
           <div class="row g-2">
             <div class="col-md-6">
@@ -222,6 +298,93 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
         <button type="button" class="btn btn-primary" id="cp-save">Đổi mật khẩu</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Báo sự cố từ bản đồ -->
+<div class="modal fade" id="report-incident-modal" data-bs-backdrop="false" tabindex="-1" aria-labelledby="report-incident-modal-title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="report-incident-modal-title">
+          <i class="bi bi-exclamation-triangle-fill text-danger me-1"></i> Báo cáo sự cố
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <div id="report-modal-alert" class="alert alert-danger py-2 small d-none"></div>
+        <form id="report-incident-form">
+          <input type="hidden" id="report-target-type" value="UNKNOWN">
+          <input type="hidden" id="report-device-id" value="">
+          <input type="hidden" id="report-edge-id" value="">
+          
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Đối tượng báo cáo</label>
+            <div id="report-target-desc" class="p-2 bg-light rounded border small text-secondary">
+              Vị trí bất kỳ trên bản đồ
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="report-title" class="form-label fw-semibold">Tiêu đề sự cố</label>
+            <input type="text" class="form-control" id="report-title" placeholder="VD: Bể nước rò rỉ, Cột điện đổ..." required maxlength="200">
+            <div class="invalid-feedback">Vui lòng nhập tiêu đề sự cố hợp lệ.</div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label for="report-incident-type" class="form-label fw-semibold">Loại sự cố</label>
+              <select class="form-select" id="report-incident-type" required>
+                <option value="ELECTRIC">Điện</option>
+                <option value="WATER">Nước</option>
+                <option value="OTHER">Khác</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="report-severity" class="form-label fw-semibold">Mức độ nghiêm trọng</label>
+              <select class="form-select" id="report-severity" required>
+                <option value="LOW">Thấp</option>
+                <option value="MEDIUM" selected>Trung bình</option>
+                <option value="HIGH">Cao</option>
+                <option value="CRITICAL">Khẩn cấp</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label for="report-lat" class="form-label fw-semibold">Vĩ độ</label>
+              <input type="number" step="any" class="form-control" id="report-lat" readonly required>
+            </div>
+            <div class="col-md-6">
+              <label for="report-lng" class="form-label fw-semibold">Kinh độ</label>
+              <input type="number" step="any" class="form-control" id="report-lng" readonly required>
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label for="report-area" class="form-label fw-semibold">Khu vực</label>
+              <input type="text" class="form-control" id="report-area" placeholder="VD: Quận 1, Phường 5...">
+            </div>
+            <div class="col-md-6">
+              <label for="report-address" class="form-label fw-semibold">Địa chỉ chi tiết</label>
+              <input type="text" class="form-control" id="report-address" placeholder="Số nhà, tên đường...">
+            </div>
+          </div>
+
+          <div class="mb-0">
+            <label for="report-description" class="form-label fw-semibold">Mô tả chi tiết</label>
+            <textarea class="form-control" id="report-description" rows="3" placeholder="Mô tả cụ thể hiện trạng sự cố..." required></textarea>
+            <div class="invalid-feedback">Vui lòng nhập mô tả chi tiết sự cố.</div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-danger" id="btn-report-submit">Gửi báo cáo</button>
       </div>
     </div>
   </div>

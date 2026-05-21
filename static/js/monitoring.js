@@ -85,41 +85,28 @@
     VALVE: 'Van nước',
   };
 
-  async function loadDevices() {
-    const res = await apiFetch(`${API.devices}?page_size=999`);
-    if (!res.ok) return;
-    const data = await res.json();
-    // Handle paginated or flat response
-    const devices = data.results !== undefined ? data.results : data;
-    
-    const inputSelect = document.getElementById('input-device');
-    const filterSelect = document.getElementById('filter-device');
-    
-    const inputOptions = devices
-      .filter(d => d.device_type === 'WATER_METER' || d.device_type === 'ELECTRIC_METER')
-      .map(d => {
-        const label = DEVICE_LABELS[d.device_type] || d.device_type;
-        return `<option value="${d.id}">${d.name} (${label})</option>`;
-      }).join('');
-      
-    const filterOptions = devices.map(d => {
-      const label = DEVICE_LABELS[d.device_type] || d.device_type;
-      return `<option value="${d.id}">${d.name} (${label})</option>`;
-    }).join('');
-    
-    if (inputSelect) inputSelect.innerHTML = '<option value="">-- Chọn đồng hồ / công tơ --</option>' + inputOptions;
-    if (filterSelect) filterSelect.innerHTML = '<option value="">Tất cả thiết bị</option>' + filterOptions;
-  }
-
   async function loadConsumptions() {
-    const deviceId = document.getElementById('filter-device').value;
-    const startDate = document.getElementById('filter-start').value;
-    const endDate = document.getElementById('filter-end').value;
+    const deviceCode = document.getElementById('filter-device-code').value.trim();
+    const startMonth = document.getElementById('filter-start').value;
+    const endMonth = document.getElementById('filter-end').value;
+
+    if (!deviceCode) {
+      const tbody = document.getElementById('monitoring-table-body');
+      if (tbody) {
+        const admin = isAdmin();
+        tbody.innerHTML = `<tr><td colspan="${admin ? 4 : 3}" class="text-muted py-4">Vui lòng nhập mã công tơ / mã đồng hồ để tra cứu</td></tr>`;
+      }
+      if (chartInstance) {
+        chartInstance.destroy();
+        chartInstance = null;
+      }
+      return;
+    }
 
     const params = new URLSearchParams();
-    if (deviceId) params.append('device_id', deviceId);
-    if (startDate) params.append('start_date', startDate);
-    if (endDate) params.append('end_date', endDate);
+    params.append('device_code', deviceCode);
+    if (startMonth) params.append('start_date', startMonth + '-01');
+    if (endMonth) params.append('end_date', endMonth + '-01');
 
     const res = await apiFetch(`${API.consumptions}?${params.toString()}`);
     if (!res.ok) {
@@ -135,7 +122,7 @@
     const tbody = document.getElementById('monitoring-table-body');
     const admin = isAdmin();
     if (!data.length) {
-      tbody.innerHTML = `<tr><td colspan="${admin ? 4 : 3}" class="text-muted py-4">Không có dữ liệu</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="${admin ? 4 : 3}" class="text-muted py-4">Không có dữ liệu tiêu thụ cho thiết bị này</td></tr>`;
       return;
     }
 
@@ -144,11 +131,15 @@
         <td class="admin-only">
           <button class="btn btn-sm btn-outline-danger btn-del" data-id="${row.id}">Xóa</button>
         </td>` : '';
+      
+      const parts = row.date.split('-');
+      const formattedMonth = parts.length >= 2 ? `Tháng ${parts[1]}/${parts[0]}` : row.date;
+
       return `
         <tr>
-          <td>${row.device_name}</td>
-          <td>${row.date}</td>
-          <td>${row.value}</td>
+          <td>${row.device_name} (${row.device_type === 'WATER_METER' ? 'Nước' : 'Điện'})</td>
+          <td>${formattedMonth}</td>
+          <td><strong>${row.value}</strong> ${row.device_type === 'WATER_METER' ? 'm³' : 'kWh'}</td>
           ${actions}
         </tr>
       `;
@@ -174,15 +165,19 @@
       agg[row.date] = (agg[row.date] || 0) + row.value;
     });
 
-    const labels = Object.keys(agg).sort();
-    const values = labels.map(l => agg[l]);
+    const sortedDates = Object.keys(agg).sort();
+    const labels = sortedDates.map(dateStr => {
+      const parts = dateStr.split('-');
+      return parts.length >= 2 ? `T${parts[1]}/${parts[0]}` : dateStr;
+    });
+    const values = sortedDates.map(l => agg[l]);
 
     if (chartInstance) {
       chartInstance.destroy();
     }
 
     const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 300);
-    gradient.addColorStop(0, 'rgba(14, 165, 233, 0.8)'); // var(--primary) with opacity
+    gradient.addColorStop(0, 'rgba(14, 165, 233, 0.8)');
     gradient.addColorStop(1, 'rgba(14, 165, 233, 0.2)');
 
     chartInstance = new Chart(ctx, {
@@ -190,7 +185,7 @@
       data: {
         labels: labels,
         datasets: [{
-          label: 'Tổng tiêu thụ',
+          label: 'Chỉ số tiêu thụ',
           data: values,
           backgroundColor: gradient,
           borderColor: '#0ea5e9',
@@ -231,18 +226,41 @@
   async function handleInputSubmit(e) {
     e.preventDefault();
     const valInput = document.getElementById('input-value');
-    valInput.classList.remove('is-invalid');
+    const codeInput = document.getElementById('input-device-code');
+    const dateInput = document.getElementById('input-date');
     
-    const body = {
-      device: document.getElementById('input-device').value,
-      date: document.getElementById('input-date').value,
-      value: parseFloat(valInput.value),
-    };
-
-    if (body.value < 0) {
+    valInput.classList.remove('is-invalid');
+    codeInput.classList.remove('is-invalid');
+    
+    const deviceCode = codeInput.value.trim();
+    const value = parseFloat(valInput.value);
+    const monthVal = dateInput.value;
+    
+    if (value < 0) {
       valInput.classList.add('is-invalid');
       return;
     }
+
+    // Lookup device ID by unique code
+    const devRes = await apiFetch(`${API.devices}?code=${encodeURIComponent(deviceCode)}`);
+    if (!devRes.ok) {
+      showAlert('Lỗi khi kiểm tra thiết bị');
+      return;
+    }
+    const devData = await devRes.json();
+    const devices = devData.results !== undefined ? devData.results : devData;
+    if (!devices || devices.length === 0) {
+      showAlert('Không tìm thấy thiết bị nào trùng khớp với mã đã nhập!', false);
+      codeInput.classList.add('is-invalid');
+      return;
+    }
+    
+    const deviceId = devices[0].id;
+    const body = {
+      device: deviceId,
+      date: monthVal + '-01',
+      value: value,
+    };
 
     const res = await apiFetch(API.consumptions, {
       method: 'POST',
@@ -250,11 +268,17 @@
     });
     const result = await res.json().catch(()=>({}));
     if (!res.ok) {
-      showAlert(result.detail || result.non_field_errors || 'Lỗi khi lưu dữ liệu (Có thể trùng ngày)', false);
+      showAlert(result.detail || result.non_field_errors || 'Lỗi khi ghi nhận (Có thể chỉ số của tháng này đã được ghi nhận trước đó)', false);
       return;
     }
-    showAlert('Lưu dữ liệu thành công', true);
+    showAlert('Lưu chỉ số tiêu thụ thành công', true);
+    
     document.getElementById('monitoring-form').reset();
+    document.getElementById('filter-device-code').value = deviceCode;
+    
+    const now = new Date();
+    document.getElementById('input-date').value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    
     loadConsumptions();
   }
 
@@ -306,14 +330,16 @@
     });
 
     document.getElementById('btn-clear-filter').addEventListener('click', () => {
-      document.getElementById('filter-device').value = '';
+      document.getElementById('filter-device-code').value = '';
       document.getElementById('filter-start').value = '';
       document.getElementById('filter-end').value = '';
       loadConsumptions();
     });
 
-    // Initialize
-    document.getElementById('input-date').valueAsDate = new Date();
-    loadDevices().then(loadConsumptions);
+    // Set default month input
+    const now = new Date();
+    document.getElementById('input-date').value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    
+    loadConsumptions();
   });
 })();

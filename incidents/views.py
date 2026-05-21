@@ -27,14 +27,14 @@ class IncidentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Incident.objects.select_related('reported_by', 'assigned_to', 'device').prefetch_related('notes')
+        qs = Incident.objects.select_related('reported_by', 'assigned_to', 'device', 'edge', 'confirmed_by').prefetch_related('notes')
 
         # Citizen chỉ xem sự cố của mình
         if user.role == 'CITIZEN':
             qs = qs.filter(reported_by=user)
         # Technician chỉ xem sự cố được phân công cho mình + sự cố mở
         elif user.role == 'TECHNICIAN':
-            qs = qs.filter(Q(assigned_to=user) | Q(status='OPEN'))
+            qs = qs.filter(Q(assigned_to=user) | Q(status='OPEN') | Q(status='PENDING_VERIFY'))
 
         # Lọc theo query params
         status_filter = self.request.query_params.get('status')
@@ -60,9 +60,9 @@ class IncidentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['patch'], url_path='assign')
     def assign(self, request, pk=None):
-        """Admin phân công kỹ thuật viên."""
-        if request.user.role != 'ADMIN':
-            return Response({'detail': 'Chỉ Admin mới được phân công.'}, status=status.HTTP_403_FORBIDDEN)
+        """Admin/Operator phân công kỹ thuật viên."""
+        if request.user.role not in ('ADMIN', 'OPERATOR'):
+            return Response({'detail': 'Chỉ Admin hoặc Operator mới được phân công.'}, status=status.HTTP_403_FORBIDDEN)
 
         incident = self.get_object()
         technician_id = request.data.get('assigned_to')
@@ -91,16 +91,37 @@ class IncidentViewSet(viewsets.ModelViewSet):
         if new_status not in allowed:
             return Response({'detail': f'Trạng thái không hợp lệ. Chọn: {allowed}'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # CITIZEN chỉ có thể đóng sự cố của mình
+        # Ràng buộc vai trò và luồng xử lý:
         if user.role == 'CITIZEN':
             if incident.reported_by != user:
-                return Response({'detail': 'Không có quyền.'}, status=status.HTTP_403_FORBIDDEN)
+                return Response({'detail': 'Không có quyền với sự cố này.'}, status=status.HTTP_403_FORBIDDEN)
             if new_status not in ['CLOSED']:
                 return Response({'detail': 'Người dân chỉ có thể đóng sự cố.'}, status=status.HTTP_403_FORBIDDEN)
+
+        elif user.role == 'TECHNICIAN':
+            if incident.assigned_to != user:
+                return Response({'detail': 'Sự cố này không được phân công cho bạn.'}, status=status.HTTP_403_FORBIDDEN)
+            if new_status not in [Incident.Status.IN_PROGRESS, Incident.Status.RESOLVED, 'IN_PROGRESS', 'RESOLVED']:
+                return Response({'detail': 'Kỹ thuật viên chỉ có thể cập nhật trạng thái thành Đang xử lý hoặc Đã xử lý.'}, status=status.HTTP_403_FORBIDDEN)
+
+        elif user.role not in ('ADMIN', 'OPERATOR'):
+            return Response({'detail': 'Không có quyền cập nhật trạng thái.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Cập nhật kết quả xử lý và lý do từ chối nếu có trong request payload
+        result_note = request.data.get('result_note')
+        if result_note is not None:
+            incident.result_note = result_note
+
+        rejection_reason = request.data.get('rejection_reason')
+        if rejection_reason is not None:
+            incident.rejection_reason = rejection_reason
 
         incident.status = new_status
         if new_status == Incident.Status.RESOLVED:
             incident.resolved_at = timezone.now()
+        elif new_status == Incident.Status.CONFIRMED:
+            incident.confirmed_by = user
+            
         incident.save()
 
         return Response(IncidentSerializer(incident, context={'request': request}).data)

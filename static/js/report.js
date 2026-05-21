@@ -4,6 +4,15 @@
   const STORAGE = { access: 'infra_access', refresh: 'infra_refresh', role: 'infra_role', username: 'infra_username' };
   const API = { incidents: '/api/incidents/', devices: '/api/devices/?page_size=999', notifications: '/api/notifications/', logout: '/api/auth/logout/' };
 
+  // Parse query parameters from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const deviceIdParam = urlParams.get('device_id');
+  const edgeIdParam = urlParams.get('edge_id');
+  const latParam = urlParams.get('lat');
+  const lngParam = urlParams.get('lng');
+  const typeParam = urlParams.get('type'); // ELECTRIC / WATER
+  const targetTypeParam = urlParams.get('target_type'); // DEVICE / EDGE
+
   async function apiFetch(url, opts = {}) {
     const token = localStorage.getItem(STORAGE.access);
     const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...opts.headers };
@@ -43,8 +52,31 @@
 
   let reportMap, reportMarker;
   function initMap() {
-    reportMap = L.map('report-map').setView([16.0544, 108.2022], 14);
+    let defaultLat = 10.8231; // Ho Chi Minh City standard default if not set
+    let defaultLng = 106.6297;
+    let hasCoords = false;
+
+    if (latParam && lngParam) {
+      const lat = parseFloat(latParam);
+      const lng = parseFloat(lngParam);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        defaultLat = lat;
+        defaultLng = lng;
+        hasCoords = true;
+
+        const latInput = document.getElementById('report-lat');
+        const lngInput = document.getElementById('report-lng');
+        if (latInput) latInput.value = lat.toFixed(6);
+        if (lngInput) lngInput.value = lng.toFixed(6);
+      }
+    }
+
+    reportMap = L.map('report-map').setView([defaultLat, defaultLng], hasCoords ? 17 : 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(reportMap);
+
+    if (hasCoords) {
+      reportMarker = L.marker([defaultLat, defaultLng], { icon: L.divIcon({ className: '', html: '<div style="background:#ef4444;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>', iconAnchor: [8, 8] }) }).addTo(reportMap);
+    }
 
     reportMap.on('click', (e) => {
       const { lat, lng } = e.latlng;
@@ -55,6 +87,17 @@
     });
   }
 
+  function prefillIncidentType() {
+    if (typeParam) {
+      const typeSelect = document.getElementById('report-type');
+      if (typeSelect) {
+        if (typeParam === 'ELECTRIC' || typeParam === 'WATER') {
+          typeSelect.value = typeParam;
+        }
+      }
+    }
+  }
+
   async function loadDevices() {
     const res = await apiFetch(API.devices);
     if (!res.ok) return;
@@ -62,8 +105,61 @@
     const devices = data.results ?? data;
     const select = document.getElementById('report-device');
     if (!select) return;
-    const LABELS = { ELECTRIC_POLE: 'Trụ điện', ELECTRIC_METER: 'Công tơ', WATER_METER: 'Đồng hồ nước', TRANSFORMER: 'Trạm biến áp', VALVE: 'Van nước' };
+    const LABELS = {
+      TRANSFORMER: 'Trạm biến áp',
+      DISTRIBUTION_BOX: 'Tủ điện / tủ phân phối',
+      ELECTRIC_POLE: 'Trụ điện',
+      ELECTRIC_JUNCTION: 'Điểm nối điện',
+      ELECTRIC_METER: 'Công tơ điện',
+      WATER_TANK: 'Bể nước',
+      PUMP_STATION: 'Trạm bơm',
+      MAIN_VALVE: 'Van tổng',
+      BRANCH_VALVE: 'Van nhánh',
+      WATER_JUNCTION: 'Điểm nối nước',
+      WATER_METER: 'Đồng hồ nước',
+      VALVE: 'Van nước (cũ)'
+    };
     select.innerHTML = '<option value="">-- Không rõ --</option>' + devices.map(d => `<option value="${d.id}">${d.name} (${LABELS[d.device_type] || d.device_type})</option>`).join('');
+
+    if (deviceIdParam && targetTypeParam === 'DEVICE') {
+      select.value = deviceIdParam;
+    }
+  }
+
+  function handleEdgeSelection() {
+    if (targetTypeParam === 'EDGE' && edgeIdParam) {
+      const deviceSelect = document.getElementById('report-device');
+      if (deviceSelect) {
+        let edgeInfo = document.getElementById('report-edge-info');
+        if (!edgeInfo) {
+          edgeInfo = document.createElement('div');
+          edgeInfo.id = 'report-edge-info';
+          edgeInfo.className = 'alert alert-info py-2 small mb-3 mt-1';
+          deviceSelect.parentNode.insertBefore(edgeInfo, deviceSelect.nextSibling);
+        }
+        edgeInfo.innerHTML = `<i class="bi bi-link-45deg"></i> Đang tải thông tin tuyến mạng...`;
+
+        deviceSelect.value = "";
+        deviceSelect.disabled = true;
+
+        apiFetch(`/api/edges/${edgeIdParam}/`)
+          .then(res => {
+            if (!res.ok) throw new Error();
+            return res.json();
+          })
+          .then(edge => {
+            if (edge && edge.code) {
+              const edgeName = edge.name || `Tuyến ${edge.from_device_detail?.name || ''} - ${edge.to_device_detail?.name || ''}`;
+              edgeInfo.innerHTML = `<i class="bi bi-link-45deg"></i> Đang báo cáo sự cố cho tuyến: <strong class="text-primary">${edgeName} (#${edge.code})</strong>`;
+            } else {
+              edgeInfo.innerHTML = `<i class="bi bi-link-45deg"></i> Đang báo cáo sự cố cho tuyến mạng ID: <strong>#${edgeIdParam}</strong>.`;
+            }
+          })
+          .catch(() => {
+            edgeInfo.innerHTML = `<i class="bi bi-link-45deg"></i> Đang báo cáo sự cố cho tuyến mạng ID: <strong>#${edgeIdParam}</strong>.`;
+          });
+      }
+    }
   }
 
   async function loadMyIncidents() {
@@ -117,6 +213,8 @@
       latitude: lat,
       longitude: lng,
       device: document.getElementById('report-device').value || null,
+      edge: (targetTypeParam === 'EDGE' && edgeIdParam) ? parseInt(edgeIdParam) : null,
+      target_type: targetTypeParam || (document.getElementById('report-device').value ? 'DEVICE' : 'UNKNOWN')
     };
 
     const btn = document.getElementById('btn-submit-report');
@@ -130,6 +228,12 @@
         showAlert('✅ Báo cáo sự cố đã được gửi thành công!', true);
         document.getElementById('report-form').reset();
         if (reportMarker) { reportMap.removeLayer(reportMarker); reportMarker = null; }
+        // Re-enable device select and remove edge banner if form reset is triggered
+        const deviceSelect = document.getElementById('report-device');
+        if (deviceSelect) {
+          deviceSelect.disabled = false;
+          document.getElementById('report-edge-info')?.remove();
+        }
         loadMyIncidents();
       } else {
         const msg = Object.values(data).flat().join(' ') || 'Gửi báo cáo thất bại.';
@@ -141,7 +245,10 @@
 
   setupNav();
   initMap();
-  loadDevices();
+  prefillIncidentType();
+  loadDevices().then(() => {
+    handleEdgeSelection();
+  });
   loadMyIncidents();
   pollNotifBadge();
   setInterval(pollNotifBadge, 30000);

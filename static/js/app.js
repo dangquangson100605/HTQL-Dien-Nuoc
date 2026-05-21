@@ -10,16 +10,24 @@
     refresh: '/api/auth/token/refresh/',
     logout: '/api/auth/logout/',
     devices: '/api/devices/',
+    edges: '/api/edges/',
     incidents: '/api/incidents/',
     notifCount: '/api/notifications/unread-count/',
   };
 
   const DEVICE_LABELS = {
-    ELECTRIC_POLE: 'Trụ điện',
-    ELECTRIC_METER: 'Công tơ điện',
-    WATER_METER: 'Đồng hồ nước',
     TRANSFORMER: 'Trạm biến áp',
-    VALVE: 'Van nước',
+    DISTRIBUTION_BOX: 'Tủ điện / tủ phân phối',
+    ELECTRIC_POLE: 'Trụ điện',
+    ELECTRIC_JUNCTION: 'Điểm nối điện',
+    ELECTRIC_METER: 'Công tơ điện',
+    WATER_TANK: 'Bể nước',
+    PUMP_STATION: 'Trạm bơm',
+    MAIN_VALVE: 'Van tổng',
+    BRANCH_VALVE: 'Van nhánh',
+    WATER_JUNCTION: 'Điểm nối nước',
+    WATER_METER: 'Đồng hồ nước',
+    VALVE: 'Van nước (cũ)'
   };
 
   /** @type {L.Map | null} */
@@ -39,6 +47,8 @@
   /** @type {bootstrap.Modal | null} */
   let deleteModal = null;
   let deleteTargetId = null;
+  /** @type {bootstrap.Modal | null} */
+  let reportModal = null;
 
   let currentPage = 1;
   let currentSearch = '';
@@ -158,23 +168,207 @@
     markerLayer = L.layerGroup().addTo(map);
     routeLayer = L.layerGroup().addTo(map);
 
+    let clickPopup = null;
     map.on('click', (e) => {
-      if (!pickLocationMode) return;
-      const latEl = document.getElementById('device-lat');
-      const lngEl = document.getElementById('device-lng');
-      if (latEl) latEl.value = e.latlng.lat.toFixed(6);
-      if (lngEl) lngEl.value = e.latlng.lng.toFixed(6);
+      if (pickLocationMode) {
+        const latEl = document.getElementById('device-lat');
+        const lngEl = document.getElementById('device-lng');
+        if (latEl) latEl.value = e.latlng.lat.toFixed(6);
+        if (lngEl) lngEl.value = e.latlng.lng.toFixed(6);
+      } else {
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
+        const content = `
+          <div class="p-1" style="min-width: 150px;">
+            <h6 class="fw-bold mb-1 border-bottom pb-1 text-danger">Báo sự cố</h6>
+            <p class="small text-muted mb-2">Tọa độ: ${lat.toFixed(6)}, ${lng.toFixed(6)}</p>
+            <div class="d-grid">
+              <button type="button" class="btn btn-danger btn-sm text-white fw-medium py-1 px-2 border-0 rounded d-flex align-items-center justify-content-center gap-1" 
+                      onclick="window._triggerReport('UNKNOWN', null, ${lat}, ${lng}, 'OTHER', 'Vị trí bản đồ'); event.preventDefault();" style="font-size: 12px; background-color: #dc3545;">
+                <i class="bi bi-exclamation-triangle"></i> Báo sự cố tại đây
+              </button>
+            </div>
+          </div>
+        `;
+        if (clickPopup) {
+          clickPopup.setLatLng(e.latlng).setContent(content).openOn(map);
+        } else {
+          clickPopup = L.popup().setLatLng(e.latlng).setContent(content).openOn(map);
+        }
+      }
     });
+  }
+
+  function getDeviceIconByTypeAndStatus(type, status) {
+    let color = '#198754';
+    let iconClass = 'bi-cpu';
+    let pulseClass = '';
+
+    switch(type) {
+      case 'TRANSFORMER':
+        iconClass = 'bi-lightning-charge';
+        break;
+      case 'DISTRIBUTION_BOX':
+        iconClass = 'bi-box-seam';
+        break;
+      case 'ELECTRIC_POLE':
+        iconClass = 'bi-alt';
+        break;
+      case 'ELECTRIC_JUNCTION':
+        iconClass = 'bi-signpost-split';
+        break;
+      case 'ELECTRIC_METER':
+        iconClass = 'bi-speedometer';
+        break;
+      case 'WATER_TANK':
+        iconClass = 'bi-moisture';
+        break;
+      case 'PUMP_STATION':
+        iconClass = 'bi-water';
+        break;
+      case 'MAIN_VALVE':
+      case 'BRANCH_VALVE':
+      case 'VALVE':
+        iconClass = 'bi-valve';
+        break;
+      case 'WATER_JUNCTION':
+        iconClass = 'bi-diagram-3';
+        break;
+      case 'WATER_METER':
+        iconClass = 'bi-speedometer2';
+        break;
+    }
+
+    switch(status) {
+      case 'ACTIVE':
+        color = '#198754';
+        break;
+      case 'FAULT':
+        color = '#dc3545';
+        iconClass = 'bi-exclamation-triangle-fill';
+        pulseClass = 'pulse-danger';
+        break;
+      case 'MAINTENANCE':
+        color = '#6f42c1';
+        iconClass = 'bi-tools';
+        break;
+      case 'INACTIVE':
+        color = '#6c757d';
+        iconClass = 'bi-slash-circle';
+        break;
+    }
+
+    return L.divIcon({
+      className: 'custom-device-marker',
+      html: `
+        <div class="marker-wrapper ${pulseClass}" style="background-color: ${color};">
+          <i class="bi ${iconClass}"></i>
+        </div>
+      `,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      popupAnchor: [0, -16]
+    });
+  }
+
+  function getEdgeColorByTypeAndStatus(type, status) {
+    let color = '#6c757d';
+    let dashArray = null;
+
+    if (status === 'FAULT') {
+      color = '#dc3545';
+    } else if (status === 'INACTIVE') {
+      color = '#6c757d';
+    } else {
+      if (type === 'ELECTRIC') {
+        color = '#fd7e14';
+      } else if (type === 'WATER') {
+        color = '#0d6efd';
+      }
+    }
+
+    if (status === 'MAINTENANCE') {
+      dashArray = '8, 8';
+    }
+
+    return { color, dashArray };
   }
 
   function devicePopupHtml(d) {
     const typeLabel = DEVICE_LABELS[d.device_type] || d.device_type;
-    const status = d.is_active ? 'Hoạt động' : 'Báo lỗi / ngưng';
-    return (
-      `<div class="device-popup-title">${escapeHtml(d.name)}</div>` +
-      `<div class="small text-muted">${escapeHtml(typeLabel)}</div>` +
-      `<div class="small mt-1">${d.is_active ? '<span class="text-success">●</span>' : '<span class="text-danger">●</span>'} ${status}</div>`
-    );
+    const statusLabels = {
+      ACTIVE: '<span class="badge bg-success bg-opacity-10 text-success">Hoạt động</span>',
+      FAULT: '<span class="badge bg-danger bg-opacity-10 text-danger">Lỗi trực tiếp</span>',
+      MAINTENANCE: '<span class="badge bg-warning bg-opacity-10 text-warning">Đang bảo trì</span>',
+      INACTIVE: '<span class="badge bg-secondary bg-opacity-10 text-secondary">Ngưng hoạt động</span>'
+    };
+    const statusHtml = statusLabels[d.status] || d.status;
+
+    const isElectric = ['ELECTRIC_POLE', 'TRANSFORMER', 'ELECTRIC_METER', 'DISTRIBUTION_BOX', 'ELECTRIC_JUNCTION'].includes(d.device_type);
+    const typeParam = isElectric ? 'ELECTRIC' : 'WATER';
+
+    return `
+      <div class="p-1" style="min-width: 180px;">
+        <h6 class="fw-bold mb-1 border-bottom pb-1 text-primary d-flex align-items-center justify-content-between">
+          <span>${escapeHtml(d.name)}</span>
+          <small class="text-muted" style="font-size: 11px;">#${escapeHtml(d.code)}</small>
+        </h6>
+        <div class="small mb-2" style="font-size: 12px; line-height: 1.4;">
+          <div class="mb-1"><strong>Loại:</strong> <span class="text-secondary">${escapeHtml(typeLabel)}</span></div>
+          <div class="mb-1"><strong>Trạng thái:</strong> ${statusHtml}</div>
+          <div class="mb-1"><strong>Khu vực:</strong> <span class="text-muted">${escapeHtml(d.area || '—')}</span></div>
+          <div class="mb-1"><strong>Địa chỉ:</strong> <span class="text-muted">${escapeHtml(d.address || '—')}</span></div>
+        </div>
+        <div class="d-grid mt-2">
+          <a href="#" onclick="window._triggerReport('DEVICE', ${d.id}, ${d.latitude}, ${d.longitude}, '${typeParam}', '${escapeHtml(d.name)}', '${escapeHtml(d.area || '')}', '${escapeHtml(d.address || '')}'); event.preventDefault();" class="btn btn-danger btn-sm text-white fw-medium py-1 px-2 border-0 rounded d-flex align-items-center justify-content-center gap-1" style="font-size: 12px; background-color: #dc3545; transition: background 0.2s;">
+            <i class="bi bi-exclamation-triangle"></i> Báo sự cố thiết bị này
+          </a>
+        </div>
+      </div>
+    `;
+  }
+
+  function edgePopupHtml(edge) {
+    const fromDevName = edge.from_device_detail ? edge.from_device_detail.name : 'Không rõ';
+    const toDevName = edge.to_device_detail ? edge.to_device_detail.name : 'Không rõ';
+    
+    const typeLabel = edge.network_type === 'ELECTRIC' ? 'Điện ⚡' : 'Nước 💧';
+    const statusLabels = {
+      ACTIVE: '<span class="badge bg-success bg-opacity-10 text-success">Hoạt động</span>',
+      FAULT: '<span class="badge bg-danger bg-opacity-10 text-danger">Lỗi trực tiếp</span>',
+      MAINTENANCE: '<span class="badge bg-warning bg-opacity-10 text-warning">Đang bảo trì</span>',
+      INACTIVE: '<span class="badge bg-secondary bg-opacity-10 text-secondary">Ngưng sử dụng</span>'
+    };
+    const statusHtml = statusLabels[edge.status] || edge.status;
+
+    let midLat = 10.8231, midLng = 106.6297;
+    if (edge.from_device_detail && edge.to_device_detail) {
+      midLat = (edge.from_device_detail.latitude + edge.to_device_detail.latitude) / 2;
+      midLng = (edge.from_device_detail.longitude + edge.to_device_detail.longitude) / 2;
+    }
+
+    const edgeArea = edge.from_device_detail ? (edge.from_device_detail.area || '') : '';
+    const edgeAddress = edge.from_device_detail ? (edge.from_device_detail.address || '') : '';
+
+    return `
+      <div class="p-1" style="min-width: 180px;">
+        <h6 class="fw-bold mb-1 border-bottom pb-1 text-primary d-flex align-items-center justify-content-between">
+          <span>${escapeHtml(edge.name || 'Tuyến mạng')}</span>
+          <small class="text-muted" style="font-size: 11px;">#${escapeHtml(edge.code)}</small>
+        </h6>
+        <div class="small mb-2" style="font-size: 12px; line-height: 1.4;">
+          <div class="mb-1"><strong>Từ:</strong> <span class="text-secondary">${escapeHtml(fromDevName)}</span></div>
+          <div class="mb-1"><strong>Đến:</strong> <span class="text-secondary">${escapeHtml(toDevName)}</span></div>
+          <div class="mb-1"><strong>Loại mạng:</strong> <span class="fw-medium">${escapeHtml(typeLabel)}</span></div>
+          <div class="mb-1"><strong>Trạng thái:</strong> ${statusHtml}</div>
+        </div>
+        <div class="d-grid mt-2">
+          <a href="#" onclick="window._triggerReport('EDGE', ${edge.id}, ${midLat}, ${midLng}, '${edge.network_type}', '${escapeHtml(edge.name || 'Tuyến mạng')}', '${escapeHtml(edgeArea)}', '${escapeHtml(edgeAddress)}'); event.preventDefault();" class="btn btn-danger btn-sm text-white fw-medium py-1 px-2 border-0 rounded d-flex align-items-center justify-content-center gap-1" style="font-size: 12px; background-color: #dc3545; transition: background 0.2s;">
+            <i class="bi bi-exclamation-triangle"></i> Báo sự cố tuyến này
+          </a>
+        </div>
+      </div>
+    `;
   }
 
   function escapeHtml(s) {
@@ -183,48 +377,68 @@
     return div.innerHTML;
   }
 
-  function renderMarkers(devices) {
+  function renderDeviceMarkers(devices) {
     if (!markerLayer) return;
     markerLayer.clearLayers();
     markersById.clear();
     devices.forEach((d) => {
-      const color = d.is_active ? '#198754' : '#dc3545';
-      const m = L.circleMarker([d.latitude, d.longitude], {
-        radius: 10,
-        color: '#fff',
-        weight: 2,
-        fillColor: color,
-        fillOpacity: 0.9,
+      const customIcon = getDeviceIconByTypeAndStatus(d.device_type, d.status);
+      const m = L.marker([d.latitude, d.longitude], {
+        icon: customIcon
       });
       m.bindPopup(devicePopupHtml(d));
       m.addTo(markerLayer);
       markersById.set(d.id, m);
     });
-
-    drawRoutes(devices);
   }
 
-  function drawRoutes(devices) {
+  function renderNetworkEdges(edges) {
     if (!routeLayer) return;
     routeLayer.clearLayers();
     
-    devices.forEach(d => {
-      if (d.parent) {
-        const parentDevice = devices.find(x => x.id === d.parent);
-        if (parentDevice) {
-          const isElectric = ['ELECTRIC_POLE', 'TRANSFORMER', 'ELECTRIC_METER'].includes(d.device_type);
-          const pts = [
-            [d.latitude, d.longitude],
-            [parentDevice.latitude, parentDevice.longitude]
-          ];
-          if (isElectric) {
-            L.polyline(pts, { color: '#ef4444', weight: 3, opacity: 0.8, className: 'route-animated' }).addTo(routeLayer);
-          } else {
-            L.polyline(pts, { color: '#0ea5e9', weight: 3, opacity: 0.8 }).addTo(routeLayer);
-          }
+    edges.forEach(edge => {
+      const fromDev = edge.from_device_detail;
+      const toDev = edge.to_device_detail;
+      
+      if (fromDev && toDev && fromDev.latitude && fromDev.longitude && toDev.latitude && toDev.longitude) {
+        const style = getEdgeColorByTypeAndStatus(edge.network_type, edge.status);
+        const pts = [
+          [fromDev.latitude, fromDev.longitude],
+          [toDev.latitude, toDev.longitude]
+        ];
+        
+        const lineOptions = {
+          color: style.color,
+          weight: 4,
+          opacity: 0.85
+        };
+        
+        if (style.dashArray) {
+          lineOptions.dashArray = style.dashArray;
         }
+        
+        const poly = L.polyline(pts, lineOptions).addTo(routeLayer);
+        poly.bindPopup(edgePopupHtml(edge));
       }
     });
+  }
+
+  let cachedEdges = [];
+
+  async function loadEdges() {
+    if (!routeLayer) return;
+    const res = await apiFetch(`${API.edges}?page_size=1000`);
+    if (!res.ok) {
+      console.warn('Không tải được danh sách tuyến mạng.');
+      return;
+    }
+    const data = await res.json();
+    cachedEdges = data.results ?? data;
+    renderNetworkEdges(cachedEdges);
+  }
+
+  async function refreshMap() {
+    await Promise.all([loadDevices(), loadEdges()]);
   }
 
   function renderTable(devices) {
@@ -239,9 +453,13 @@
     tbody.innerHTML = devices
       .map((d) => {
         const typeLabel = DEVICE_LABELS[d.device_type] || d.device_type;
-        const st = d.is_active
-          ? '<span class="badge text-bg-success">Hoạt động</span>'
-          : '<span class="badge text-bg-danger">Lỗi</span>';
+        const statusBadges = {
+          ACTIVE: '<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill">Hoạt động</span>',
+          FAULT: '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill">Lỗi</span>',
+          MAINTENANCE: '<span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-pill">Bảo trì</span>',
+          INACTIVE: '<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 rounded-pill">Ngưng hoạt động</span>'
+        };
+        const st = statusBadges[d.status] || `<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 rounded-pill">${d.status}</span>`;
         const actions = admin
           ? `<td class="admin-only text-nowrap">
             <button type="button" class="btn btn-sm btn-outline-primary btn-edit" data-id="${d.id}">Sửa</button>
@@ -317,7 +535,7 @@
       document.getElementById('page-info').textContent = `Tổng: ${data.length}`;
     }
     
-    renderMarkers(cachedDevices);
+    renderDeviceMarkers(cachedDevices);
     renderTable(cachedDevices);
   }
 
@@ -367,6 +585,9 @@
     document.getElementById('device-id').value = '';
     document.getElementById('device-name').value = '';
     document.getElementById('device-type').value = 'ELECTRIC_POLE';
+    document.getElementById('device-status').value = 'ACTIVE';
+    document.getElementById('device-area').value = '';
+    document.getElementById('device-address').value = '';
     document.getElementById('device-attributes').value = '';
     document.getElementById('device-lat').value = '10.823100';
     document.getElementById('device-lng').value = '106.629700';
@@ -381,6 +602,9 @@
     document.getElementById('device-id').value = String(d.id);
     document.getElementById('device-name').value = d.name;
     document.getElementById('device-type').value = d.device_type;
+    document.getElementById('device-status').value = d.status || 'ACTIVE';
+    document.getElementById('device-area').value = d.area || '';
+    document.getElementById('device-address').value = d.address || '';
     
     populateParentSelect(d.id).then(() => {
       document.getElementById('device-parent').value = d.parent ? String(d.parent) : '';
@@ -422,6 +646,9 @@
     const body = {
       name: nameEl.value.trim(),
       device_type: document.getElementById('device-type').value,
+      status: document.getElementById('device-status').value,
+      area: document.getElementById('device-area').value.trim(),
+      address: document.getElementById('device-address').value.trim(),
       parent: document.getElementById('device-parent').value || null,
       attributes: parsedAttributes,
       latitude: parseFloat(latEl.value),
@@ -462,7 +689,7 @@
       return;
     }
     deviceModal.hide();
-    await loadDevices();
+    await refreshMap();
     if (data.id && map) {
       map.flyTo([data.latitude, data.longitude], 15);
     }
@@ -479,7 +706,149 @@
     }
     deleteModal.hide();
     deleteTargetId = null;
-    await loadDevices();
+    await refreshMap();
+  }
+
+  window._triggerReport = function(targetType, targetId, lat, lng, defaultType, targetName, area = '', address = '') {
+    const modalAlert = document.getElementById('report-modal-alert');
+    if (modalAlert) modalAlert.classList.add('d-none');
+    
+    // Reset form fields
+    const form = document.getElementById('report-incident-form');
+    if (form) form.reset();
+    
+    // Remove invalid classes
+    document.querySelectorAll('#report-incident-form .is-invalid').forEach(el => el.classList.remove('is-invalid'));
+
+    // Set hidden fields
+    document.getElementById('report-target-type').value = targetType;
+    document.getElementById('report-device-id').value = targetType === 'DEVICE' ? targetId : '';
+    document.getElementById('report-edge-id').value = targetType === 'EDGE' ? targetId : '';
+    
+    // Set coordinate fields
+    document.getElementById('report-lat').value = parseFloat(lat).toFixed(6);
+    document.getElementById('report-lng').value = parseFloat(lng).toFixed(6);
+    
+    // Set area & address
+    document.getElementById('report-area').value = area;
+    document.getElementById('report-address').value = address;
+    
+    // Set default incident type
+    const typeSelect = document.getElementById('report-incident-type');
+    if (typeSelect) {
+      if (defaultType === 'ELECTRIC') {
+        typeSelect.value = 'ELECTRIC';
+      } else if (defaultType === 'WATER') {
+        typeSelect.value = 'WATER';
+      } else {
+        typeSelect.value = 'OTHER';
+      }
+    }
+
+    // Set target description
+    const descEl = document.getElementById('report-target-desc');
+    if (descEl) {
+      if (targetType === 'DEVICE') {
+        descEl.innerHTML = `<span class="badge bg-primary me-1">Thiết bị</span> <strong>${escapeHtml(targetName)}</strong> (ID: ${targetId})`;
+      } else if (targetType === 'EDGE') {
+        descEl.innerHTML = `<span class="badge bg-info text-dark me-1">Tuyến mạng</span> <strong>${escapeHtml(targetName)}</strong> (ID: ${targetId})`;
+      } else {
+        descEl.innerHTML = `<span class="badge bg-secondary me-1">Vị trí</span> <strong>Tọa độ bản đồ</strong> (${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)})`;
+      }
+    }
+
+    if (reportModal) {
+      reportModal.show();
+    }
+  };
+
+  async function submitIncidentReport() {
+    const modalAlert = document.getElementById('report-modal-alert');
+    if (modalAlert) modalAlert.classList.add('d-none');
+    
+    document.querySelectorAll('#report-incident-form .is-invalid').forEach(el => el.classList.remove('is-invalid'));
+    
+    const targetType = document.getElementById('report-target-type').value;
+    const deviceId = document.getElementById('report-device-id').value;
+    const edgeId = document.getElementById('report-edge-id').value;
+    const titleEl = document.getElementById('report-title');
+    const descEl = document.getElementById('report-description');
+    
+    const body = {
+      title: titleEl.value.trim(),
+      description: descEl.value.trim(),
+      incident_type: document.getElementById('report-incident-type').value,
+      severity: document.getElementById('report-severity').value,
+      latitude: parseFloat(document.getElementById('report-lat').value),
+      longitude: parseFloat(document.getElementById('report-lng').value),
+      area: document.getElementById('report-area').value.trim(),
+      address: document.getElementById('report-address').value.trim(),
+      target_type: targetType,
+      device: targetType === 'DEVICE' ? parseInt(deviceId) : null,
+      edge: targetType === 'EDGE' ? parseInt(edgeId) : null,
+    };
+    
+    let hasError = false;
+    if (!body.title) {
+      titleEl.classList.add('is-invalid');
+      hasError = true;
+    }
+    if (!body.description) {
+      descEl.classList.add('is-invalid');
+      hasError = true;
+    }
+    
+    if (hasError) {
+      if (modalAlert) {
+        modalAlert.textContent = 'Vui lòng điền đầy đủ các trường bắt buộc.';
+        modalAlert.classList.remove('d-none');
+      }
+      return;
+    }
+    
+    const res = await apiFetch(API.incidents, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+    
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (modalAlert) {
+        modalAlert.textContent = formatErrors(data);
+        modalAlert.classList.remove('d-none');
+      }
+      return;
+    }
+    
+    if (reportModal) {
+      reportModal.hide();
+    }
+    
+    showAppAlert('Báo cáo sự cố thành công!', true);
+    
+    // Refresh device/edge layers & incident markers
+    await refreshMap();
+    await loadIncidentMarkers();
+  }
+
+  // Load incident markers
+  async function loadIncidentMarkers() {
+    try {
+      const res = await apiFetch(API.incidents);
+      if (!res.ok) return;
+      const data = await res.json();
+      const incidents = data.results ?? data;
+      if (incidentLayer) incidentLayer.clearLayers();
+      else { incidentLayer = L.layerGroup().addTo(map); }
+      const SCOLOR = { OPEN: '#ef4444', ASSIGNED: '#f59e0b', IN_PROGRESS: '#0ea5e9', RESOLVED: '#22c55e', CLOSED: '#94a3b8' };
+      incidents.forEach(inc => {
+        const color = SCOLOR[inc.status] || '#94a3b8';
+        const m = L.circleMarker([inc.latitude, inc.longitude], {
+          radius: 8, color: '#fff', weight: 2, fillColor: color, fillOpacity: 0.9
+        }).addTo(incidentLayer);
+        m.bindPopup(`<b>⚠ ${inc.title}</b><br>${inc.status_display}<br><a href="/incidents/" class="small">Xem chi tiết →</a>`);
+      });
+    } catch {}
   }
 
   async function logout() {
@@ -566,6 +935,7 @@
 
     deviceModal = new bootstrap.Modal(document.getElementById('device-modal'));
     deleteModal = new bootstrap.Modal(document.getElementById('delete-modal'));
+    reportModal = new bootstrap.Modal(document.getElementById('report-incident-modal'));
 
     document.getElementById('device-modal').addEventListener('hidden.bs.modal', () => {
       pickLocationMode = false;
@@ -576,6 +946,7 @@
     document.getElementById('btn-add-device').addEventListener('click', () => openCreateModal());
     document.getElementById('device-save').addEventListener('click', () => saveDevice());
     document.getElementById('delete-confirm').addEventListener('click', () => confirmDelete());
+    document.getElementById('btn-report-submit').addEventListener('click', () => submitIncidentReport());
     
     // Import / Export CSV
     const btnExport = document.getElementById('btn-export-csv');
@@ -624,7 +995,7 @@
         const data = await res.json().catch(()=>({}));
         if (res.ok) {
           showAppAlert(data.detail || 'Import thành công', true);
-          loadDevices();
+          refreshMap();
         } else {
           showAppAlert(data.detail || 'Lỗi import');
         }
@@ -643,56 +1014,38 @@
       searchEl.addEventListener('input', (e) => {
         currentSearch = e.target.value;
         currentPage = 1;
-        debounce(() => loadDevices());
+        debounce(() => refreshMap());
       });
     }
     if (typeEl) {
       typeEl.addEventListener('change', (e) => {
         currentType = e.target.value;
         currentPage = 1;
-        loadDevices();
+        refreshMap();
       });
     }
     if (sortEl) {
       sortEl.addEventListener('change', (e) => {
         currentSort = e.target.value;
         currentPage = 1;
-        loadDevices();
+        refreshMap();
       });
     }
     if (prevEl) {
       prevEl.addEventListener('click', () => {
-        if (currentPage > 1) { currentPage--; loadDevices(); }
+        if (currentPage > 1) { currentPage--; refreshMap(); }
       });
     }
     if (nextEl) {
       nextEl.addEventListener('click', () => {
-        currentPage++; loadDevices();
+        currentPage++; refreshMap();
       });
     }
     
     const btnCpSave = document.getElementById('cp-save');
     if (btnCpSave) btnCpSave.addEventListener('click', () => changePassword());
 
-    // Load incident markers
-    async function loadIncidentMarkers() {
-      try {
-        const res = await apiFetch(API.incidents);
-        if (!res.ok) return;
-        const data = await res.json();
-        const incidents = data.results ?? data;
-        if (incidentLayer) incidentLayer.clearLayers();
-        else { incidentLayer = L.layerGroup().addTo(map); }
-        const SCOLOR = { OPEN: '#ef4444', ASSIGNED: '#f59e0b', IN_PROGRESS: '#0ea5e9', RESOLVED: '#22c55e', CLOSED: '#94a3b8' };
-        incidents.forEach(inc => {
-          const color = SCOLOR[inc.status] || '#94a3b8';
-          const m = L.circleMarker([inc.latitude, inc.longitude], {
-            radius: 8, color: '#fff', weight: 2, fillColor: color, fillOpacity: 0.9
-          }).addTo(incidentLayer);
-          m.bindPopup(`<b>⚠ ${inc.title}</b><br>${inc.status_display}<br><a href="/incidents/" class="small">Xem chi tiết →</a>`);
-        });
-      } catch {}
-    }
+
 
     // Poll notification badge
     async function pollNotifBadge() {
@@ -713,7 +1066,7 @@
     );
     resetIdleTimer();
 
-    loadDevices();
+    refreshMap();
     loadIncidentMarkers();
     pollNotifBadge();
     setInterval(pollNotifBadge, 30000);

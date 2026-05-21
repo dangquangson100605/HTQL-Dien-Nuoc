@@ -11,7 +11,7 @@
   };
   const API_REFRESH = '/api/auth/token/refresh/';
 
-  const STATUS_COLOR = { PENDING_VERIFY: 'warning', CONFIRMED: 'danger', ASSIGNED: 'primary', IN_PROGRESS: 'info', RESOLVED: 'success', CLOSED: 'secondary', REJECTED: 'dark' };
+  const STATUS_COLOR = { PENDING_VERIFY: 'warning', OPEN: 'warning', CONFIRMED: 'danger', ASSIGNED: 'primary', IN_PROGRESS: 'info', RESOLVED: 'success', CLOSED: 'secondary', REJECTED: 'dark' };
   const SEVERITY_COLOR = { LOW: 'success', MEDIUM: 'warning', HIGH: 'danger', CRITICAL: 'dark' };
   const SEVERITY_ICON = { LOW: '🟢', MEDIUM: '🟡', HIGH: '🔴', CRITICAL: '🚨' };
 
@@ -21,6 +21,30 @@
   const detailModal = new bootstrap.Modal(document.getElementById('incidentDetailModal'));
   const assignModal = new bootstrap.Modal(document.getElementById('assignModal'));
   const statusModal = new bootstrap.Modal(document.getElementById('statusModal'));
+
+  let cachedDevices = [];
+  let cachedEdges = [];
+
+  async function ensureDevicesAndEdges() {
+    if (!cachedDevices.length) {
+      try {
+        const res = await apiFetch(API.devices);
+        if (res.ok) {
+          const data = await res.json();
+          cachedDevices = data.results ?? data;
+        }
+      } catch (err) { console.error('Lỗi tải thiết bị:', err); }
+    }
+    if (!cachedEdges.length) {
+      try {
+        const res = await apiFetch(API.edges);
+        if (res.ok) {
+          const data = await res.json();
+          cachedEdges = data.results ?? data;
+        }
+      } catch (err) { console.error('Lỗi tải tuyến mạng:', err); }
+    }
+  }
 
   async function doRefresh() {
     const refresh = localStorage.getItem(STORAGE.refresh);
@@ -124,7 +148,13 @@
     const severity = document.getElementById('filter-severity').value;
     const type = document.getElementById('filter-type').value;
     const params = new URLSearchParams();
-    if (status) params.append('status', status);
+    if (status) {
+      if (status === 'OPEN') {
+        params.append('status', 'PENDING_VERIFY');
+      } else {
+        params.append('status', status);
+      }
+    }
     if (severity) params.append('severity', severity);
     if (type) params.append('incident_type', type);
 
@@ -138,20 +168,34 @@
     const tbody = document.getElementById('incident-table-body');
     if (!tbody) return;
     if (!incidents.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Không có sự cố nào.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">Không có sự cố nào.</td></tr>';
       return;
     }
 
-    tbody.innerHTML = incidents.map(inc => `
-      <tr style="cursor:pointer;" onclick="window._viewIncident(${inc.id})">
-        <td class="fw-medium">${inc.title}</td>
-        <td class="text-center">${inc.type_display}</td>
-        <td class="text-center"><span class="badge bg-${SEVERITY_COLOR[inc.severity]}">${SEVERITY_ICON[inc.severity]} ${inc.severity_display}</span></td>
-        <td class="text-center"><span class="badge bg-${STATUS_COLOR[inc.status]} bg-opacity-75">${inc.status_display}</span></td>
-        <td class="text-muted small">${inc.reported_by_username}</td>
-        <td class="text-muted small">${new Date(inc.created_at).toLocaleDateString('vi-VN')}</td>
-        <td class="text-center"><button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="event.stopPropagation();window._viewIncident(${inc.id})"><i class="bi bi-eye"></i></button></td>
-      </tr>`).join('');
+    tbody.innerHTML = incidents.map(inc => {
+      const locText = inc.address || inc.area || `${inc.latitude.toFixed(4)}, ${inc.longitude.toFixed(4)}`;
+      const devText = inc.device_name ? `<span class="badge bg-light text-dark border"><i class="bi bi-cpu text-info"></i> ${inc.device_name}</span>` : '—';
+      const edgeText = inc.edge_name ? `<span class="badge bg-light text-dark border"><i class="bi bi-bezier2 text-primary"></i> ${inc.edge_name}</span>` : '—';
+      const techText = inc.assigned_to_username ? `<span class="badge bg-light text-dark border"><i class="bi bi-person text-secondary"></i> ${inc.assigned_to_username}</span>` : '—';
+
+      return `
+        <tr style="cursor:pointer;" onclick="window._viewIncident(${inc.id})">
+          <td class="fw-medium">${inc.title}</td>
+          <td class="text-center">${inc.type_display}</td>
+          <td class="text-center"><span class="badge badge-premium badge-severity-${inc.severity.toLowerCase()}">${SEVERITY_ICON[inc.severity] || ''} ${inc.severity_display}</span></td>
+          <td class="text-center"><span class="badge badge-premium badge-status-${inc.status.toLowerCase()}">${inc.status_display}</span></td>
+          <td class="small text-wrap" style="max-width: 150px;">${locText}</td>
+          <td class="text-muted small">${inc.reported_by_username}</td>
+          <td>${devText}</td>
+          <td>${edgeText}</td>
+          <td>${techText}</td>
+          <td class="text-center">
+            <button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="event.stopPropagation();window._viewIncident(${inc.id})">
+              <i class="bi bi-eye"></i>
+            </button>
+          </td>
+        </tr>`;
+    }).join('');
 
     refreshMap(incidents);
   }
@@ -166,18 +210,67 @@
     if (!res.ok) { document.getElementById('incident-detail-body').innerHTML = '<div class="text-danger">Lỗi tải dữ liệu.</div>'; return; }
     const inc = await res.json();
 
+    const isStaff = ['ADMIN', 'OPERATOR'].includes(currentRole);
+    const isTech = currentRole === 'TECHNICIAN';
+    const loggedInUser = localStorage.getItem(STORAGE.username) || '';
+    const isAssignedTech = isTech && inc.assigned_to_username === loggedInUser;
+
+    let assocHtml = '';
+    if (isStaff && inc.target_type === 'UNKNOWN') {
+      assocHtml = `
+        <div class="row g-2 mt-3 p-3 border border-primary border-opacity-10 rounded bg-light bg-opacity-50">
+          <div class="col-12"><span class="fw-semibold text-primary small"><i class="bi bi-link-45deg"></i> Xác định Vị trí / Thiết bị / Tuyến sự cố</span></div>
+          <div class="col-md-6">
+            <label class="form-label small text-muted mb-1">Thiết bị liên quan:</label>
+            <select id="link-device-select" class="form-select form-select-sm">
+              <option value="">-- Không có / Chọn thiết bị --</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small text-muted mb-1">Tuyến liên quan:</label>
+            <select id="link-edge-select" class="form-select form-select-sm">
+              <option value="">-- Không có / Chọn tuyến --</option>
+            </select>
+          </div>
+          <div class="col-12 text-end mt-2">
+            <button class="btn btn-sm btn-primary" onclick="window._saveAssociation(${inc.id})">
+              <i class="bi bi-save me-1"></i> Lưu liên kết
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    let addNoteHtml = '';
+    if (isAssignedTech && ['ASSIGNED','IN_PROGRESS'].includes(inc.status)) {
+      addNoteHtml = `
+        <div class="mt-3 p-3 border rounded bg-light">
+          <label class="form-label small fw-semibold text-dark mb-1"><i class="bi bi-chat-left-text me-1"></i> Thêm ghi chú xử lý</label>
+          <div class="input-group">
+            <input type="text" id="new-note-content" class="form-control form-control-sm" placeholder="Nhập ghi chú xử lý tiến độ...">
+            <button class="btn btn-sm btn-primary" onclick="window._addNote(${inc.id})">Gửi</button>
+          </div>
+        </div>
+      `;
+    }
+
     document.getElementById('incident-modal-title').textContent = inc.title;
     document.getElementById('incident-detail-body').innerHTML = `
       <div class="row g-2 mb-3">
         <div class="col-6"><span class="text-muted small">Loại:</span> <strong>${inc.type_display}</strong></div>
-        <div class="col-6"><span class="text-muted small">Mức độ:</span> <span class="badge bg-${SEVERITY_COLOR[inc.severity]}">${SEVERITY_ICON[inc.severity]} ${inc.severity_display}</span></div>
-        <div class="col-6"><span class="text-muted small">Trạng thái:</span> <span class="badge bg-${STATUS_COLOR[inc.status]} bg-opacity-75">${inc.status_display}</span></div>
+        <div class="col-6 d-flex align-items-center gap-1"><span class="text-muted small">Mức độ:</span> <span class="badge badge-premium badge-severity-${inc.severity.toLowerCase()}">${SEVERITY_ICON[inc.severity]} ${inc.severity_display}</span></div>
+        <div class="col-6 d-flex align-items-center gap-1"><span class="text-muted small">Trạng thái:</span> <span class="badge badge-premium badge-status-${inc.status.toLowerCase()}">${inc.status_display}</span></div>
         <div class="col-6"><span class="text-muted small">Người báo:</span> <strong>${inc.reported_by_username}</strong></div>
         <div class="col-6"><span class="text-muted small">KTV phụ trách:</span> <strong>${inc.assigned_to_username || '—'}</strong></div>
         <div class="col-6"><span class="text-muted small">Thiết bị:</span> <strong>${inc.device_name || '—'}</strong></div>
-        <div class="col-12"><span class="text-muted small">Tọa độ:</span> ${inc.latitude.toFixed(5)}, ${inc.longitude.toFixed(5)}</div>
-        <div class="col-12 mt-1"><span class="text-muted small">Mô tả:</span><p class="mt-1 mb-0">${inc.description}</p></div>
+        <div class="col-6"><span class="text-muted small">Tuyến mạng:</span> <strong>${inc.edge_name || '—'}</strong></div>
+        <div class="col-12"><span class="text-muted small">Khu vực:</span> <strong>${inc.area || '—'}</strong></div>
+        <div class="col-12"><span class="text-muted small">Địa chỉ:</span> <strong>${inc.address || '—'}</strong></div>
+        <div class="col-12"><span class="text-muted small">Tọa độ:</span> <code>${inc.latitude.toFixed(5)}, ${inc.longitude.toFixed(5)}</code></div>
+        <div class="col-12 mt-1"><span class="text-muted small">Mô tả:</span><p class="mt-1 mb-0 bg-light p-2 rounded small text-secondary">${inc.description}</p></div>
       </div>
+      ${assocHtml}
+      ${addNoteHtml}
       <hr class="my-2">
       <h6 class="fw-semibold mb-2"><i class="bi bi-journal-text me-1"></i> Ghi chú tiến độ</h6>
       <div id="notes-list">
@@ -191,20 +284,42 @@
     // Action buttons
     const actionsEl = document.getElementById('incident-modal-actions');
     actionsEl.innerHTML = `<button class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>`;
-    const isStaff = ['ADMIN', 'OPERATOR'].includes(currentRole);
-    const isTech = currentRole === 'TECHNICIAN';
+    
     if (isStaff && inc.status === 'PENDING_VERIFY') {
       actionsEl.innerHTML += `<button class="btn btn-success" onclick="window._openConfirm(${inc.id})"><i class="bi bi-check-circle me-1"></i> Xác nhận</button>`;
       actionsEl.innerHTML += `<button class="btn btn-outline-danger" onclick="window._openReject(${inc.id})"><i class="bi bi-x-circle me-1"></i> Từ chối</button>`;
     }
-    if (isStaff && ['CONFIRMED','ASSIGNED','IN_PROGRESS'].includes(inc.status)) {
+    if (isStaff && ['PENDING_VERIFY', 'CONFIRMED','ASSIGNED','IN_PROGRESS'].includes(inc.status)) {
       actionsEl.innerHTML += `<button class="btn btn-primary" onclick="window._openAssign(${inc.id})"><i class="bi bi-person-check me-1"></i> Phân công</button>`;
     }
     if (isStaff && ['RESOLVED','CONFIRMED','IN_PROGRESS'].includes(inc.status)) {
       actionsEl.innerHTML += `<button class="btn btn-dark" onclick="window._closeIncident(${inc.id})"><i class="bi bi-lock me-1"></i> Đóng sự cố</button>`;
     }
-    if (isTech && inc.assigned_to_username && ['ASSIGNED','IN_PROGRESS'].includes(inc.status)) {
-      actionsEl.innerHTML += `<button class="btn btn-warning" onclick="window._openStatus(${inc.id}, '${inc.status}')"><i class="bi bi-tools me-1"></i> Cập nhật tiến độ</button>`;
+    if (isAssignedTech && inc.status === 'ASSIGNED') {
+      actionsEl.innerHTML += `<button class="btn btn-warning" onclick="window._startProgress(${inc.id})"><i class="bi bi-play-fill me-1"></i> Bắt đầu xử lý</button>`;
+    }
+    if (isAssignedTech && inc.status === 'IN_PROGRESS') {
+      actionsEl.innerHTML += `<button class="btn btn-success" onclick="window._resolveIncident(${inc.id})"><i class="bi bi-check-circle-fill me-1"></i> Báo hoàn thành</button>`;
+    }
+
+    // Populate Device and Edge selects if link form is rendered
+    if (isStaff && inc.target_type === 'UNKNOWN') {
+      await ensureDevicesAndEdges();
+      const devSelect = document.getElementById('link-device-select');
+      const edgeSelect = document.getElementById('link-edge-select');
+      if (devSelect && edgeSelect) {
+        devSelect.innerHTML = '<option value="">-- Không có / Chọn thiết bị --</option>' +
+          cachedDevices.map(d => `<option value="${d.id}">${d.code} - ${d.name} (${d.status_display || d.status})</option>`).join('');
+
+        edgeSelect.innerHTML = '<option value="">-- Không có / Chọn tuyến mạng --</option>' +
+          cachedEdges.map(e => {
+            const edgeLabel = e.name || (e.from_device_detail && e.to_device_detail ? `${e.from_device_detail.name} → ${e.to_device_detail.name}` : `Tuyến #${e.id}`);
+            return `<option value="${e.id}">${edgeLabel} (${e.status_display || e.status})</option>`;
+          }).join('');
+
+        devSelect.addEventListener('change', () => { if (devSelect.value) edgeSelect.value = ''; });
+        edgeSelect.addEventListener('change', () => { if (edgeSelect.value) devSelect.value = ''; });
+      }
     }
   }
 
@@ -231,6 +346,141 @@
     document.getElementById('status-note').value = '';
     detailModal.hide();
     statusModal.show();
+  };
+
+  window._saveAssociation = async (id) => {
+    const deviceId = document.getElementById('link-device-select').value;
+    const edgeId = document.getElementById('link-edge-select').value;
+    let targetType = 'UNKNOWN';
+    if (deviceId) targetType = 'DEVICE';
+    else if (edgeId) targetType = 'EDGE';
+
+    const payload = {
+      target_type: targetType,
+      device: deviceId ? parseInt(deviceId) : null,
+      edge: edgeId ? parseInt(edgeId) : null,
+    };
+
+    const res = await apiFetch(`${API.incidents}${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      showAlert('Liên kết thiết bị/tuyến thành công!', true);
+      viewIncident(id);
+      loadIncidents();
+    } else {
+      const d = await res.json().catch(() => ({}));
+      showAlert(d.detail || JSON.stringify(d) || 'Lỗi liên kết.');
+    }
+  };
+
+  window._openConfirm = async (id) => {
+    if (!confirm('Bạn có chắc muốn xác nhận sự cố này?')) return;
+    const res = await apiFetch(`${API.incidents}${id}/update-status/`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'CONFIRMED' })
+    });
+    if (res.ok) {
+      showAlert('Xác nhận sự cố thành công!', true);
+      viewIncident(id);
+      loadIncidents();
+    } else {
+      const d = await res.json().catch(() => ({}));
+      showAlert(d.detail || 'Lỗi xác nhận.');
+    }
+  };
+
+  window._openReject = async (id) => {
+    const reason = prompt('Nhập lý do từ chối sự cố:');
+    if (reason === null) return;
+    if (!reason.trim()) { showAlert('Lý do từ chối không được để trống.'); return; }
+    const res = await apiFetch(`${API.incidents}${id}/update-status/`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'REJECTED', rejection_reason: reason.trim() })
+    });
+    if (res.ok) {
+      showAlert('Từ chối sự cố thành công!', true);
+      detailModal.hide();
+      loadIncidents();
+    } else {
+      const d = await res.json().catch(() => ({}));
+      showAlert(d.detail || 'Lỗi từ chối.');
+    }
+  };
+
+  window._closeIncident = async (id) => {
+    if (!confirm('Bạn có chắc muốn đóng sự cố này không?')) return;
+    const res = await apiFetch(`${API.incidents}${id}/update-status/`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'CLOSED' })
+    });
+    if (res.ok) {
+      showAlert('Đóng sự cố thành công!', true);
+      detailModal.hide();
+      loadIncidents();
+    } else {
+      const d = await res.json().catch(() => ({}));
+      showAlert(d.detail || 'Lỗi đóng sự cố.');
+    }
+  };
+
+  window._startProgress = async (id) => {
+    const res = await apiFetch(`${API.incidents}${id}/update-status/`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'IN_PROGRESS' })
+    });
+    if (res.ok) {
+      showAlert('Đã bắt đầu xử lý sự cố!', true);
+      viewIncident(id);
+      loadIncidents();
+    } else {
+      const d = await res.json().catch(() => ({}));
+      showAlert(d.detail || 'Lỗi cập nhật trạng thái.');
+    }
+  };
+
+  window._resolveIncident = async (id) => {
+    const note = prompt('Nhập ghi chú kết quả xử lý (tùy chọn):');
+    if (note === null) return;
+    const payload = { status: 'RESOLVED' };
+    if (note.trim()) payload.result_note = note.trim();
+
+    const res = await apiFetch(`${API.incidents}${id}/update-status/`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      if (note.trim()) {
+        await apiFetch(`${API.incidents}${id}/add-note/`, {
+          method: 'POST',
+          body: JSON.stringify({ content: `Báo cáo hoàn thành: ${note.trim()}` })
+        });
+      }
+      showAlert('Báo cáo hoàn thành thành công!', true);
+      viewIncident(id);
+      loadIncidents();
+    } else {
+      const d = await res.json().catch(() => ({}));
+      showAlert(d.detail || 'Lỗi báo hoàn thành.');
+    }
+  };
+
+  window._addNote = async (id) => {
+    const input = document.getElementById('new-note-content');
+    const content = input ? input.value.trim() : '';
+    if (!content) { showAlert('Vui lòng nhập nội dung ghi chú.'); return; }
+    const res = await apiFetch(`${API.incidents}${id}/add-note/`, {
+      method: 'POST',
+      body: JSON.stringify({ content })
+    });
+    if (res.ok) {
+      showAlert('Thêm ghi chú thành công!', true);
+      viewIncident(id);
+    } else {
+      const d = await res.json().catch(() => ({}));
+      showAlert(d.detail || 'Lỗi thêm ghi chú.');
+    }
   };
 
   document.getElementById('btn-confirm-assign')?.addEventListener('click', async () => {

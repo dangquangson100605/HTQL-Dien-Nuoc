@@ -8,7 +8,7 @@ from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import User, AuditLog
-from .permissions import IsAdminRole
+from .permissions import IsAdminRole, IsOperatorRole
 from .serializers import (
     CustomTokenObtainPairSerializer,
     UserSerializer,
@@ -46,11 +46,21 @@ class LogoutView(APIView):
 
 class UserViewSet(viewsets.ModelViewSet):
     """
-    API quản lý User. Chỉ ADMIN mới có quyền CRUD.
+    API quản lý User. Chỉ ADMIN mới có quyền CRUD, OPERATOR được xem danh sách/chi tiết.
     """
-    queryset = User.objects.all().order_by("-id")
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get_queryset(self):
+        queryset = User.objects.all().order_by("-id")
+        role = self.request.query_params.get("role")
+        if role:
+            queryset = queryset.filter(role=role)
+        return queryset
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [IsAuthenticated(), IsOperatorRole()]
+        return [IsAuthenticated(), IsAdminRole()]
 
 
 class ChangePasswordView(APIView):

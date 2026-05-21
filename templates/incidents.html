@@ -3,6 +3,103 @@
 
 {% block title %}Quản lý Sự cố{% endblock %}
 
+{% block extra_head %}
+<style>
+  /* Premium Status and Severity Badges */
+  .badge-premium {
+    font-weight: 600;
+    font-size: 0.72rem;
+    padding: 0.35em 0.75em;
+    border-radius: 6px;
+    letter-spacing: 0.2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  }
+
+  .badge-status-pending_verify { background-color: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
+  .badge-status-open { background-color: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
+  .badge-status-confirmed { background-color: #fff7ed; color: #ea580c; border: 1px solid #ffedd5; }
+  .badge-status-assigned { background-color: #e0e7ff; color: #4f46e5; border: 1px solid #c7d2fe; }
+  .badge-status-in_progress { background-color: #f0f9ff; color: #0284c7; border: 1px solid #e0f2fe; }
+  .badge-status-resolved { background-color: #f0fdf4; color: #16a34a; border: 1px solid #dcfce7; }
+  .badge-status-closed { background-color: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+  .badge-status-rejected { background-color: #fff1f2; color: #e11d48; border: 1px solid #ffe4e6; }
+
+  .badge-severity-low { background-color: #f0fdf4; color: #16a34a; border: 1px solid #dcfce7; }
+  .badge-severity-medium { background-color: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
+  .badge-severity-high { background-color: #fff7ed; color: #ea580c; border: 1px solid #ffedd5; }
+  .badge-severity-critical { background-color: #fff1f2; color: #e11d48; border: 1px solid #ffe4e6; }
+
+  /* Compact modern table */
+  .table-premium {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .table-premium th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    font-size: 0.72rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    padding: 0.75rem 0.5rem !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+  }
+  .table-premium td {
+    padding: 0.65rem 0.5rem !important;
+    font-size: 0.8rem;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .table-premium tbody tr {
+    transition: all 0.2s ease-in-out;
+  }
+  .table-premium tbody tr:hover {
+    background-color: rgba(14, 165, 233, 0.03) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+  }
+
+  /* Map improvements */
+  #incident-map {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+  }
+
+  /* Modal detailing styling */
+  .modal-content {
+    border-radius: 16px !important;
+    overflow: hidden;
+  }
+  .modal-header {
+    background: linear-gradient(to bottom, #ffffff, #fafafa);
+    border-bottom: 1px solid #f1f5f9 !important;
+    padding: 1.25rem 1.5rem !important;
+  }
+  .modal-footer {
+    background: #f8fafc;
+    border-top: 1px solid #f1f5f9 !important;
+    padding: 1rem 1.5rem !important;
+  }
+  .modal-body {
+    padding: 1.5rem !important;
+  }
+
+  /* Subtle pulsing effect for critical active incidents */
+  @keyframes pulse-danger {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.15); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .pulse-critical {
+    animation: pulse-danger 1.5s infinite ease-in-out;
+  }
+</style>
+{% endblock %}
+
 {% block body %}
 <nav class="navbar navbar-expand-lg navbar-light sticky-top">
   <div class="container-fluid px-3">
@@ -74,20 +171,23 @@
           <span id="incident-count" class="badge bg-secondary"></span>
         </div>
         <div class="card-body p-0 table-responsive">
-          <table class="table table-hover table-sm mb-0 align-middle">
+          <table class="table table-premium table-hover table-sm mb-0 align-middle">
             <thead class="table-light sticky-top">
-              <tr>
+              <tr style="font-size: 0.8rem;">
                 <th>Tiêu đề</th>
                 <th class="text-center">Loại</th>
                 <th class="text-center">Mức độ</th>
                 <th class="text-center">Trạng thái</th>
+                <th>Vị trí</th>
                 <th>Người báo</th>
-                <th>Ngày tạo</th>
+                <th>Thiết bị</th>
+                <th>Tuyến</th>
+                <th>KTV phụ trách</th>
                 <th class="text-center">Thao tác</th>
               </tr>
             </thead>
-            <tbody id="incident-table-body">
-              <tr><td colspan="7" class="text-center text-muted py-5">
+            <tbody id="incident-table-body" style="font-size: 0.85rem;">
+              <tr><td colspan="10" class="text-center text-muted py-5">
                 <div class="spinner-border spinner-border-sm text-danger" role="status"></div>
                 <span class="ms-2">Đang tải...</span>
               </td></tr>

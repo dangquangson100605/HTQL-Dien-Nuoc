@@ -31,14 +31,12 @@
         <div class="card-body">
           <form id="monitoring-form">
             <div class="mb-3">
-              <label class="form-label">Thiết bị</label>
-              <select class="form-select" id="input-device" required>
-                <option value="">-- Chọn thiết bị --</option>
-              </select>
+              <label class="form-label">Mã công tơ / Mã đồng hồ</label>
+              <input type="text" class="form-control" id="input-device-code" placeholder="VD: CT01" required>
             </div>
             <div class="mb-3">
-              <label class="form-label">Ngày ghi nhận</label>
-              <input type="date" class="form-control" id="input-date" required>
+              <label class="form-label">Tháng ghi nhận</label>
+              <input type="month" class="form-control" id="input-date" required>
             </div>
             <div class="mb-3">
               <label class="form-label">Chỉ số tiêu thụ</label>
@@ -56,23 +54,21 @@
         <div class="card-body">
           <form id="filter-form">
             <div class="mb-3">
-              <label class="form-label">Thiết bị</label>
-              <select class="form-select" id="filter-device">
-                <option value="">Tất cả thiết bị</option>
-              </select>
+              <label class="form-label">Mã công tơ / Mã đồng hồ</label>
+              <input type="text" class="form-control" id="filter-device-code" placeholder="VD: CT01" required>
             </div>
             <div class="row g-2 mb-3">
               <div class="col-6">
-                <label class="form-label">Từ ngày</label>
-                <input type="date" class="form-control" id="filter-start">
+                <label class="form-label">Từ tháng</label>
+                <input type="month" class="form-control" id="filter-start">
               </div>
               <div class="col-6">
-                <label class="form-label">Đến ngày</label>
-                <input type="date" class="form-control" id="filter-end">
+                <label class="form-label">Đến tháng</label>
+                <input type="month" class="form-control" id="filter-end">
               </div>
             </div>
             <div class="d-flex gap-2">
-              <button type="submit" class="btn btn-secondary w-100">Lọc</button>
+              <button type="submit" class="btn btn-secondary w-100">Tìm kiếm</button>
               <button type="button" class="btn btn-light w-100" id="btn-clear-filter">Xóa lọc</button>
             </div>
           </form>
@@ -83,7 +79,7 @@
     <!-- Cột Bảng dữ liệu & Biểu đồ -->
     <div class="col-lg-8">
       <div class="card shadow-sm border-0 mb-3">
-        <div class="card-header bg-white py-2 fw-semibold">Biểu đồ tổng tiêu thụ theo ngày</div>
+        <div class="card-header bg-white py-2 fw-semibold">Biểu đồ tổng tiêu thụ theo tháng</div>
         <div class="card-body">
           <canvas id="consumptionChart" style="max-height: 300px;"></canvas>
         </div>
@@ -96,7 +92,7 @@
             <thead class="table-light sticky-top">
               <tr>
                 <th>Thiết bị</th>
-                <th>Ngày ghi nhận</th>
+                <th>Tháng ghi nhận</th>
                 <th>Chỉ số</th>
                 <th class="admin-only d-none">Thao tác</th>
               </tr>

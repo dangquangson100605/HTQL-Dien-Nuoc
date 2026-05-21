@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 
 
 ELECTRIC_DEVICE_TYPES = (
@@ -33,7 +34,7 @@ class Device(models.Model):
         ELECTRIC_POLE = 'ELECTRIC_POLE', 'Trụ điện'
         ELECTRIC_JUNCTION = 'ELECTRIC_JUNCTION', 'Điểm nối điện'
         ELECTRIC_METER = 'ELECTRIC_METER', 'Công tơ điện'
-        WATER_TANK = 'WATER_TANK', 'Bể chứa nước'
+        WATER_TANK = 'WATER_TANK', 'Bể nước'
         PUMP_STATION = 'PUMP_STATION', 'Trạm bơm'
         MAIN_VALVE = 'MAIN_VALVE', 'Van tổng'
         BRANCH_VALVE = 'BRANCH_VALVE', 'Van nhánh'
@@ -45,7 +46,6 @@ class Device(models.Model):
     class Status(models.TextChoices):
         ACTIVE = 'ACTIVE', 'Hoạt động'
         FAULT = 'FAULT', 'Lỗi trực tiếp'
-        AFFECTED = 'AFFECTED', 'Bị ảnh hưởng'
         MAINTENANCE = 'MAINTENANCE', 'Đang bảo trì'
         INACTIVE = 'INACTIVE', 'Ngưng hoạt động'
 
@@ -83,8 +83,31 @@ class Device(models.Model):
                 candidate = f'{base}_{n}'
                 n += 1
             self.code = candidate
-        # Đồng bộ legacy is_active với status
-        self.is_active = self.status in (self.Status.ACTIVE, self.Status.AFFECTED)
+
+        # Đồng bộ hai chiều legacy is_active với status
+        if self.pk:
+            try:
+                orig = Device.objects.get(pk=self.pk)
+                if orig.status != self.status:
+                    # status thay đổi -> cập nhật is_active theo status
+                    self.is_active = self.status == self.Status.ACTIVE
+                elif orig.is_active != self.is_active:
+                    # is_active thay đổi -> cập nhật status theo is_active
+                    if not self.is_active:
+                        if self.status == self.Status.ACTIVE:
+                            self.status = self.Status.INACTIVE
+                    else:
+                        if self.status in (self.Status.INACTIVE, self.Status.FAULT):
+                            self.status = self.Status.ACTIVE
+            except Device.DoesNotExist:
+                self.is_active = self.status == self.Status.ACTIVE
+        else:
+            # Tạo mới
+            if not self.is_active and self.status == self.Status.ACTIVE:
+                self.status = self.Status.INACTIVE
+            else:
+                self.is_active = self.status == self.Status.ACTIVE
+
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -103,7 +126,6 @@ class NetworkEdge(models.Model):
     class Status(models.TextChoices):
         ACTIVE = 'ACTIVE', 'Hoạt động'
         FAULT = 'FAULT', 'Lỗi trực tiếp'
-        AFFECTED = 'AFFECTED', 'Bị ảnh hưởng'
         MAINTENANCE = 'MAINTENANCE', 'Đang bảo trì'
         INACTIVE = 'INACTIVE', 'Ngưng sử dụng'
 
@@ -122,11 +144,26 @@ class NetworkEdge(models.Model):
         max_length=16, choices=Status.choices,
         default=Status.ACTIVE, verbose_name='Trạng thái',
     )
+    attributes = models.JSONField(default=dict, blank=True, verbose_name='Thuộc tính mở rộng')
     description = models.TextField(blank=True, default='', verbose_name='Mô tả')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def clean(self):
+        super().clean()
+        if self.from_device_id and self.to_device_id:
+            if self.from_device_id == self.to_device_id:
+                raise ValidationError({'to_device': 'from_device không được trùng to_device.'})
+            
+            # Kiểm tra không tạo 2 tuyến trùng hướng từ cùng from_device đến cùng to_device
+            qs = NetworkEdge.objects.filter(from_device=self.from_device, to_device=self.to_device)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                raise ValidationError('Tuyến mạng từ thiết bị này đến thiết bị kia đã tồn tại.')
+
     def save(self, *args, **kwargs):
+        self.clean()
         if not self.code:
             self.code = f'EDGE_{self.from_device_id}_{self.to_device_id}'
         super().save(*args, **kwargs)
@@ -178,6 +215,20 @@ class ConsumptionLog(models.Model):
 
     def __str__(self):
         return f'{self.device.name} - {self.date}: {self.value}'
+
+    def save(self, *args, **kwargs):
+        if self.date:
+            if isinstance(self.date, str):
+                from datetime import datetime
+                for fmt in ('%Y-%m-%d', '%Y-%m-%d %H:%M:%S', '%Y-%m'):
+                    try:
+                        self.date = datetime.strptime(self.date, fmt).date().replace(day=1)
+                        break
+                    except ValueError:
+                        continue
+            else:
+                self.date = self.date.replace(day=1)
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = 'Nhật ký tiêu thụ'
