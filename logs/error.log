@@ -1,0 +1,4 @@
+ERROR 2026-05-18 16:14:30,481 log 4996 19664 Internal Server Error: /api/devices/
+ERROR 2026-05-18 16:14:30,483 basehttp 4996 19664 "POST /api/devices/ HTTP/1.1" 500 63
+ERROR 2026-05-18 16:15:42,619 log 15432 5688 Internal Server Error: /api/devices/
+ERROR 2026-05-18 16:15:42,620 basehttp 15432 5688 "POST /api/devices/ HTTP/1.1" 500 63

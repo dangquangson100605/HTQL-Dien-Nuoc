@@ -4,12 +4,14 @@
   const STORAGE = { access: 'infra_access', refresh: 'infra_refresh', role: 'infra_role', username: 'infra_username' };
   const API = {
     incidents: '/api/incidents/',
+    devices: '/api/devices/?page_size=500',
+    edges: '/api/edges/?page_size=500',
     users: '/api/auth/users/',
     logout: '/api/auth/logout/',
   };
   const API_REFRESH = '/api/auth/token/refresh/';
 
-  const STATUS_COLOR = { OPEN: 'danger', ASSIGNED: 'warning', IN_PROGRESS: 'info', RESOLVED: 'success', CLOSED: 'secondary' };
+  const STATUS_COLOR = { PENDING_VERIFY: 'warning', CONFIRMED: 'danger', ASSIGNED: 'primary', IN_PROGRESS: 'info', RESOLVED: 'success', CLOSED: 'secondary', REJECTED: 'dark' };
   const SEVERITY_COLOR = { LOW: 'success', MEDIUM: 'warning', HIGH: 'danger', CRITICAL: 'dark' };
   const SEVERITY_ICON = { LOW: '🟢', MEDIUM: '🟡', HIGH: '🔴', CRITICAL: '🚨' };
 
@@ -66,9 +68,11 @@
     if (el) el.textContent = u ? `Xin chào, ${u}` : '';
     const labels = { ADMIN: 'Quản trị', OPERATOR: 'Vận hành', TECHNICIAN: 'Kỹ thuật', CITIZEN: 'Người dân' };
     if (roleEl) roleEl.textContent = labels[currentRole] || currentRole;
+    if (currentRole === 'ADMIN' || currentRole === 'OPERATOR') {
+      document.getElementById('nav-dashboard-link')?.classList.remove('d-none');
+    }
     if (currentRole === 'ADMIN') {
       document.getElementById('nav-users-link')?.classList.remove('d-none');
-      document.getElementById('nav-dashboard-link')?.classList.remove('d-none');
     }
     document.getElementById('btn-logout')?.addEventListener('click', async () => {
       const refresh = localStorage.getItem(STORAGE.refresh);
@@ -187,11 +191,20 @@
     // Action buttons
     const actionsEl = document.getElementById('incident-modal-actions');
     actionsEl.innerHTML = `<button class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>`;
-    if (currentRole === 'ADMIN') {
+    const isStaff = ['ADMIN', 'OPERATOR'].includes(currentRole);
+    const isTech = currentRole === 'TECHNICIAN';
+    if (isStaff && inc.status === 'PENDING_VERIFY') {
+      actionsEl.innerHTML += `<button class="btn btn-success" onclick="window._openConfirm(${inc.id})"><i class="bi bi-check-circle me-1"></i> Xác nhận</button>`;
+      actionsEl.innerHTML += `<button class="btn btn-outline-danger" onclick="window._openReject(${inc.id})"><i class="bi bi-x-circle me-1"></i> Từ chối</button>`;
+    }
+    if (isStaff && ['CONFIRMED','ASSIGNED','IN_PROGRESS'].includes(inc.status)) {
       actionsEl.innerHTML += `<button class="btn btn-primary" onclick="window._openAssign(${inc.id})"><i class="bi bi-person-check me-1"></i> Phân công</button>`;
     }
-    if (['ADMIN', 'OPERATOR', 'TECHNICIAN'].includes(currentRole)) {
-      actionsEl.innerHTML += `<button class="btn btn-warning" onclick="window._openStatus(${inc.id}, '${inc.status}')"><i class="bi bi-pencil me-1"></i> Cập nhật trạng thái</button>`;
+    if (isStaff && ['RESOLVED','CONFIRMED','IN_PROGRESS'].includes(inc.status)) {
+      actionsEl.innerHTML += `<button class="btn btn-dark" onclick="window._closeIncident(${inc.id})"><i class="bi bi-lock me-1"></i> Đóng sự cố</button>`;
+    }
+    if (isTech && inc.assigned_to_username && ['ASSIGNED','IN_PROGRESS'].includes(inc.status)) {
+      actionsEl.innerHTML += `<button class="btn btn-warning" onclick="window._openStatus(${inc.id}, '${inc.status}')"><i class="bi bi-tools me-1"></i> Cập nhật tiến độ</button>`;
     }
   }
 
@@ -233,7 +246,7 @@
     const id = document.getElementById('status-incident-id').value;
     const newStatus = document.getElementById('status-new').value;
     const note = document.getElementById('status-note').value.trim();
-    const res = await apiFetch(`${API.incidents}${id}/update-status/`, { method: 'PATCH', body: JSON.stringify({ status: newStatus }) });
+    const res = await apiFetch(`${API.incidents}${id}/update-status/`, { method: 'PATCH', body: JSON.stringify({ status: newStatus, result_note: note }) });
     if (res.ok) {
       if (note) await apiFetch(`${API.incidents}${id}/add-note/`, { method: 'POST', body: JSON.stringify({ content: note }) });
       showAlert('Cập nhật trạng thái thành công!', true);

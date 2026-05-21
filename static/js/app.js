@@ -297,7 +297,8 @@
       page: currentPage,
       search: currentSearch,
       device_type: currentType,
-      ordering: currentSort
+      ordering: currentSort,
+      page_size: 1000
     });
     
     const res = await apiFetch(`${API.devices}?${params.toString()}`);
@@ -330,25 +331,42 @@
     if (btnNext) btnNext.disabled = !data.next;
   }
 
-  function populateParentSelect(excludeId = null) {
+  async function populateParentSelect(excludeId = null) {
     const parentSelect = document.getElementById('device-parent');
     if (!parentSelect) return;
-    let options = '<option value="">-- Không có --</option>';
-    cachedDevices.forEach(d => {
-      if (excludeId && d.id === excludeId) return;
-      options += `<option value="${d.id}">${d.name} (${DEVICE_LABELS[d.device_type] || d.device_type})</option>`;
-    });
-    parentSelect.innerHTML = options;
+    
+    parentSelect.innerHTML = '<option value="">-- Đang tải... --</option>';
+    parentSelect.disabled = true;
+
+    try {
+      const res = await apiFetch(`${API.devices}?page_size=1000`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const allDevices = data.results || data;
+
+      let options = '<option value="">-- Không có --</option>';
+      allDevices.forEach(d => {
+        if (excludeId && d.id === excludeId) return;
+        const typeLabel = DEVICE_LABELS[d.device_type] || d.device_type;
+        options += `<option value="${d.id}">${escapeHtml(d.name)} (${escapeHtml(typeLabel)})</option>`;
+      });
+      parentSelect.innerHTML = options;
+    } catch (e) {
+      parentSelect.innerHTML = '<option value="">-- Lỗi tải dữ liệu --</option>';
+    } finally {
+      parentSelect.disabled = false;
+    }
   }
 
   function openCreateModal() {
     hideModalAlert();
-    populateParentSelect();
+    populateParentSelect().then(() => {
+      document.getElementById('device-parent').value = '';
+    });
     document.getElementById('device-modal-title').textContent = 'Thêm thiết bị';
     document.getElementById('device-id').value = '';
     document.getElementById('device-name').value = '';
     document.getElementById('device-type').value = 'ELECTRIC_POLE';
-    document.getElementById('device-parent').value = '';
     document.getElementById('device-attributes').value = '';
     document.getElementById('device-lat').value = '10.823100';
     document.getElementById('device-lng').value = '106.629700';
@@ -359,12 +377,14 @@
 
   function openEditModal(d) {
     hideModalAlert();
-    populateParentSelect(d.id);
     document.getElementById('device-modal-title').textContent = 'Sửa thiết bị';
     document.getElementById('device-id').value = String(d.id);
     document.getElementById('device-name').value = d.name;
     document.getElementById('device-type').value = d.device_type;
-    document.getElementById('device-parent').value = d.parent ? String(d.parent) : '';
+    
+    populateParentSelect(d.id).then(() => {
+      document.getElementById('device-parent').value = d.parent ? String(d.parent) : '';
+    });
     document.getElementById('device-attributes').value = d.attributes ? JSON.stringify(d.attributes, null, 2) : '';
     document.getElementById('device-lat').value = String(d.latitude);
     document.getElementById('device-lng').value = String(d.longitude);
