@@ -216,3 +216,206 @@ body {
   margin-bottom: 2rem;
   font-size: 0.95rem;
 }
+
+/* ========================================== */
+/* DEVS ROLE SWITCHER - RBAC QUICK TESTKIT    */
+/* ========================================== */
+.dev-switcher-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 99999;
+  font-family: 'Inter', sans-serif;
+}
+
+.dev-switcher-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  padding: 0;
+}
+
+.dev-switcher-btn:hover {
+  transform: scale(1.1) rotate(15deg);
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+  color: #fff;
+  border-color: rgba(56, 189, 248, 0.6);
+}
+
+.dev-switcher-btn .pulse-indicator {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 10px;
+  height: 10px;
+  background-color: #10b981;
+  border-radius: 50%;
+  border: 2px solid #0f172a;
+}
+
+.dev-switcher-btn .pulse-indicator::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border-radius: 50%;
+  border: 2px solid #10b981;
+  animation: dev-pulse 1.5s infinite;
+}
+
+@keyframes dev-pulse {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+.dev-switcher-panel {
+  position: absolute;
+  bottom: 70px;
+  right: 0;
+  width: 320px;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+  padding: 18px;
+  color: #f8fafc;
+  transform: translateY(10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dev-switcher-panel.show {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.dev-switcher-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.dev-switcher-title {
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #38bdf8;
+  margin: 0;
+}
+
+.dev-switcher-subtitle {
+  font-size: 11px;
+  color: #94a3b8;
+  margin: 2px 0 0 0;
+}
+
+.dev-current-user-info {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dev-current-role-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: #38bdf8;
+  color: #0f172a;
+}
+
+.dev-role-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dev-role-btn {
+  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  color: #e2e8f0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.2s ease;
+}
+
+.dev-role-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateX(-4px);
+  color: #fff;
+}
+
+.dev-role-btn.active {
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.3) !important;
+  color: #38bdf8;
+}
+
+.dev-role-btn-icon {
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dev-role-btn:hover .dev-role-btn-icon {
+  transform: scale(1.1);
+}
+
+/* Specific Role Theme Colors */
+.dev-role-admin .dev-role-btn-icon { background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%); color: #fff; }
+.dev-role-operator .dev-role-btn-icon { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #fff; }
+.dev-role-technician .dev-role-btn-icon { background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); color: #fff; }
+.dev-role-citizen .dev-role-btn-icon { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; }
+
+.dev-role-btn.active.dev-role-admin { border-color: rgba(251, 191, 36, 0.4) !important; color: #fbbf24; }
+.dev-role-btn.active.dev-role-operator { border-color: rgba(59, 130, 246, 0.4) !important; color: #3b82f6; }
+.dev-role-btn.active.dev-role-technician { border-color: rgba(168, 85, 247, 0.4) !important; color: #a855f7; }
+.dev-role-btn.active.dev-role-citizen { border-color: rgba(16, 185, 129, 0.4) !important; color: #10b981; }
+
+.dev-switcher-toast {
+  font-size: 11px;
+  color: #f43f5e;
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.2);
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-top: 10px;
+  text-align: center;
+  display: none;
+}

@@ -92,6 +92,7 @@
             <input type="file" id="file-import-csv" accept=".csv" class="d-none">
             <button type="button" class="btn btn-sm btn-outline-secondary admin-only d-none" id="btn-import-csv" title="Nhập CSV"><i class="bi bi-upload"></i> CSV</button>
             <button type="button" class="btn btn-sm btn-success admin-only d-none" id="btn-add-device">+ Thêm thiết bị</button>
+            <button type="button" class="btn btn-sm btn-primary admin-only d-none" id="btn-add-edge">+ Thêm tuyến</button>
           </div>
         </div>
         <div class="bg-light p-2 border-bottom">
@@ -274,6 +275,94 @@
   </div>
 </div>
 
+<!-- Modal thêm / sửa tuyến mạng -->
+<div class="modal fade" id="edge-modal" data-bs-backdrop="false" tabindex="-1" aria-labelledby="edge-modal-title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="edge-modal-title">Tuyến mạng lưới</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <div id="edge-modal-alert" class="alert alert-danger py-2 small d-none"></div>
+        <form id="edge-form">
+          <input type="hidden" id="edge-id" value="">
+          <div class="mb-3">
+            <label for="edge-name" class="form-label">Tên tuyến</label>
+            <input type="text" class="form-control" id="edge-name" required maxlength="150" placeholder="VD: Tuyến nối Trạm bơm -> Van A">
+            <div class="invalid-feedback">Vui lòng nhập tên tuyến hợp lệ.</div>
+          </div>
+          <div class="mb-3">
+            <label for="edge-code" class="form-label">Mã tuyến (Tùy chọn)</label>
+            <input type="text" class="form-control" id="edge-code" maxlength="64" placeholder="Tự sinh nếu bỏ trống">
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label for="edge-type" class="form-label">Loại mạng</label>
+              <select class="form-select" id="edge-type" required>
+                <option value="ELECTRIC">Điện</option>
+                <option value="WATER">Nước</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="edge-status" class="form-label">Trạng thái</label>
+              <select class="form-select" id="edge-status" required>
+                <option value="ACTIVE">Hoạt động</option>
+                <option value="FAULT">Lỗi trực tiếp</option>
+                <option value="MAINTENANCE">Đang bảo trì</option>
+                <option value="INACTIVE">Ngưng sử dụng</option>
+              </select>
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label for="edge-from-device" class="form-label">Thiết bị đầu</label>
+              <select class="form-select" id="edge-from-device" required>
+                <option value="">-- Chọn thiết bị --</option>
+              </select>
+              <div class="invalid-feedback">Vui lòng chọn thiết bị đầu.</div>
+            </div>
+            <div class="col-md-6">
+              <label for="edge-to-device" class="form-label">Thiết bị cuối</label>
+              <select class="form-select" id="edge-to-device" required>
+                <option value="">-- Chọn thiết bị --</option>
+              </select>
+              <div class="invalid-feedback">Vui lòng chọn thiết bị cuối.</div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="edge-description" class="form-label">Mô tả chi tiết</label>
+            <textarea class="form-control" id="edge-description" rows="2" placeholder="Ghi chú thêm về tuyến đường dẫn..."></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-primary" id="edge-save">Lưu</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Xác nhận xóa tuyến -->
+<div class="modal fade" id="delete-edge-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Xóa tuyến mạng</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0">Bạn có chắc muốn xóa tuyến <strong id="delete-edge-name"></strong>?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-danger" id="delete-edge-confirm">Xóa</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Đổi mật khẩu -->
 <div class="modal fade" id="change-password-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -393,5 +482,5 @@
 
 {% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="{% static 'js/app.js' %}?v=7"></script>
+<script src="{% static 'js/app.js' %}?v=8"></script>
 {% endblock %}

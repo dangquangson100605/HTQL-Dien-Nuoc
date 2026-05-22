@@ -49,6 +49,11 @@
   let deleteTargetId = null;
   /** @type {bootstrap.Modal | null} */
   let reportModal = null;
+  /** @type {bootstrap.Modal | null} */
+  let edgeModal = null;
+  /** @type {bootstrap.Modal | null} */
+  let deleteEdgeModal = null;
+  let deleteEdgeTargetId = null;
 
   let currentPage = 1;
   let currentSearch = '';
@@ -307,6 +312,20 @@
     const isElectric = ['ELECTRIC_POLE', 'TRANSFORMER', 'ELECTRIC_METER', 'DISTRIBUTION_BOX', 'ELECTRIC_JUNCTION'].includes(d.device_type);
     const typeParam = isElectric ? 'ELECTRIC' : 'WATER';
 
+    let adminActionsHtml = '';
+    if (isAdmin()) {
+      adminActionsHtml = `
+        <div class="d-flex gap-1 mt-2 pt-2 border-top">
+          <button type="button" class="btn btn-outline-primary btn-sm flex-fill py-1 px-2" onclick="window._editDevice(${d.id}); event.preventDefault();" style="font-size: 11px;">
+            <i class="bi bi-pencil-square"></i> Sửa
+          </button>
+          <button type="button" class="btn btn-outline-danger btn-sm flex-fill py-1 px-2" onclick="window._deleteDevice(${d.id}, '${escapeHtml(d.name)}'); event.preventDefault();" style="font-size: 11px;">
+            <i class="bi bi-trash"></i> Xóa
+          </button>
+        </div>
+      `;
+    }
+
     return `
       <div class="p-1" style="min-width: 180px;">
         <h6 class="fw-bold mb-1 border-bottom pb-1 text-primary d-flex align-items-center justify-content-between">
@@ -323,6 +342,7 @@
           <a href="#" onclick="window._triggerReport('DEVICE', ${d.id}, ${d.latitude}, ${d.longitude}, '${typeParam}', '${escapeHtml(d.name)}', '${escapeHtml(d.area || '')}', '${escapeHtml(d.address || '')}'); event.preventDefault();" class="btn btn-danger btn-sm text-white fw-medium py-1 px-2 border-0 rounded d-flex align-items-center justify-content-center gap-1" style="font-size: 12px; background-color: #dc3545; transition: background 0.2s;">
             <i class="bi bi-exclamation-triangle"></i> Báo sự cố thiết bị này
           </a>
+          ${adminActionsHtml}
         </div>
       </div>
     `;
@@ -350,6 +370,20 @@
     const edgeArea = edge.from_device_detail ? (edge.from_device_detail.area || '') : '';
     const edgeAddress = edge.from_device_detail ? (edge.from_device_detail.address || '') : '';
 
+    let adminActionsHtml = '';
+    if (isAdmin()) {
+      adminActionsHtml = `
+        <div class="d-flex gap-1 mt-2 pt-2 border-top">
+          <button type="button" class="btn btn-outline-primary btn-sm flex-fill py-1 px-2" onclick="window._editEdge(${edge.id}); event.preventDefault();" style="font-size: 11px;">
+            <i class="bi bi-pencil-square"></i> Sửa
+          </button>
+          <button type="button" class="btn btn-outline-danger btn-sm flex-fill py-1 px-2" onclick="window._deleteEdge(${edge.id}, '${escapeHtml(edge.name || 'Tuyến mạng')}'); event.preventDefault();" style="font-size: 11px;">
+            <i class="bi bi-trash"></i> Xóa
+          </button>
+        </div>
+      `;
+    }
+
     return `
       <div class="p-1" style="min-width: 180px;">
         <h6 class="fw-bold mb-1 border-bottom pb-1 text-primary d-flex align-items-center justify-content-between">
@@ -366,6 +400,7 @@
           <a href="#" onclick="window._triggerReport('EDGE', ${edge.id}, ${midLat}, ${midLng}, '${edge.network_type}', '${escapeHtml(edge.name || 'Tuyến mạng')}', '${escapeHtml(edgeArea)}', '${escapeHtml(edgeAddress)}'); event.preventDefault();" class="btn btn-danger btn-sm text-white fw-medium py-1 px-2 border-0 rounded d-flex align-items-center justify-content-center gap-1" style="font-size: 12px; background-color: #dc3545; transition: background 0.2s;">
             <i class="bi bi-exclamation-triangle"></i> Báo sự cố tuyến này
           </a>
+          ${adminActionsHtml}
         </div>
       </div>
     `;
@@ -709,6 +744,180 @@
     await refreshMap();
   }
 
+  async function populateEdgeDeviceSelects() {
+    const fromSelect = document.getElementById('edge-from-device');
+    const toSelect = document.getElementById('edge-to-device');
+    if (!fromSelect || !toSelect) return;
+    
+    fromSelect.innerHTML = '<option value="">-- Đang tải... --</option>';
+    toSelect.innerHTML = '<option value="">-- Đang tải... --</option>';
+    
+    try {
+      const res = await apiFetch(`${API.devices}?page_size=1000`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const allDevices = data.results || data;
+      
+      let options = '<option value="">-- Chọn thiết bị --</option>';
+      allDevices.forEach(d => {
+        const typeLabel = DEVICE_LABELS[d.device_type] || d.device_type;
+        options += `<option value="${d.id}">${escapeHtml(d.name)} (${escapeHtml(typeLabel)})</option>`;
+      });
+      fromSelect.innerHTML = options;
+      toSelect.innerHTML = options;
+    } catch (e) {
+      fromSelect.innerHTML = '<option value="">-- Lỗi tải thiết bị --</option>';
+      toSelect.innerHTML = '<option value="">-- Lỗi tải thiết bị --</option>';
+    }
+  }
+
+  function showEdgeModalAlert(msg) {
+    const el = document.getElementById('edge-modal-alert');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove('d-none');
+  }
+
+  function hideEdgeModalAlert() {
+    const el = document.getElementById('edge-modal-alert');
+    if (!el) return;
+    el.classList.add('d-none');
+  }
+
+  async function openCreateEdgeModal() {
+    hideEdgeModalAlert();
+    await populateEdgeDeviceSelects();
+    document.getElementById('edge-modal-title').textContent = 'Thêm tuyến mạng';
+    document.getElementById('edge-id').value = '';
+    document.getElementById('edge-name').value = '';
+    document.getElementById('edge-code').value = '';
+    document.getElementById('edge-type').value = 'ELECTRIC';
+    document.getElementById('edge-status').value = 'ACTIVE';
+    document.getElementById('edge-from-device').value = '';
+    document.getElementById('edge-to-device').value = '';
+    document.getElementById('edge-description').value = '';
+    edgeModal.show();
+  }
+
+  async function openEditEdgeModal(edgeId) {
+    hideEdgeModalAlert();
+    await populateEdgeDeviceSelects();
+    
+    const edge = cachedEdges.find(e => e.id === edgeId);
+    if (!edge) {
+      console.error("Không tìm thấy tuyến mạng ID:", edgeId);
+      return;
+    }
+    
+    document.getElementById('edge-modal-title').textContent = 'Sửa tuyến mạng';
+    document.getElementById('edge-id').value = String(edge.id);
+    document.getElementById('edge-name').value = edge.name || '';
+    document.getElementById('edge-code').value = edge.code || '';
+    document.getElementById('edge-type').value = edge.network_type || 'ELECTRIC';
+    document.getElementById('edge-status').value = edge.status || 'ACTIVE';
+    document.getElementById('edge-from-device').value = edge.from_device ? String(edge.from_device) : '';
+    document.getElementById('edge-to-device').value = edge.to_device ? String(edge.to_device) : '';
+    document.getElementById('edge-description').value = edge.description || '';
+    edgeModal.show();
+  }
+
+  function openDeleteEdgeModal(id, name) {
+    deleteEdgeTargetId = id;
+    document.getElementById('delete-edge-name').textContent = name || 'Tuyến mạng';
+    deleteEdgeModal.show();
+  }
+
+  async function saveEdge() {
+    hideEdgeModalAlert();
+    document.querySelectorAll('#edge-form .is-invalid').forEach(el => el.classList.remove('is-invalid'));
+    
+    const id = document.getElementById('edge-id').value.trim();
+    const nameEl = document.getElementById('edge-name');
+    const fromEl = document.getElementById('edge-from-device');
+    const toEl = document.getElementById('edge-to-device');
+    
+    const body = {
+      name: nameEl.value.trim(),
+      code: document.getElementById('edge-code').value.trim() || null,
+      network_type: document.getElementById('edge-type').value,
+      status: document.getElementById('edge-status').value,
+      from_device: parseInt(fromEl.value),
+      to_device: parseInt(toEl.value),
+      description: document.getElementById('edge-description').value.trim()
+    };
+    
+    let hasError = false;
+    if (!body.name) {
+      nameEl.classList.add('is-invalid');
+      hasError = true;
+    }
+    if (!fromEl.value) {
+      fromEl.classList.add('is-invalid');
+      hasError = true;
+    }
+    if (!toEl.value) {
+      toEl.classList.add('is-invalid');
+      hasError = true;
+    }
+    if (fromEl.value && toEl.value && fromEl.value === toEl.value) {
+      toEl.classList.add('is-invalid');
+      showEdgeModalAlert('Thiết bị đầu và thiết bị cuối không được trùng nhau.');
+      hasError = true;
+    }
+    
+    if (hasError) return;
+    
+    const url = id ? `${API.edges}${id}/` : API.edges;
+    const method = id ? 'PATCH' : 'POST';
+    const res = await apiFetch(url, { method, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showEdgeModalAlert(formatErrors(data));
+      return;
+    }
+    
+    edgeModal.hide();
+    await refreshMap();
+    showAppAlert('Lưu tuyến mạng thành công!', true);
+  }
+
+  async function confirmDeleteEdge() {
+    if (!deleteEdgeTargetId) return;
+    const id = deleteEdgeTargetId;
+    const res = await apiFetch(`${API.edges}${id}/`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      showAppAlert(formatErrors(data));
+      return;
+    }
+    deleteEdgeModal.hide();
+    deleteEdgeTargetId = null;
+    await refreshMap();
+    showAppAlert('Đã xóa tuyến mạng thành công!', true);
+  }
+
+  // Global window functions for map popup buttons
+  window._editEdge = function(id) {
+    if (map) map.closePopup();
+    openEditEdgeModal(id);
+  };
+  
+  window._deleteEdge = function(id, name) {
+    if (map) map.closePopup();
+    openDeleteEdgeModal(id, name);
+  };
+  
+  window._editDevice = function(id) {
+    if (map) map.closePopup();
+    const d = cachedDevices.find(x => x.id === id);
+    if (d) openEditModal(d);
+  };
+  
+  window._deleteDevice = function(id, name) {
+    if (map) map.closePopup();
+    openDeleteModal(id, name);
+  };
+
   window._triggerReport = function(targetType, targetId, lat, lng, defaultType, targetName, area = '', address = '') {
     const modalAlert = document.getElementById('report-modal-alert');
     if (modalAlert) modalAlert.classList.add('d-none');
@@ -936,6 +1145,8 @@
     deviceModal = new bootstrap.Modal(document.getElementById('device-modal'));
     deleteModal = new bootstrap.Modal(document.getElementById('delete-modal'));
     reportModal = new bootstrap.Modal(document.getElementById('report-incident-modal'));
+    edgeModal = new bootstrap.Modal(document.getElementById('edge-modal'));
+    deleteEdgeModal = new bootstrap.Modal(document.getElementById('delete-edge-modal'));
 
     document.getElementById('device-modal').addEventListener('hidden.bs.modal', () => {
       pickLocationMode = false;
@@ -944,8 +1155,16 @@
     document.getElementById('btn-logout').addEventListener('click', () => logout());
 
     document.getElementById('btn-add-device').addEventListener('click', () => openCreateModal());
+    
+    const btnAddEdge = document.getElementById('btn-add-edge');
+    if (btnAddEdge) {
+      btnAddEdge.addEventListener('click', () => openCreateEdgeModal());
+    }
+
     document.getElementById('device-save').addEventListener('click', () => saveDevice());
     document.getElementById('delete-confirm').addEventListener('click', () => confirmDelete());
+    document.getElementById('edge-save').addEventListener('click', () => saveEdge());
+    document.getElementById('delete-edge-confirm').addEventListener('click', () => confirmDeleteEdge());
     document.getElementById('btn-report-submit').addEventListener('click', () => submitIncidentReport());
     
     // Import / Export CSV

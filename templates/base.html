@@ -13,6 +13,197 @@
 </head>
 <body class="bg-light">
   {% block body %}{% endblock %}
+  
+  <!-- ========================================== -->
+  <!-- DEVS ROLE SWITCHER - RBAC QUICK TESTKIT    -->
+  <!-- ========================================== -->
+  <div class="dev-switcher-container">
+    <button class="dev-switcher-btn" id="dev-switcher-toggle" title="Bộ kiểm thử vai trò nhanh (RBAC Testkit)">
+      <i class="bi bi-person-gear"></i>
+      <span class="pulse-indicator"></span>
+    </button>
+    
+    <div class="dev-switcher-panel" id="dev-switcher-panel">
+      <div class="dev-switcher-header">
+        <h5 class="dev-switcher-title">
+          <i class="bi bi-lightning-fill"></i> RBAC Quick Testkit
+        </h5>
+        <p class="dev-switcher-subtitle">Chuyển vai trò thử nghiệm trong 1-click</p>
+      </div>
+      
+      <div class="dev-current-user-info">
+        <div>
+          <span style="opacity: 0.7;">Tài khoản:</span>
+          <strong id="dev-current-username">Chưa đăng nhập</strong>
+        </div>
+        <span class="dev-current-role-badge" id="dev-current-role">NONE</span>
+      </div>
+      
+      <div class="dev-role-options">
+        <button type="button" class="dev-role-btn dev-role-admin" data-role="ADMIN" data-username="admin" data-password="admin123">
+          <span>👑 ADMIN (Quản trị)</span>
+          <span class="dev-role-btn-icon"><i class="bi bi-shield-check"></i></span>
+        </button>
+        
+        <button type="button" class="dev-role-btn dev-role-operator" data-role="OPERATOR" data-username="operator" data-password="operator123">
+          <span>🏢 OPERATOR (Vận hành)</span>
+          <span class="dev-role-btn-icon"><i class="bi bi-building"></i></span>
+        </button>
+        
+        <button type="button" class="dev-role-btn dev-role-technician" data-role="TECHNICIAN" data-username="technician" data-password="technician123">
+          <span>🛠️ TECHNICIAN (Kỹ thuật)</span>
+          <span class="dev-role-btn-icon"><i class="bi bi-tools"></i></span>
+        </button>
+        
+        <button type="button" class="dev-role-btn dev-role-citizen" data-role="CITIZEN" data-username="citizen" data-password="citizen123">
+          <span>👥 CITIZEN (Người dân)</span>
+          <span class="dev-role-btn-icon"><i class="bi bi-people"></i></span>
+        </button>
+      </div>
+      
+      <div class="dev-switcher-toast" id="dev-switcher-error-toast">
+        Lỗi đăng nhập tài khoản.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      document.addEventListener('DOMContentLoaded', function() {
+        const toggleBtn = document.getElementById('dev-switcher-toggle');
+        const panel = document.getElementById('dev-switcher-panel');
+        const errorToast = document.getElementById('dev-switcher-error-toast');
+        const currentUsernameEl = document.getElementById('dev-current-username');
+        const currentRoleEl = document.getElementById('dev-current-role');
+        const roleButtons = document.querySelectorAll('.dev-role-btn');
+        
+        // 1. Update current login status in the widget
+        const currentRole = localStorage.getItem('infra_role');
+        const currentUsername = localStorage.getItem('infra_username');
+        
+        if (currentUsername) {
+          currentUsernameEl.textContent = currentUsername;
+        }
+        
+        if (currentRole) {
+          const roleLabels = {
+            'ADMIN': 'Quản trị',
+            'OPERATOR': 'Vận hành',
+            'TECHNICIAN': 'Kỹ thuật',
+            'CITIZEN': 'Người dân'
+          };
+          currentRoleEl.textContent = roleLabels[currentRole] || currentRole;
+          currentRoleEl.className = 'dev-current-role-badge';
+          
+          // Add role-specific badge background
+          if (currentRole === 'ADMIN') currentRoleEl.style.background = '#fbbf24';
+          else if (currentRole === 'OPERATOR') currentRoleEl.style.background = '#3b82f6';
+          else if (currentRole === 'TECHNICIAN') currentRoleEl.style.background = '#a855f7';
+          else if (currentRole === 'CITIZEN') currentRoleEl.style.background = '#10b981';
+          
+          // Mark active button
+          roleButtons.forEach(btn => {
+            if (btn.getAttribute('data-role') === currentRole) {
+              btn.classList.add('active');
+            }
+          });
+        } else {
+          currentRoleEl.textContent = 'GUEST';
+          currentRoleEl.style.background = '#64748b';
+        }
+        
+        // 2. Toggle Panel Open/Close
+        if (toggleBtn && panel) {
+          toggleBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            panel.classList.toggle('show');
+          });
+          
+          // Close when clicking outside
+          document.addEventListener('click', function(e) {
+            if (!panel.contains(e.target) && e.target !== toggleBtn && !toggleBtn.contains(e.target)) {
+              panel.classList.remove('show');
+            }
+          });
+          
+          // Prevent closing panel when clicking inside it
+          panel.addEventListener('click', function(e) {
+            e.stopPropagation();
+          });
+        }
+        
+        // 3. Handle Role Switch
+        roleButtons.forEach(btn => {
+          btn.addEventListener('click', async function() {
+            const role = this.getAttribute('data-role');
+            const username = this.getAttribute('data-username');
+            const password = this.getAttribute('data-password');
+            
+            // If already active, do nothing
+            if (this.classList.contains('active') && currentUsername === username) {
+              if (panel) panel.classList.remove('show');
+              return;
+            }
+            
+            // Set loading state
+            roleButtons.forEach(b => b.style.opacity = '0.5');
+            this.style.opacity = '1';
+            const iconEl = this.querySelector('.dev-role-btn-icon');
+            const originalIcon = iconEl ? iconEl.innerHTML : '';
+            if (iconEl) {
+              iconEl.innerHTML = '<div class="spinner-border spinner-border-sm text-light" style="width: 14px; height: 14px;" role="status"></div>';
+            }
+            if (errorToast) errorToast.style.display = 'none';
+            
+            try {
+              const res = await fetch('/api/auth/login/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+              });
+              
+              const data = await res.json().catch(() => ({}));
+              
+              if (!res.ok) {
+                throw new Error(data.detail || 'Lỗi đăng nhập.');
+              }
+              
+              // Success! Save to localStorage
+              localStorage.setItem('infra_access', data.access);
+              localStorage.setItem('infra_refresh', data.refresh);
+              localStorage.setItem('infra_role', data.role);
+              localStorage.setItem('infra_username', data.username);
+              
+              if (iconEl) {
+                iconEl.innerHTML = '<i class="bi bi-check-lg text-white"></i>';
+              }
+              
+              setTimeout(() => {
+                if (window.location.pathname === '/login/') {
+                  window.location.href = '/app/';
+                } else {
+                  window.location.reload();
+                }
+              }, 400);
+              
+            } catch (err) {
+              console.error(err);
+              // Restore buttons
+              roleButtons.forEach(b => b.style.opacity = '1');
+              if (iconEl) {
+                iconEl.innerHTML = originalIcon;
+              }
+              if (errorToast) {
+                errorToast.textContent = 'Thất bại: ' + (err.message || 'Lỗi kết nối.');
+                errorToast.style.display = 'block';
+              }
+            }
+          });
+        });
+      });
+    })();
+  </script>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   {% block extra_js %}{% endblock %}
 </body>
