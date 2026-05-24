@@ -8,8 +8,8 @@ class AuditLogMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
 
-        # Log only modifying actions
-        if request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+        # Log only modifying actions that succeeded
+        if request.method in ['POST', 'PUT', 'PATCH', 'DELETE'] and response.status_code < 400:
             user = getattr(request, 'user', None)
             if not user or not user.is_authenticated:
                 # Fallback to check JWT

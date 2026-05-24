@@ -36,10 +36,11 @@ class UserSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop("password", None)
+        if not password:
+            raise serializers.ValidationError({"password": "Mật khẩu là bắt buộc khi tạo tài khoản."})
         user = super().create(validated_data)
-        if password:
-            user.set_password(password)
-            user.save()
+        user.set_password(password)
+        user.save()
         return user
 
     def update(self, instance, validated_data):
@@ -55,9 +56,14 @@ class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)
 
+    def validate_new_password(self, value):
+        from django.contrib.auth.password_validation import validate_password
+        validate_password(value)
+        return value
+
 
 class AuditLogSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source='user.username', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True, default='Anonymous')
 
     class Meta:
         model = AuditLog

@@ -3,6 +3,53 @@
 
 {% block title %}Theo dõi tiêu thụ{% endblock %}
 
+{% block extra_head %}
+<style>
+#app-alert {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 100000;
+  min-width: 320px;
+  max-width: 450px;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-left: 5px solid;
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(120%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOutRight {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(120%); opacity: 0; }
+}
+
+.alert-success-premium {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  color: #0f5132;
+  border-left-color: #10b981 !important;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.alert-danger-premium {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  color: #842029;
+  border-left-color: #ef4444 !important;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+</style>
+{% endblock %}
+
 {% block body %}
 <nav class="navbar navbar-expand-lg navbar-light sticky-top">
   <div class="container-fluid px-3">
@@ -32,7 +79,8 @@
           <form id="monitoring-form">
             <div class="mb-3">
               <label class="form-label">Mã công tơ / Mã đồng hồ</label>
-              <input type="text" class="form-control" id="input-device-code" placeholder="VD: CT01" required>
+              <input type="text" class="form-control" id="input-device-code" placeholder="VD: METER_E_1" list="input-devices-datalist" autocomplete="off" required>
+              <datalist id="input-devices-datalist"></datalist>
             </div>
             <div class="mb-3">
               <label class="form-label">Tháng ghi nhận</label>
@@ -55,7 +103,16 @@
           <form id="filter-form">
             <div class="mb-3">
               <label class="form-label">Mã công tơ / Mã đồng hồ</label>
-              <input type="text" class="form-control" id="filter-device-code" placeholder="VD: CT01" required>
+              <input type="text" class="form-control" id="filter-device-code" placeholder="VD: METER_E_1" list="filter-devices-datalist" autocomplete="off">
+              <datalist id="filter-devices-datalist"></datalist>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Loại thiết bị</label>
+              <select class="form-select" id="filter-device-type">
+                <option value="">Tất cả loại thiết bị</option>
+                <option value="ELECTRIC_METER">Công tơ điện (kWh)</option>
+                <option value="WATER_METER">Đồng hồ nước (m³)</option>
+              </select>
             </div>
             <div class="row g-2 mb-3">
               <div class="col-6">

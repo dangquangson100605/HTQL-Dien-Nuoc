@@ -83,7 +83,7 @@ def handle_incident_notifications(sender, instance, created, **kwargs):
             old_status=old_status if not created else '',
             new_status=new_status,
             note=instance.result_note or instance.rejection_reason or '',
-            changed_by=instance.confirmed_by or instance.assigned_to or None
+            changed_by=getattr(instance, '_changed_by', None) or instance.confirmed_by or instance.assigned_to or None
         )
 
     # 3. Cập nhật trạng thái cục bộ của Device hoặc NetworkEdge (KHÔNG LAN TRUYỀN)

@@ -24,7 +24,9 @@ def device_network_type(device_type: str) -> str:
     """Trả về ELECTRIC hoặc WATER từ loại thiết bị."""
     if device_type in ELECTRIC_DEVICE_TYPES:
         return 'ELECTRIC'
-    return 'WATER'
+    if device_type in WATER_DEVICE_TYPES or device_type == 'VALVE':
+        return 'WATER'
+    raise ValueError(f'Loại thiết bị không xác định: {device_type}')
 
 
 class Device(models.Model):

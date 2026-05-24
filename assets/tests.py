@@ -350,7 +350,7 @@ class NetworkSummaryAPITests(APITestCase):
             description="Mô tả 1",
             incident_type="ELECTRIC",
             severity="HIGH",
-            status="OPEN",
+            status="PENDING_VERIFY",
             latitude=10.0,
             longitude=106.0,
             reported_by=self.user

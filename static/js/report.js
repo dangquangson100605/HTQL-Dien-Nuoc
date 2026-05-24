@@ -13,10 +13,35 @@
   const typeParam = urlParams.get('type'); // ELECTRIC / WATER
   const targetTypeParam = urlParams.get('target_type'); // DEVICE / EDGE
 
-  async function apiFetch(url, opts = {}) {
+  const API_REFRESH = '/api/auth/token/refresh/';
+
+  async function doRefresh() {
+    const refresh = localStorage.getItem(STORAGE.refresh);
+    if (!refresh) return false;
+    try {
+      const res = await fetch(API_REFRESH, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh }),
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      localStorage.setItem(STORAGE.access, data.access);
+      if (data.refresh) localStorage.setItem(STORAGE.refresh, data.refresh);
+      return true;
+    } catch { return false; }
+  }
+
+  async function apiFetch(url, opts = {}, retry = true) {
     const token = localStorage.getItem(STORAGE.access);
     const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...opts.headers };
-    return fetch(url, { ...opts, headers });
+    const res = await fetch(url, { ...opts, headers });
+    if (res.status === 401 && retry) {
+      const ok = await doRefresh();
+      if (ok) return apiFetch(url, opts, false);
+      window.location.href = '/login/';
+    }
+    return res;
   }
 
   function setupNav() {

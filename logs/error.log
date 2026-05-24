@@ -2,3 +2,37 @@ ERROR 2026-05-18 16:14:30,481 log 4996 19664 Internal Server Error: /api/devices
 ERROR 2026-05-18 16:14:30,483 basehttp 4996 19664 "POST /api/devices/ HTTP/1.1" 500 63
 ERROR 2026-05-18 16:15:42,619 log 15432 5688 Internal Server Error: /api/devices/
 ERROR 2026-05-18 16:15:42,620 basehttp 15432 5688 "POST /api/devices/ HTTP/1.1" 500 63
+ERROR 2026-05-25 00:17:42,337 log 11648 2932 Internal Server Error: /api/auth/login/
+ERROR 2026-05-25 00:17:42,339 basehttp 11648 2932 "POST /api/auth/login/ HTTP/1.1" 500 63
+ERROR 2026-05-25 00:17:48,006 log 11648 2932 Internal Server Error: /api/auth/login/
+ERROR 2026-05-25 00:17:48,007 basehttp 11648 2932 "POST /api/auth/login/ HTTP/1.1" 500 63
+ERROR 2026-05-25 00:18:26,792 log 6064 1740 Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\utils\deprecation.py", line 133, in __call__
+    response = self.process_request(request)
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\middleware\common.py", line 48, in process_request
+    host = request.get_host()
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\http\request.py", line 150, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+ERROR 2026-05-25 00:18:29,194 log 10636 456 Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\utils\deprecation.py", line 133, in __call__
+    response = self.process_request(request)
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\middleware\common.py", line 48, in process_request
+    host = request.get_host()
+  File "C:\Users\Admin\AppData\Local\Programs\Python\Python313\Lib\site-packages\django\http\request.py", line 150, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+ERROR 2026-05-25 00:18:37,883 log 11648 18956 Internal Server Error: /api/auth/login/
+ERROR 2026-05-25 00:18:37,883 basehttp 11648 18956 "POST /api/auth/login/ HTTP/1.1" 500 63
+ERROR 2026-05-25 00:18:47,200 log 11648 6176 Internal Server Error: /api/auth/login/
+ERROR 2026-05-25 00:18:47,201 basehttp 11648 6176 "POST /api/auth/login/ HTTP/1.1" 500 63
+ERROR 2026-05-25 00:18:51,354 log 11648 10864 Internal Server Error: /api/auth/login/
+ERROR 2026-05-25 00:18:51,355 basehttp 11648 10864 "POST /api/auth/login/ HTTP/1.1" 500 63
+ERROR 2026-05-25 00:19:04,135 log 488 4100 Internal Server Error: /api/auth/login/
+ERROR 2026-05-25 00:19:04,136 basehttp 488 4100 "POST /api/auth/login/ HTTP/1.1" 500 63

@@ -10,9 +10,20 @@ from rest_framework.response import Response
 
 from accounts.models import User
 from accounts.permissions import IsAdminRole
+from assets.models import Device
 from .models import Incident, IncidentNote, Notification
 from .serializers import IncidentSerializer, IncidentNoteSerializer, NotificationSerializer
 
+# Bảng chuyển trạng thái hợp lệ
+VALID_TRANSITIONS = {
+    'PENDING_VERIFY': ['CONFIRMED', 'REJECTED', 'ASSIGNED'],
+    'CONFIRMED': ['ASSIGNED', 'REJECTED'],
+    'ASSIGNED': ['IN_PROGRESS', 'CONFIRMED'],
+    'IN_PROGRESS': ['RESOLVED'],
+    'RESOLVED': ['CLOSED', 'IN_PROGRESS'],
+    'CLOSED': [],
+    'REJECTED': [],
+}
 
 class IncidentViewSet(viewsets.ModelViewSet):
     """
@@ -34,7 +45,7 @@ class IncidentViewSet(viewsets.ModelViewSet):
             qs = qs.filter(reported_by=user)
         # Technician chỉ xem sự cố được phân công cho mình + sự cố mở
         elif user.role == 'TECHNICIAN':
-            qs = qs.filter(Q(assigned_to=user) | Q(status='OPEN') | Q(status='PENDING_VERIFY'))
+            qs = qs.filter(Q(assigned_to=user) | Q(status='PENDING_VERIFY'))
 
         # Lọc theo query params
         status_filter = self.request.query_params.get('status')
@@ -107,6 +118,16 @@ class IncidentViewSet(viewsets.ModelViewSet):
         elif user.role not in ('ADMIN', 'OPERATOR'):
             return Response({'detail': 'Không có quyền cập nhật trạng thái.'}, status=status.HTTP_403_FORBIDDEN)
 
+        # Kiểm tra chuyển trạng thái hợp lệ
+        current_status = incident.status
+        allowed_next = VALID_TRANSITIONS.get(current_status, [])
+        if new_status not in allowed_next:
+            return Response(
+                {'detail': f'Không thể chuyển từ "{incident.get_status_display()}" sang "{new_status}". '
+                           f'Các trạng thái hợp lệ: {allowed_next}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # Cập nhật kết quả xử lý và lý do từ chối nếu có trong request payload
         result_note = request.data.get('result_note')
         if result_note is not None:
@@ -121,7 +142,9 @@ class IncidentViewSet(viewsets.ModelViewSet):
             incident.resolved_at = timezone.now()
         elif new_status == Incident.Status.CONFIRMED:
             incident.confirmed_by = user
-            
+
+        # Ghi nhận người thay đổi cho IncidentHistory (signal sẽ đọc attr này)
+        incident._changed_by = user
         incident.save()
 
         return Response(IncidentSerializer(incident, context={'request': request}).data)
@@ -147,7 +170,7 @@ class IncidentViewSet(viewsets.ModelViewSet):
         if request.user.role != 'ADMIN':
             return Response({'detail': 'Chỉ Admin.'}, status=status.HTTP_403_FORBIDDEN)
 
-        total_devices = __import__('assets.models', fromlist=['Device']).Device.objects.count()
+        total_devices = Device.objects.count()
 
         by_status = {
             item['status']: item['count']

@@ -86,7 +86,7 @@ class DeviceViewSet(viewsets.ModelViewSet):
                 attr_str = row.get('attributes', '').strip()
                 if attr_str:
                     try: attributes = json.loads(attr_str)
-                    except: pass
+                    except (json.JSONDecodeError, ValueError): pass
                 
                 Device.objects.update_or_create(
                     name=name,
@@ -127,18 +127,22 @@ class ConsumptionLogViewSet(viewsets.ModelViewSet):
     """
     serializer_class = ConsumptionLogSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = DevicePagination
 
     def get_queryset(self):
         queryset = ConsumptionLog.objects.all().order_by("-date")
         device_id = self.request.query_params.get('device_id')
         device_code = self.request.query_params.get('device_code')
+        device_type = self.request.query_params.get('device_type')
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
 
         if device_id:
             queryset = queryset.filter(device_id=device_id)
         if device_code:
-            queryset = queryset.filter(device__code__iexact=device_code)
+            queryset = queryset.filter(Q(device__code__iexact=device_code) | Q(device__name__icontains=device_code))
+        if device_type:
+            queryset = queryset.filter(device__device_type=device_type)
         if start_date:
             queryset = queryset.filter(date__gte=start_date)
         if end_date:
@@ -227,7 +231,7 @@ def network_summary(request):
     maintenance_edges = NetworkEdge.objects.filter(status='MAINTENANCE').count()
     inactive_edges = NetworkEdge.objects.filter(status='INACTIVE').count()
 
-    open_incidents = Incident.objects.filter(Q(status='OPEN') | Q(status='PENDING_VERIFY')).count()
+    open_incidents = Incident.objects.filter(Q(status='PENDING_VERIFY') | Q(status='CONFIRMED')).count()
     assigned_incidents = Incident.objects.filter(status='ASSIGNED').count()
     in_progress_incidents = Incident.objects.filter(status='IN_PROGRESS').count()
     resolved_incidents = Incident.objects.filter(status='RESOLVED').count()
