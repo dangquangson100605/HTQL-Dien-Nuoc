@@ -422,4 +422,15 @@ class IncidentWorkflowPermissionsTests(APITestCase):
         )
         self.assertEqual(response.status_code, 403)
 
+        # 4. OPERATOR không được phép phân công kỹ thuật viên khi sự cố đã RESOLVED hoặc CLOSED
+        self.incident.status = Incident.Status.RESOLVED
+        self.incident.save()
+        self.client.force_authenticate(user=self.operator)
+        response = self.client.patch(
+            f"/api/incidents/{self.incident.id}/assign/",
+            {"assigned_to": self.tech2.id},
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 400)
+
 

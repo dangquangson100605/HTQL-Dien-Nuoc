@@ -1,6 +1,8 @@
-import pymysql
-
-pymysql.install_as_MySQLdb()
+try:
+    import pymysql
+    pymysql.install_as_MySQLdb()
+except ImportError:
+    pass
 
 # Bypass MariaDB version check (XAMPP uses MariaDB 10.4.32, which is fully functional)
 from django.db.backends.mysql.base import DatabaseWrapper

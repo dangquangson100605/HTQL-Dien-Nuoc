@@ -416,7 +416,12 @@
     if (!markerLayer) return;
     markerLayer.clearLayers();
     markersById.clear();
-    devices.forEach((d) => {
+    
+    const filtered = currentType
+      ? devices.filter(d => d.device_type === currentType)
+      : devices;
+
+    filtered.forEach((d) => {
       const customIcon = getDeviceIconByTypeAndStatus(d.device_type, d.status);
       const m = L.marker([d.latitude, d.longitude], {
         icon: customIcon

@@ -8,6 +8,10 @@ class AuditLogMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
 
+        # Loại trừ các endpoint xác thực để tránh ghi log AnonymousUser thừa hoặc không chính xác
+        if request.path in ['/api/auth/login/', '/api/auth/token/refresh/']:
+            return response
+
         # Log only modifying actions that succeeded
         if request.method in ['POST', 'PUT', 'PATCH', 'DELETE'] and response.status_code < 400:
             user = getattr(request, 'user', None)

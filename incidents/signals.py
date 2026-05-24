@@ -74,6 +74,15 @@ def handle_incident_notifications(sender, instance, created, **kwargs):
                 message=f"Sự cố '{instance.title}' đã được giải quyết."
             )
 
+        elif status == Incident.Status.CLOSED:
+            # Thông báo cho người báo cáo khi sự cố chính thức đóng
+            _create_notification(
+                recipient=instance.reported_by,
+                incident=instance,
+                notif_type=Notification.NotifType.STATUS_UPDATE,
+                message=f"Sự cố '{instance.title}' đã chính thức đóng."
+            )
+
     # 2. Lưu lịch sử thay đổi IncidentHistory
     old_status = getattr(instance, '_old_status', Incident.Status.PENDING_VERIFY)
     new_status = instance.status
@@ -102,8 +111,9 @@ def handle_incident_notifications(sender, instance, created, **kwargs):
         from assets.models import Device
         if instance.status in fault_statuses:
             if device.status != Device.Status.FAULT:
+                Device.objects.filter(pk=device.pk).update(status=Device.Status.FAULT, is_active=False)
                 device.status = Device.Status.FAULT
-                device.save()
+                device.is_active = False
         else:
             # Kiểm tra xem có sự cố hoạt động nào khác liên quan đến device này không
             has_other_active = Incident.objects.filter(
@@ -113,16 +123,17 @@ def handle_incident_notifications(sender, instance, created, **kwargs):
             
             if not has_other_active:
                 if device.status == Device.Status.FAULT:
+                    Device.objects.filter(pk=device.pk).update(status=Device.Status.ACTIVE, is_active=True)
                     device.status = Device.Status.ACTIVE
-                    device.save()
+                    device.is_active = True
 
     # Cập nhật NetworkEdge liên quan
     if edge:
         from assets.models import NetworkEdge
         if instance.status in fault_statuses:
             if edge.status != NetworkEdge.Status.FAULT:
+                NetworkEdge.objects.filter(pk=edge.pk).update(status=NetworkEdge.Status.FAULT)
                 edge.status = NetworkEdge.Status.FAULT
-                edge.save()
         else:
             # Kiểm tra xem có sự cố hoạt động nào khác liên quan đến edge này không
             has_other_active = Incident.objects.filter(
@@ -132,6 +143,6 @@ def handle_incident_notifications(sender, instance, created, **kwargs):
             
             if not has_other_active:
                 if edge.status == NetworkEdge.Status.FAULT:
+                    NetworkEdge.objects.filter(pk=edge.pk).update(status=NetworkEdge.Status.ACTIVE)
                     edge.status = NetworkEdge.Status.ACTIVE
-                    edge.save()
 

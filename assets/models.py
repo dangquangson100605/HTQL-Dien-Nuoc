@@ -92,23 +92,26 @@ class Device(models.Model):
                 orig = Device.objects.get(pk=self.pk)
                 if orig.status != self.status:
                     # status thay đổi -> cập nhật is_active theo status
-                    self.is_active = self.status == self.Status.ACTIVE
+                    self.is_active = (self.status == self.Status.ACTIVE)
                 elif orig.is_active != self.is_active:
                     # is_active thay đổi -> cập nhật status theo is_active
                     if not self.is_active:
                         if self.status == self.Status.ACTIVE:
                             self.status = self.Status.INACTIVE
                     else:
-                        if self.status in (self.Status.INACTIVE, self.Status.FAULT):
+                        if self.status in (self.Status.INACTIVE, self.Status.FAULT, self.Status.MAINTENANCE):
                             self.status = self.Status.ACTIVE
+                else:
+                    self.is_active = (self.status == self.Status.ACTIVE)
             except Device.DoesNotExist:
-                self.is_active = self.status == self.Status.ACTIVE
+                self.is_active = (self.status == self.Status.ACTIVE)
         else:
             # Tạo mới
-            if not self.is_active and self.status == self.Status.ACTIVE:
-                self.status = self.Status.INACTIVE
+            if self.status != self.Status.ACTIVE:
+                self.is_active = False
             else:
-                self.is_active = self.status == self.Status.ACTIVE
+                if not self.is_active:
+                    self.status = self.Status.INACTIVE
 
         super().save(*args, **kwargs)
 
@@ -218,7 +221,8 @@ class ConsumptionLog(models.Model):
     def __str__(self):
         return f'{self.device.name} - {self.date}: {self.value}'
 
-    def save(self, *args, **kwargs):
+    def clean(self):
+        from django.core.exceptions import ValidationError
         if self.date:
             if isinstance(self.date, str):
                 from datetime import datetime
@@ -229,7 +233,21 @@ class ConsumptionLog(models.Model):
                     except ValueError:
                         continue
             else:
-                self.date = self.date.replace(day=1)
+                try:
+                    self.date = self.date.replace(day=1)
+                except AttributeError:
+                    pass
+
+        if self.device and self.date:
+            qs = ConsumptionLog.objects.filter(device=self.device, date=self.date)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                raise ValidationError("Nhật ký tiêu thụ cho thiết bị này trong tháng đã tồn tại.")
+        super().clean()
+
+    def save(self, *args, **kwargs):
+        self.clean()
         super().save(*args, **kwargs)
 
     class Meta:

@@ -66,6 +66,24 @@ class ConsumptionLogSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Chỉ số tiêu thụ không được âm.")
         return value
 
+    def validate(self, attrs):
+        device = attrs.get('device') or (self.instance.device if self.instance else None)
+        date = attrs.get('date') or (self.instance.date if self.instance else None)
+        
+        if device and date:
+            # Chuẩn hóa về ngày mùng 1 đầu tháng giống như cách model lưu trữ
+            normalized_date = date.replace(day=1)
+            
+            # Kiểm tra xem bản ghi cho thiết bị này trong tháng đó đã tồn tại chưa
+            qs = ConsumptionLog.objects.filter(device=device, date=normalized_date)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError({
+                    "date": f"Nhật ký tiêu thụ cho thiết bị này trong tháng {normalized_date.month}/{normalized_date.year} đã tồn tại."
+                })
+        return attrs
+
 
 class DeviceMinimalSerializer(serializers.ModelSerializer):
     class Meta:

@@ -423,6 +423,7 @@ class ConsumptionLogTests(APITestCase):
 
     def test_consumption_log_enforces_monthly_granularity(self):
         from .models import ConsumptionLog
+        from django.core.exceptions import ValidationError
         # Create a consumption log with arbitrary day in the month
         log = ConsumptionLog.objects.create(
             device=self.device,
@@ -432,8 +433,8 @@ class ConsumptionLogTests(APITestCase):
         # Verify it was normalized to the 1st of the month
         self.assertEqual(str(log.date), "2026-05-01")
 
-        # Creating another log for the same month should raise integrity error/exception due to unique_together constraint
-        with self.assertRaises(Exception):
+        # Creating another log for the same month should raise ValidationError
+        with self.assertRaises(ValidationError):
             ConsumptionLog.objects.create(
                 device=self.device,
                 date="2026-05-15",

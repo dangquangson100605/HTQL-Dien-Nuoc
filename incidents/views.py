@@ -76,6 +76,12 @@ class IncidentViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Chỉ Admin hoặc Operator mới được phân công.'}, status=status.HTTP_403_FORBIDDEN)
 
         incident = self.get_object()
+        if incident.status not in ('PENDING_VERIFY', 'CONFIRMED', 'ASSIGNED'):
+            return Response(
+                {'detail': f'Không thể phân công sự cố đang ở trạng thái "{incident.get_status_display()}".'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         technician_id = request.data.get('assigned_to')
         if not technician_id:
             return Response({'detail': 'Vui lòng chọn kỹ thuật viên.'}, status=status.HTTP_400_BAD_REQUEST)
