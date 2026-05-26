@@ -126,6 +126,7 @@
       if (deviceType) params.append('device_type', deviceType);
       if (startMonth) params.append('start_date', startMonth + '-01');
       if (endMonth) params.append('end_date', endMonth + '-01');
+      params.append('page_size', '10000');
 
       const res = await apiFetch(`${API.consumptions}?${params.toString()}`);
       if (!res.ok) {
@@ -136,9 +137,10 @@
         return;
       }
       const data = await res.json();
-      renderTable(data);
+      const listData = data.results !== undefined ? data.results : data;
+      renderTable(listData);
       try {
-        renderChart(data);
+        renderChart(listData);
       } catch (chartErr) {
         console.error('Error rendering chart:', chartErr);
       }
@@ -216,33 +218,49 @@
       return;
     }
 
-    // Aggregate by date and device_type
+    // Normalize date to YYYY-MM-01 client-side for aggregation
+    const normalizedData = data.map(row => {
+      let normDate = row.date;
+      if (normDate && normDate.includes('-')) {
+        const parts = normDate.split('-');
+        if (parts.length >= 2) {
+          normDate = `${parts[0]}-${parts[1]}-01`;
+        }
+      }
+      return {
+        ...row,
+        normalizedDate: normDate
+      };
+    });
+
+    // Aggregate by normalized date and device_type
     const aggElec = {};
     const aggWater = {};
     let hasElec = false;
     let hasWater = false;
 
-    data.forEach(row => {
+    normalizedData.forEach(row => {
+      const dKey = row.normalizedDate;
       if (row.device_type === 'ELECTRIC_METER') {
-        aggElec[row.date] = (aggElec[row.date] || 0) + row.value;
+        aggElec[dKey] = (aggElec[dKey] || 0) + row.value;
         hasElec = true;
       } else if (row.device_type === 'WATER_METER') {
-        aggWater[row.date] = (aggWater[row.date] || 0) + row.value;
+        aggWater[dKey] = (aggWater[dKey] || 0) + row.value;
         hasWater = true;
       } else {
         // Fallback/Legacy logic based on name
         const nameLower = (row.device_name || '').toLowerCase();
         if (nameLower.includes('nước') || nameLower.includes('water')) {
-          aggWater[row.date] = (aggWater[row.date] || 0) + row.value;
+          aggWater[dKey] = (aggWater[dKey] || 0) + row.value;
           hasWater = true;
         } else {
-          aggElec[row.date] = (aggElec[row.date] || 0) + row.value;
+          aggElec[dKey] = (aggElec[dKey] || 0) + row.value;
           hasElec = true;
         }
       }
     });
 
-    const uniqueDates = Array.from(new Set(data.map(row => row.date))).sort();
+    const uniqueDates = Array.from(new Set(normalizedData.map(row => row.normalizedDate))).sort();
     const labels = uniqueDates.map(dateStr => {
       const parts = dateStr.split('-');
       return parts.length >= 2 ? `T${parts[1]}/${parts[0]}` : dateStr;
@@ -264,6 +282,7 @@
         borderWidth: 1,
         borderRadius: 6,
         borderSkipped: false,
+        yAxisID: 'y', // Left axis
       });
     }
 
@@ -281,6 +300,7 @@
         borderWidth: 1,
         borderRadius: 6,
         borderSkipped: false,
+        yAxisID: 'y1', // Right axis
       });
     }
 
@@ -312,9 +332,30 @@
         },
         scales: {
           y: { 
+            type: 'linear',
+            display: hasElec,
+            position: 'left',
             beginAtZero: true,
             grid: { borderDash: [4, 4], color: '#e2e8f0' },
-            border: { display: false }
+            border: { display: false },
+            title: {
+              display: true,
+              text: 'Điện tiêu thụ (kWh)',
+              font: { family: 'Inter', size: 11, weight: 'bold' }
+            }
+          },
+          y1: {
+            type: 'linear',
+            display: hasWater,
+            position: 'right',
+            beginAtZero: true,
+            grid: { drawOnChartArea: false }, // avoid grid lines overlapping
+            border: { display: false },
+            title: {
+              display: true,
+              text: 'Nước tiêu thụ (m³)',
+              font: { family: 'Inter', size: 11, weight: 'bold' }
+            }
           },
           x: {
             grid: { display: false },
