@@ -1,7 +1,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import DeviceViewSet, ConsumptionLogViewSet, NetworkEdgeViewSet, network_summary
+from .views import DeviceViewSet, ConsumptionLogViewSet, NetworkEdgeViewSet, network_summary, PublicLookupView
 
 router = DefaultRouter()
 router.register("devices", DeviceViewSet, basename="device")
@@ -11,5 +11,6 @@ router.register("edges", NetworkEdgeViewSet, basename="edge")
 urlpatterns = [
     path("", include(router.urls)),
     path("network/summary/", network_summary, name="network_summary"),
+    path("public-lookup/", PublicLookupView.as_view(), name="public_lookup"),
 ]
 

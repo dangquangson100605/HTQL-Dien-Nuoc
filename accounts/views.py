@@ -78,6 +78,42 @@ class ChangePasswordView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class ProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        return Response({
+            "username": user.username,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "role": user.role,
+            "role_display": user.get_role_display()
+        })
+
+    def put(self, request):
+        user = request.user
+        first_name = request.data.get("first_name", user.first_name).strip()
+        last_name = request.data.get("last_name", user.last_name).strip()
+        email = request.data.get("email", user.email).strip()
+
+        if not email:
+            return Response({"detail": "Email không được để trống."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.first_name = first_name
+        user.last_name = last_name
+        user.email = email
+        user.save()
+
+        return Response({
+            "detail": "Cập nhật thông tin cá nhân thành công.",
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email
+        }, status=status.HTTP_200_OK)
+
+
 class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = AuditLog.objects.all().order_by("-timestamp")
     serializer_class = AuditLogSerializer

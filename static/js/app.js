@@ -279,11 +279,15 @@
   function getEdgeColorByTypeAndStatus(type, status) {
     let color = '#6c757d';
     let dashArray = null;
+    let weight = 4;
 
     if (status === 'FAULT') {
       color = '#dc3545';
+      dashArray = '6, 8';
+      weight = 8;
     } else if (status === 'INACTIVE') {
       color = '#6c757d';
+      weight = 3;
     } else {
       if (type === 'ELECTRIC') {
         color = '#fd7e14';
@@ -294,9 +298,10 @@
 
     if (status === 'MAINTENANCE') {
       dashArray = '8, 8';
+      weight = 5;
     }
 
-    return { color, dashArray };
+    return { color, dashArray, weight };
   }
 
   function devicePopupHtml(d) {
@@ -449,8 +454,8 @@
         
         const lineOptions = {
           color: style.color,
-          weight: 4,
-          opacity: 0.85
+          weight: style.weight || 4,
+          opacity: edge.status === 'FAULT' ? 0.95 : 0.85
         };
         
         if (style.dashArray) {
@@ -1290,7 +1295,57 @@
     );
     resetIdleTimer();
 
-    refreshMap();
+    refreshMap().then(() => {
+      // Parse query parameters from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const deviceParam = urlParams.get('device');
+      const edgeParam = urlParams.get('edge');
+      const latParam = urlParams.get('lat');
+      const lngParam = urlParams.get('lng');
+
+      if (deviceParam) {
+        const id = parseInt(deviceParam);
+        const d = cachedDevices.find(x => x.id === id);
+        if (d && map) {
+          map.flyTo([d.latitude, d.longitude], 17);
+          const mk = markersById.get(id);
+          if (mk) {
+            setTimeout(() => mk.openPopup(), 400);
+          }
+        }
+      } else if (edgeParam) {
+        const id = parseInt(edgeParam);
+        const edge = cachedEdges.find(x => x.id === id);
+        if (edge && map) {
+          const fromDev = edge.from_device_detail;
+          const toDev = edge.to_device_detail;
+          if (fromDev && toDev) {
+            const midLat = (fromDev.latitude + toDev.latitude) / 2;
+            const midLng = (fromDev.longitude + toDev.longitude) / 2;
+            map.flyTo([midLat, midLng], 17);
+            setTimeout(() => {
+              L.popup()
+                .setLatLng([midLat, midLng])
+                .setContent(edgePopupHtml(edge))
+                .openOn(map);
+            }, 400);
+          }
+        }
+      } else if (latParam && lngParam) {
+        const lat = parseFloat(latParam);
+        const lng = parseFloat(lngParam);
+        if (!isNaN(lat) && !isNaN(lng) && map) {
+          map.flyTo([lat, lng], 17);
+          setTimeout(() => {
+            L.popup()
+              .setLatLng([lat, lng])
+              .setContent(`<div class="p-2 small"><b>Vị trí sự cố:</b><br>Tọa độ: ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>`)
+              .openOn(map);
+          }, 400);
+        }
+      }
+    });
+
     loadIncidentMarkers();
     pollNotifBadge();
     setInterval(pollNotifBadge, 30000);

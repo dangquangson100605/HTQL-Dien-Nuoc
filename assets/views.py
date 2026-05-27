@@ -3,6 +3,7 @@ from django.http import HttpResponse
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, BasePermission
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser
@@ -150,6 +151,49 @@ class ConsumptionLogViewSet(viewsets.ModelViewSet):
             
         return queryset
 
+    @action(detail=False, methods=['get'], url_path='by-area')
+    def by_area(self, request):
+        from django.db.models import Sum
+        
+        device_type = request.query_params.get('device_type')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        queryset = ConsumptionLog.objects.all()
+        if device_type:
+            queryset = queryset.filter(device__device_type=device_type)
+        if start_date:
+            queryset = queryset.filter(date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(date__lte=end_date)
+            
+        stats = queryset.values('device__area', 'date').annotate(
+            total_value=Sum('value')
+        ).order_by('date', 'device__area')
+        
+        result = []
+        for item in stats:
+            area_name = item['device__area'].strip() if item['device__area'] else "Không có khu vực"
+            if not area_name:
+                area_name = "Không có khu vực"
+            
+            # Format date to YYYY-MM
+            date_str = item['date']
+            if hasattr(date_str, 'strftime'):
+                date_str = date_str.strftime('%Y-%m')
+            elif isinstance(date_str, str):
+                date_str = date_str[:7]
+            else:
+                date_str = str(date_str)[:7]
+
+            result.append({
+                "area": area_name,
+                "date": date_str,
+                "value": round(item['total_value'], 2)
+            })
+            
+        return Response(result, status=status.HTTP_200_OK)
+
 
 class NetworkEdgePermission(BasePermission):
     """
@@ -254,4 +298,36 @@ def network_summary(request):
         "resolved_incidents": resolved_incidents,
         "closed_incidents": closed_incidents
     })
+
+
+class PublicLookupView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        code = request.query_params.get('code')
+        if not code:
+            return Response({"detail": "Vui lòng cung cấp mã thiết bị."}, status=status.HTTP_400_BAD_REQUEST)
+
+        device = Device.objects.filter(Q(code__iexact=code) | Q(name__iexact=code)).first()
+        if not device:
+            return Response({"detail": "Không tìm thấy thiết bị với mã đã nhập."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get the 12 most recent monthly logs, ordered descending
+        logs = ConsumptionLog.objects.filter(device=device).order_by("-date")[:12]
+        
+        # Sort ascending for chart representation
+        sorted_logs = sorted(list(logs), key=lambda x: x.date)
+
+        serializer = ConsumptionLogSerializer(sorted_logs, many=True)
+        return Response({
+            "device": {
+                "code": device.code,
+                "name": device.name,
+                "device_type": device.device_type,
+                "device_type_display": device.get_device_type_display(),
+                "area": device.area,
+                "address": device.address
+            },
+            "logs": serializer.data
+        })
 

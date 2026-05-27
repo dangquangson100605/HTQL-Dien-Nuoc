@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Tra cứu tiêu thụ điện — nước công cộng{% endblock %}
+
+{% block extra_head %}
+<style>
+  .lookup-container {
+    max-width: 900px;
+    margin: 40px auto;
+  }
+  .glass-card {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease-in-out;
+  }
+  .search-section {
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 30px;
+    box-shadow: 0 10px 25px rgba(59, 130, 246, 0.25);
+  }
+  .badge-premium {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+    border-radius: 50px;
+    font-weight: 500;
+  }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="container px-3 lookup-container">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-2">
+      <span class="fs-3 fw-bold text-primary"><i class="bi bi-water text-info"></i><i class="bi bi-lightning-charge-fill text-warning"></i> Dịch Vụ Công Cộng</span>
+    </div>
+    <a href="/login/" class="btn btn-outline-primary btn-sm rounded-pill px-3"><i class="bi bi-box-arrow-in-right"></i> Đăng nhập hệ thống</a>
+  </div>
+
+  <!-- Search Card -->
+  <div class="search-section mb-4">
+    <h3 class="fw-bold mb-2">Tra cứu chỉ số tiêu thụ điện - nước</h3>
+    <p class="text-white text-opacity-75 small mb-4">Người dân nhập mã công tơ điện hoặc đồng hồ nước để tra cứu lịch sử tiêu thụ 12 tháng gần nhất.</p>
+    
+    <form id="lookup-form" class="row g-2">
+      <div class="col-md-9 col-sm-8">
+        <div class="input-group input-group-lg">
+          <span class="input-group-text bg-white border-0 text-secondary"><i class="bi bi-speedometer2"></i></span>
+          <input type="text" id="lookup-code" class="form-control bg-white border-0" placeholder="Nhập mã công tơ hoặc đồng hồ nước... VD: METER_E_1" required autocomplete="off">
+        </div>
+      </div>
+      <div class="col-md-3 col-sm-4 d-grid">
+        <button type="submit" class="btn btn-warning btn-lg fw-bold text-dark rounded border-0 shadow-sm" id="btn-lookup-submit">
+          <i class="bi bi-search me-1"></i> Tra cứu
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Alert -->
+  <div id="lookup-alert" class="alert alert-danger d-none rounded-4 py-3 shadow-sm border-0" role="alert"></div>
+
+  <!-- Results Section -->
+  <div id="lookup-results" class="d-none">
+    <!-- Device Info -->
+    <div class="card glass-card border-0 mb-4">
+      <div class="card-body p-4">
+        <h4 class="fw-bold text-dark mb-3"><i class="bi bi-info-circle-fill text-primary me-2"></i>Thông tin thiết bị</h4>
+        <div class="row g-3">
+          <div class="col-md-3 col-6">
+            <span class="text-muted d-block small">Mã thiết bị</span>
+            <strong id="res-code" class="text-dark"></strong>
+          </div>
+          <div class="col-md-3 col-6">
+            <span class="text-muted d-block small">Tên thiết bị</span>
+            <strong id="res-name" class="text-dark"></strong>
+          </div>
+          <div class="col-md-3 col-6">
+            <span class="text-muted d-block small">Loại dịch vụ</span>
+            <span id="res-type" class="badge"></span>
+          </div>
+          <div class="col-md-3 col-6">
+            <span class="text-muted d-block small">Phân vùng / Khu vực</span>
+            <strong id="res-area" class="text-dark"></strong>
+          </div>
+          <div class="col-12 border-top pt-2 mt-2">
+            <span class="text-muted d-block small">Địa chỉ lắp đặt</span>
+            <strong id="res-address" class="text-dark"></strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart & Table Details -->
+    <div class="row g-4">
+      <!-- Chart -->
+      <div class="col-lg-7">
+        <div class="card glass-card border-0 h-100">
+          <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+            <h5 class="fw-bold text-dark mb-0"><i class="bi bi-bar-chart-fill text-success me-2"></i>Biểu đồ tiêu thụ 12 tháng gần nhất</h5>
+          </div>
+          <div class="card-body p-4">
+            <div style="height: 300px; position: relative;">
+              <canvas id="lookupChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="col-lg-5">
+        <div class="card glass-card border-0 h-100">
+          <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+            <h5 class="fw-bold text-dark mb-0"><i class="bi bi-table text-primary me-2"></i>Chi tiết số liệu</h5>
+          </div>
+          <div class="card-body p-4 table-responsive" style="max-height:350px;">
+            <table class="table table-hover align-middle mb-0 text-center">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th>Tháng</th>
+                  <th>Chỉ số ghi nhận</th>
+                </tr>
+              </thead>
+              <tbody id="lookup-table-body">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  (function() {
+    let chartInstance = null;
+
+    document.getElementById('lookup-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const code = document.getElementById('lookup-code').value.trim();
+      const alertEl = document.getElementById('lookup-alert');
+      const resultsEl = document.getElementById('lookup-results');
+      const submitBtn = document.getElementById('btn-lookup-submit');
+
+      alertEl.classList.add('d-none');
+      resultsEl.classList.add('d-none');
+      
+      if (!code) return;
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Đang tìm...';
+
+      try {
+        const res = await fetch(`/api/public-lookup/?code=${encodeURIComponent(code)}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          alertEl.textContent = data.detail || 'Lỗi tra cứu chỉ số.';
+          alertEl.classList.remove('d-none');
+          return;
+        }
+
+        // Fill Device Info
+        document.getElementById('res-code').textContent = data.device.code;
+        document.getElementById('res-name').textContent = data.device.name;
+        
+        const typeEl = document.getElementById('res-type');
+        typeEl.textContent = data.device.device_type_display;
+        if (data.device.device_type === 'ELECTRIC_METER') {
+          typeEl.className = 'badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-pill';
+        } else {
+          typeEl.className = 'badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill';
+        }
+
+        document.getElementById('res-area').textContent = data.device.area || 'Chưa phân vùng';
+        document.getElementById('res-address').textContent = data.device.address || 'Không có thông tin địa chỉ';
+
+        // Fill Table
+        const tbody = document.getElementById('lookup-table-body');
+        if (!data.logs || data.logs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="2" class="text-muted py-4 small">Chưa có dữ liệu tiêu thụ.</td></tr>';
+        } else {
+          tbody.innerHTML = data.logs.map(log => {
+            const dateParts = log.date.split('-');
+            const formattedDate = dateParts.length >= 2 ? `Tháng ${dateParts[1]}/${dateParts[0]}` : log.date;
+            const unit = log.device_type === 'WATER_METER' ? 'm³' : 'kWh';
+            return `
+              <tr>
+                <td>${formattedDate}</td>
+                <td><strong class="text-primary">${log.value}</strong> ${unit}</td>
+              </tr>
+            `;
+          }).reverse().join(''); // Show most recent on top of table
+        }
+
+        // Render Chart
+        renderLookupChart(data.device, data.logs);
+
+        // Show results
+        resultsEl.classList.remove('d-none');
+
+      } catch (err) {
+        alertEl.textContent = 'Lỗi kết nối máy chủ.';
+        alertEl.classList.remove('d-none');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="bi bi-search me-1"></i> Tra cứu';
+      }
+    });
+
+    function renderLookupChart(device, logs) {
+      const ctx = document.getElementById('lookupChart');
+      if (!ctx) return;
+
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      if (!logs || logs.length === 0) return;
+
+      const labels = logs.map(log => {
+        const parts = log.date.split('-');
+        return parts.length >= 2 ? `T${parts[1]}/${parts[0]}` : log.date;
+      });
+
+      const values = logs.map(log => log.value);
+      const isElectric = device.device_type === 'ELECTRIC_METER';
+      const themeColor = isElectric ? '#f59e0b' : '#0ea5e9'; // Amber vs Sky Blue
+      const labelText = isElectric ? 'Điện năng (kWh)' : 'Nước tiêu thụ (m³)';
+
+      const chartCtx = ctx.getContext('2d');
+      const gradient = chartCtx.createLinearGradient(0, 0, 0, 300);
+      gradient.addColorStop(0, isElectric ? 'rgba(245, 158, 11, 0.4)' : 'rgba(14, 165, 233, 0.4)');
+      gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: labelText,
+            data: values,
+            borderColor: themeColor,
+            backgroundColor: gradient,
+            borderWidth: 3,
+            fill: true,
+            tension: 0.3,
+            pointBackgroundColor: '#fff',
+            pointBorderColor: themeColor,
+            pointBorderWidth: 2,
+            pointRadius: 5,
+            pointHoverRadius: 7
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.9)',
+              titleFont: { family: 'Inter', size: 12 },
+              bodyFont: { family: 'Inter', size: 14, weight: 'bold' },
+              padding: 10,
+              cornerRadius: 8
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { borderDash: [4, 4], color: '#e2e8f0' },
+              border: { display: false }
+            },
+            x: {
+              grid: { display: false },
+              border: { display: false }
+            }
+          }
+        }
+      });
+    }
+  })();
+</script>
+{% endblock %}

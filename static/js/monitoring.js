@@ -105,8 +105,12 @@
   async function loadConsumptions() {
     const tbody = document.getElementById('monitoring-table-body');
     const admin = isAdmin();
+    
+    const groupAreaChk = document.getElementById('filter-group-area');
+    const byArea = groupAreaChk ? groupAreaChk.checked : false;
+    
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="${admin ? 4 : 3}" class="text-center py-5">
+      tbody.innerHTML = `<tr><td colspan="${admin && !byArea ? 4 : 3}" class="text-center py-5">
         <div class="spinner-border spinner-border-sm text-primary" role="status"></div><span class="ms-2">Đang tải...</span>
       </td></tr>`;
     }
@@ -122,53 +126,75 @@
       const endMonth = endInput ? endInput.value : '';
 
       const params = new URLSearchParams();
-      if (deviceCode) params.append('device_code', deviceCode);
+      if (deviceCode && !byArea) params.append('device_code', deviceCode);
       if (deviceType) params.append('device_type', deviceType);
       if (startMonth) params.append('start_date', startMonth + '-01');
       if (endMonth) params.append('end_date', endMonth + '-01');
       params.append('page_size', '10000');
 
-      const res = await apiFetch(`${API.consumptions}?${params.toString()}`);
+      const url = byArea ? `${API.consumptions}by-area/?${params.toString()}` : `${API.consumptions}?${params.toString()}`;
+      const res = await apiFetch(url);
       if (!res.ok) {
         showAlert('Lỗi khi tải dữ liệu tiêu thụ');
         if (tbody) {
-          tbody.innerHTML = `<tr><td colspan="${admin ? 4 : 3}" class="text-muted py-4 text-center">Lỗi khi tải dữ liệu tiêu thụ</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="${admin && !byArea ? 4 : 3}" class="text-muted py-4 text-center">Lỗi khi tải dữ liệu tiêu thụ</td></tr>`;
         }
         return;
       }
       const data = await res.json();
       const listData = data.results !== undefined ? data.results : data;
-      renderTable(listData);
+      renderTable(listData, byArea, deviceType);
       try {
-        renderChart(listData);
+        renderChart(listData, byArea, deviceType);
       } catch (chartErr) {
         console.error('Error rendering chart:', chartErr);
       }
     } catch (err) {
       console.error('Error in loadConsumptions:', err);
       if (tbody) {
-        tbody.innerHTML = `<tr><td colspan="${admin ? 4 : 3}" class="text-danger py-4 text-center">Đã xảy ra lỗi khi tải dữ liệu</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${admin && !byArea ? 4 : 3}" class="text-danger py-4 text-center">Đã xảy ra lỗi khi tải dữ liệu</td></tr>`;
       }
     }
   }
 
-  function renderTable(data) {
+  function renderTable(data, byArea = false, deviceType = '') {
     const tbody = document.getElementById('monitoring-table-body');
     if (!tbody) return;
     const admin = isAdmin();
+    
+    const thDevice = tbody.closest('table').querySelector('thead th:first-child');
+    if (thDevice) thDevice.textContent = byArea ? 'Khu vực' : 'Thiết bị';
+
+    const thAction = tbody.closest('table').querySelector('thead th:nth-child(4)');
+    if (thAction) {
+      if (byArea) thAction.classList.add('d-none');
+      else if (admin) thAction.classList.remove('d-none');
+    }
+
     if (!data || !data.length) {
-      tbody.innerHTML = `<tr><td colspan="${admin ? 4 : 3}" class="text-muted py-4">Không có dữ liệu tiêu thụ phù hợp với bộ lọc</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="${admin && !byArea ? 4 : 3}" class="text-muted py-4">Không có dữ liệu tiêu thụ phù hợp với bộ lọc</td></tr>`;
       return;
     }
 
     tbody.innerHTML = data.map(row => {
+      const parts = row.date.split('-');
+      const formattedMonth = parts.length >= 2 ? `Tháng ${parts[1]}/${parts[0]}` : row.date;
+
+      if (byArea) {
+        const unit = deviceType === 'WATER_METER' ? 'm³' : deviceType === 'ELECTRIC_METER' ? 'kWh' : 'đơn vị';
+        return `
+          <tr>
+            <td><strong>${row.area || 'Không có khu vực'}</strong></td>
+            <td>${formattedMonth}</td>
+            <td><strong>${row.value}</strong> ${unit}</td>
+          </tr>
+        `;
+      }
+
       const actions = admin ? `
         <td class="admin-only">
           <button class="btn btn-sm btn-outline-danger btn-del" data-id="${row.id}">Xóa</button>
         </td>` : '';
-      
-      const parts = row.date.split('-');
-      const formattedMonth = parts.length >= 2 ? `Tháng ${parts[1]}/${parts[0]}` : row.date;
 
       return `
         <tr>
@@ -180,27 +206,29 @@
       `;
     }).join('');
 
-    tbody.querySelectorAll('.btn-del').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        if (!confirm('Bạn có chắc muốn xóa bản ghi này?')) return;
-        const id = btn.getAttribute('data-id');
-        try {
-          const res = await apiFetch(`${API.consumptions}${id}/`, { method: 'DELETE' });
-          if (res.ok) {
-            showAlert('Xóa bản ghi thành công', true);
-            loadConsumptions();
-          } else {
-            showAlert('Lỗi khi xóa bản ghi');
+    if (!byArea) {
+      tbody.querySelectorAll('.btn-del').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          if (!confirm('Bạn có chắc muốn xóa bản ghi này?')) return;
+          const id = btn.getAttribute('data-id');
+          try {
+            const res = await apiFetch(`${API.consumptions}${id}/`, { method: 'DELETE' });
+            if (res.ok) {
+              showAlert('Xóa bản ghi thành công', true);
+              loadConsumptions();
+            } else {
+              showAlert('Lỗi khi xóa bản ghi');
+            }
+          } catch (err) {
+            console.error(err);
+            showAlert('Lỗi hệ thống khi xóa bản ghi');
           }
-        } catch (err) {
-          console.error(err);
-          showAlert('Lỗi hệ thống khi xóa bản ghi');
-        }
+        });
       });
-    });
+    }
   }
 
-  function renderChart(data) {
+  function renderChart(data, byArea = false, deviceType = '') {
     const ctx = document.getElementById('consumptionChart');
     if (!ctx) return;
 
@@ -215,6 +243,75 @@
     }
 
     if (!data || !data.length) {
+      return;
+    }
+
+    if (byArea) {
+      // Group by unique area
+      const uniqueDates = Array.from(new Set(data.map(row => row.date))).sort();
+      const labels = uniqueDates.map(dateStr => {
+        const parts = dateStr.split('-');
+        return parts.length >= 2 ? `T${parts[1]}/${parts[0]}` : dateStr;
+      });
+
+      const uniqueAreas = Array.from(new Set(data.map(row => row.area)));
+      const areaColors = ['#fd7e14', '#0ea5e9', '#10b981', '#a855f7', '#ec4899', '#3b82f6', '#20c997', '#6f42c1'];
+
+      const datasets = uniqueAreas.map((area, idx) => {
+        const color = areaColors[idx % areaColors.length];
+        
+        const valuesForDates = uniqueDates.map(d => {
+          const matchedRow = data.find(row => row.area === area && row.date === d);
+          return matchedRow ? matchedRow.value : 0;
+        });
+
+        const unit = deviceType === 'WATER_METER' ? ' (m³)' : deviceType === 'ELECTRIC_METER' ? ' (kWh)' : '';
+
+        return {
+          label: area + unit,
+          data: valuesForDates,
+          backgroundColor: color,
+          borderColor: color,
+          borderWidth: 1,
+          borderRadius: 4,
+          maxBarThickness: 35
+        };
+      });
+
+      chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { 
+              display: true,
+              position: 'top',
+              labels: { font: { family: 'Inter', size: 11 } }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.9)',
+              titleFont: { family: 'Inter', size: 12 },
+              bodyFont: { family: 'Inter', size: 13, weight: 'bold' }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { borderDash: [4, 4], color: '#e2e8f0' },
+              border: { display: false }
+            },
+            x: {
+              grid: { display: false },
+              border: { display: false }
+            }
+          }
+        }
+      });
       return;
     }
 
@@ -248,7 +345,6 @@
         aggWater[dKey] = (aggWater[dKey] || 0) + row.value;
         hasWater = true;
       } else {
-        // Fallback/Legacy logic based on name
         const nameLower = (row.device_name || '').toLowerCase();
         if (nameLower.includes('nước') || nameLower.includes('water')) {
           aggWater[dKey] = (aggWater[dKey] || 0) + row.value;
@@ -546,11 +642,39 @@
       });
     }
 
+    // Xử lý bật/tắt nhóm theo khu vực (Area aggregation switch toggle)
+    const groupAreaChk = document.getElementById('filter-group-area');
+    const codeInput = document.getElementById('filter-device-code');
+    if (groupAreaChk) {
+      groupAreaChk.addEventListener('change', () => {
+        if (groupAreaChk.checked) {
+          if (codeInput) {
+            codeInput.value = '';
+            codeInput.disabled = true;
+          }
+          // Tự động chọn loại thiết bị điện nếu chưa chọn loại nào, tránh cộng gộp kWh và m³
+          const typeSel = document.getElementById('filter-device-type');
+          if (typeSel && !typeSel.value) {
+            typeSel.value = 'ELECTRIC_METER';
+          }
+        } else {
+          if (codeInput) {
+            codeInput.disabled = false;
+          }
+        }
+      });
+    }
+
     const clearFilterBtn = document.getElementById('btn-clear-filter');
     if (clearFilterBtn) {
       clearFilterBtn.addEventListener('click', () => {
-        const codeInput = document.getElementById('filter-device-code');
-        if (codeInput) codeInput.value = '';
+        if (groupAreaChk) {
+          groupAreaChk.checked = false;
+        }
+        if (codeInput) {
+          codeInput.value = '';
+          codeInput.disabled = false;
+        }
         const typeSel = document.getElementById('filter-device-type');
         if (typeSel) typeSel.value = '';
         const startInput = document.getElementById('filter-start');

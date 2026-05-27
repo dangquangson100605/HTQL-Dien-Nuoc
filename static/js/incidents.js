@@ -18,7 +18,9 @@
   let currentRole = '';
   let incidentMap = null;
   let incidentMarkers = [];
-  const detailModal = new bootstrap.Modal(document.getElementById('incidentDetailModal'));
+  let highlightLayer = null;
+  // detailModal now operates as a sleek, non-blocking dummy object to keep compatibility
+  const detailModal = { show: () => {}, hide: () => {} };
   const assignModal = new bootstrap.Modal(document.getElementById('assignModal'));
   const statusModal = new bootstrap.Modal(document.getElementById('statusModal'));
 
@@ -122,6 +124,7 @@
   function initMap() {
     incidentMap = L.map('incident-map').setView([16.0544, 108.2022], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(incidentMap);
+    highlightLayer = L.layerGroup().addTo(incidentMap);
   }
 
   function refreshMap(incidents) {
@@ -201,14 +204,97 @@
   }
 
   async function viewIncident(id) {
-    document.getElementById('incident-modal-title').textContent = 'Chi tiết Sự cố';
+    document.getElementById('incident-modal-title').innerHTML = 'Chi tiết Sự cố';
     document.getElementById('incident-detail-body').innerHTML = '<div class="text-center py-4"><div class="spinner-border text-danger" role="status"></div></div>';
-    document.getElementById('incident-modal-actions').innerHTML = '';
-    detailModal.show();
+    
+    // Slide left layout: hide list and show details wrapper
+    document.getElementById('incident-list-wrapper')?.classList.add('d-none');
+    document.getElementById('incident-detail-wrapper')?.classList.remove('d-none');
+
+    const detailBody = document.getElementById('incident-detail-body');
+    if (detailBody) detailBody.scrollTop = 0;
+
+    const actionsEl = document.getElementById('incident-modal-actions');
+    if (actionsEl) {
+      actionsEl.innerHTML = '';
+      actionsEl.classList.add('d-none');
+      actionsEl.classList.remove('d-flex');
+    }
 
     const res = await apiFetch(`${API.incidents}${id}/`);
     if (!res.ok) { document.getElementById('incident-detail-body').innerHTML = '<div class="text-danger">Lỗi tải dữ liệu.</div>'; return; }
     const inc = await res.json();
+
+    await ensureDevicesAndEdges();
+
+    // Dọn dẹp các nét vẽ highlight cũ
+    if (highlightLayer) {
+      highlightLayer.clearLayers();
+    }
+
+    // Tự động vẽ và định vị cục bộ
+    if (incidentMap && inc.latitude && inc.longitude) {
+      let latlngsToFit = [[inc.latitude, inc.longitude]];
+
+      // Nếu có thiết bị liên kết, vẽ lên bản đồ tại chỗ
+      if (inc.device) {
+        const dev = cachedDevices.find(d => d.id === inc.device);
+        if (dev && dev.latitude && dev.longitude) {
+          const color = dev.status === 'ACTIVE' ? '#10b981' : '#f59e0b';
+          const devMarker = L.circleMarker([dev.latitude, dev.longitude], {
+            radius: 8,
+            color: '#3b82f6',
+            fillColor: color,
+            fillOpacity: 0.9,
+            weight: 3
+          }).addTo(highlightLayer);
+          devMarker.bindPopup(`<b>Thiết bị: ${dev.name}</b><br>Mã: ${dev.code}<br>Trạng thái: ${dev.status_display || dev.status}`);
+          latlngsToFit.push([dev.latitude, dev.longitude]);
+        }
+      }
+
+      // Nếu có tuyến mạng liên kết, vẽ lên bản đồ tại chỗ
+      if (inc.edge) {
+        const edge = cachedEdges.find(e => e.id === inc.edge);
+        if (edge && edge.from_device_detail && edge.to_device_detail) {
+          const fromD = edge.from_device_detail;
+          const toD = edge.to_device_detail;
+          if (fromD.latitude && fromD.longitude && toD.latitude && toD.longitude) {
+            const color = edge.status === 'FAULT' ? '#ef4444' : '#3b82f6';
+            const polyline = L.polyline([
+              [fromD.latitude, fromD.longitude],
+              [toD.latitude, toD.longitude]
+            ], {
+              color: color,
+              weight: 6,
+              opacity: 0.8,
+              dashArray: edge.status === 'FAULT' ? '6, 8' : 'none'
+            }).addTo(highlightLayer);
+            polyline.bindPopup(`<b>Tuyến: ${edge.name || edge.code}</b><br>Trạng thái: ${edge.status_display || edge.status}`);
+            
+            L.circleMarker([fromD.latitude, fromD.longitude], { radius: 5, color: '#3b82f6', fillColor: '#fff', fillOpacity: 1 }).addTo(highlightLayer);
+            L.circleMarker([toD.latitude, toD.longitude], { radius: 5, color: '#3b82f6', fillColor: '#fff', fillOpacity: 1 }).addTo(highlightLayer);
+
+            latlngsToFit.push([fromD.latitude, fromD.longitude]);
+            latlngsToFit.push([toD.latitude, toD.longitude]);
+          }
+        }
+      }
+
+      // Ôm trọn phạm vi sự cố + thiết bị/tuyến mạng liên quan
+      if (latlngsToFit.length > 1) {
+        incidentMap.fitBounds(L.latLngBounds(latlngsToFit), { padding: [50, 50] });
+      } else {
+        incidentMap.flyTo([inc.latitude, inc.longitude], 16);
+        const marker = incidentMarkers.find(m => {
+          const latlng = m.getLatLng();
+          return Math.abs(latlng.lat - inc.latitude) < 0.0001 && Math.abs(latlng.lng - inc.longitude) < 0.0001;
+        });
+        if (marker) {
+          setTimeout(() => marker.openPopup(), 400);
+        }
+      }
+    }
 
     const isStaff = ['ADMIN', 'OPERATOR'].includes(currentRole);
     const isTech = currentRole === 'TECHNICIAN';
@@ -254,57 +340,72 @@
       `;
     }
 
-    document.getElementById('incident-modal-title').textContent = inc.title;
+    document.getElementById('incident-modal-title').innerHTML = `<i class="bi bi-exclamation-octagon text-danger me-1"></i> ${inc.title}`;
     document.getElementById('incident-detail-body').innerHTML = `
-      <div class="row g-2 mb-3">
-        <div class="col-6"><span class="text-muted small">Loại:</span> <strong>${inc.type_display}</strong></div>
-        <div class="col-6 d-flex align-items-center gap-1"><span class="text-muted small">Mức độ:</span> <span class="badge badge-premium badge-severity-${inc.severity.toLowerCase()}">${SEVERITY_ICON[inc.severity]} ${inc.severity_display}</span></div>
-        <div class="col-6 d-flex align-items-center gap-1"><span class="text-muted small">Trạng thái:</span> <span class="badge badge-premium badge-status-${inc.status.toLowerCase()}">${inc.status_display}</span></div>
-        <div class="col-6"><span class="text-muted small">Người báo:</span> <strong>${inc.reported_by_username}</strong></div>
-        <div class="col-6"><span class="text-muted small">KTV phụ trách:</span> <strong>${inc.assigned_to_username || '—'}</strong></div>
-        <div class="col-6"><span class="text-muted small">Thiết bị:</span> <strong>${inc.device_name || '—'}</strong></div>
-        <div class="col-6"><span class="text-muted small">Tuyến mạng:</span> <strong>${inc.edge_name || '—'}</strong></div>
-        <div class="col-12"><span class="text-muted small">Khu vực:</span> <strong>${inc.area || '—'}</strong></div>
-        <div class="col-12"><span class="text-muted small">Địa chỉ:</span> <strong>${inc.address || '—'}</strong></div>
-        <div class="col-12"><span class="text-muted small">Tọa độ:</span> <code>${inc.latitude.toFixed(5)}, ${inc.longitude.toFixed(5)}</code></div>
-        <div class="col-12 mt-1"><span class="text-muted small">Mô tả:</span><p class="mt-1 mb-0 bg-light p-2 rounded small text-secondary">${inc.description}</p></div>
+      <div class="row g-3 mb-3">
+        <div class="col-6"><span class="text-muted small d-block">Loại sự cố:</span> <strong>${inc.type_display}</strong></div>
+        <div class="col-6"><span class="text-muted small d-block">Mức độ nghiêm trọng:</span> <span class="badge badge-premium badge-severity-${inc.severity.toLowerCase()}">${SEVERITY_ICON[inc.severity]} ${inc.severity_display}</span></div>
+        <div class="col-6"><span class="text-muted small d-block">Trạng thái hiện tại:</span> <span class="badge badge-premium badge-status-${inc.status.toLowerCase()}">${inc.status_display}</span></div>
+        <div class="col-6"><span class="text-muted small d-block">Người báo cáo:</span> <strong>${inc.reported_by_username}</strong></div>
+        <div class="col-6"><span class="text-muted small d-block">Kỹ thuật viên phụ trách:</span> <strong class="text-primary">${inc.assigned_to_username || 'Chưa phân công'}</strong></div>
+        <div class="col-6"><span class="text-muted small d-block">Thiết bị liên quan:</span> ${inc.device ? `<strong>${inc.device_name}</strong> 
+          <div class="mt-1 d-flex gap-1">
+            <button onclick="window._focusLocalDevice(${inc.device})" class="btn btn-sm btn-outline-primary py-0 px-1" style="font-size: 10px;" title="Xem trên bản đồ bên cạnh"><i class="bi bi-geo-alt"></i> Định vị tại chỗ</button>
+            <a href="/app/?device=${inc.device}" class="btn btn-sm btn-outline-secondary py-0 px-1 text-decoration-none" style="font-size: 10px;" title="Chuyển sang bản đồ lớn"><i class="bi bi-map"></i> Bản đồ chính</a>
+          </div>` : '<strong>—</strong>'}</div>
+        <div class="col-6"><span class="text-muted small d-block">Tuyến mạng liên quan:</span> ${inc.edge ? `<strong>${inc.edge_name}</strong> 
+          <div class="mt-1 d-flex gap-1">
+            <button onclick="window._focusLocalEdge(${inc.edge})" class="btn btn-sm btn-outline-primary py-0 px-1" style="font-size: 10px;" title="Xem trên bản đồ bên cạnh"><i class="bi bi-geo-alt"></i> Định vị tại chỗ</button>
+            <a href="/app/?edge=${inc.edge}" class="btn btn-sm btn-outline-secondary py-0 px-1 text-decoration-none" style="font-size: 10px;" title="Chuyển sang bản đồ lớn"><i class="bi bi-map"></i> Bản đồ chính</a>
+          </div>` : '<strong>—</strong>'}</div>
+        <div class="col-6"><span class="text-muted small d-block">Khu vực quản lý:</span> <strong>${inc.area || '—'}</strong></div>
+        <div class="col-12"><span class="text-muted small d-block">Địa chỉ chi tiết:</span> <strong>${inc.address || '—'}</strong></div>
+        <div class="col-12"><span class="text-muted small d-block">Tọa độ địa lý:</span> <code>${inc.latitude.toFixed(5)}, ${inc.longitude.toFixed(5)}</code> 
+          <div class="mt-1 d-flex gap-1">
+            <button onclick="window._focusLocalCoord(${inc.latitude}, ${inc.longitude})" class="btn btn-sm btn-outline-primary py-0 px-1" style="font-size: 10px;" title="Xem trên bản đồ bên cạnh"><i class="bi bi-geo-alt"></i> Định vị tại chỗ</button>
+            <a href="/app/?lat=${inc.latitude}&lng=${inc.longitude}" class="btn btn-sm btn-outline-secondary py-0 px-1 text-decoration-none" style="font-size: 10px;" title="Chuyển sang bản đồ lớn"><i class="bi bi-map"></i> Bản đồ chính</a>
+          </div></div>
+        <div class="col-12 mt-1"><span class="text-muted small d-block">Mô tả sự cố:</span><p class="mt-1 mb-0 bg-light p-2 rounded small text-secondary border">${inc.description || 'Không có mô tả chi tiết.'}</p></div>
       </div>
       ${assocHtml}
       ${addNoteHtml}
-      <hr class="my-2">
-      <h6 class="fw-semibold mb-2"><i class="bi bi-journal-text me-1"></i> Ghi chú tiến độ</h6>
+      <hr class="my-3">
+      <h6 class="fw-semibold mb-2 text-dark"><i class="bi bi-journal-text me-1"></i> Ghi chú tiến độ xử lý</h6>
       <div id="notes-list">
         ${inc.notes.length ? inc.notes.map(n => `
           <div class="border rounded p-2 mb-2 bg-light">
-            <div class="small text-muted mb-1">${n.author_username} — ${new Date(n.created_at).toLocaleString('vi-VN')}</div>
-            <div>${n.content}</div>
-          </div>`).join('') : '<p class="text-muted small">Chưa có ghi chú.</p>'}
+            <div class="small text-muted mb-1 fw-medium">${n.author_username} — ${new Date(n.created_at).toLocaleString('vi-VN')}</div>
+            <div class="small text-secondary">${n.content}</div>
+          </div>`).join('') : '<p class="text-muted small mb-0">Chưa có ghi chú xử lý.</p>'}
       </div>`;
 
-    // Action buttons
-    const actionsEl = document.getElementById('incident-modal-actions');
-    actionsEl.innerHTML = `<button class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>`;
-    
-    if (isStaff && inc.status === 'PENDING_VERIFY') {
-      actionsEl.innerHTML += `<button class="btn btn-success" onclick="window._openConfirm(${inc.id})"><i class="bi bi-check-circle me-1"></i> Xác nhận</button>`;
-      actionsEl.innerHTML += `<button class="btn btn-outline-danger" onclick="window._openReject(${inc.id})"><i class="bi bi-x-circle me-1"></i> Từ chối</button>`;
-    }
-    if (isStaff && ['PENDING_VERIFY', 'CONFIRMED','ASSIGNED','IN_PROGRESS'].includes(inc.status)) {
-      actionsEl.innerHTML += `<button class="btn btn-primary" onclick="window._openAssign(${inc.id})"><i class="bi bi-person-check me-1"></i> Phân công</button>`;
-    }
-    if (isStaff && ['RESOLVED','CONFIRMED','IN_PROGRESS'].includes(inc.status)) {
-      actionsEl.innerHTML += `<button class="btn btn-dark" onclick="window._closeIncident(${inc.id})"><i class="bi bi-lock me-1"></i> Đóng sự cố</button>`;
-    }
-    if (isAssignedTech && inc.status === 'ASSIGNED') {
-      actionsEl.innerHTML += `<button class="btn btn-warning" onclick="window._startProgress(${inc.id})"><i class="bi bi-play-fill me-1"></i> Bắt đầu xử lý</button>`;
-    }
-    if (isAssignedTech && inc.status === 'IN_PROGRESS') {
-      actionsEl.innerHTML += `<button class="btn btn-success" onclick="window._resolveIncident(${inc.id})"><i class="bi bi-check-circle-fill me-1"></i> Báo hoàn thành</button>`;
+    // Nút hành động
+    if (actionsEl) {
+      actionsEl.innerHTML = `<button class="btn btn-sm btn-outline-secondary" onclick="window._clearSelection()"><i class="bi bi-x-circle me-1"></i> Bỏ chọn</button>`;
+      
+      if (isStaff && inc.status === 'PENDING_VERIFY') {
+        actionsEl.innerHTML += `<button class="btn btn-sm btn-success" onclick="window._openConfirm(${inc.id})"><i class="bi bi-check-circle me-1"></i> Xác nhận</button>`;
+        actionsEl.innerHTML += `<button class="btn btn-sm btn-outline-danger" onclick="window._openReject(${inc.id})"><i class="bi bi-x-circle me-1"></i> Từ chối</button>`;
+      }
+      if (isStaff && ['PENDING_VERIFY', 'CONFIRMED','ASSIGNED','IN_PROGRESS'].includes(inc.status)) {
+        actionsEl.innerHTML += `<button class="btn btn-sm btn-primary" onclick="window._openAssign(${inc.id})"><i class="bi bi-person-check me-1"></i> Phân công</button>`;
+      }
+      if (isStaff && ['RESOLVED','CONFIRMED','IN_PROGRESS'].includes(inc.status)) {
+        actionsEl.innerHTML += `<button class="btn btn-sm btn-dark" onclick="window._closeIncident(${inc.id})"><i class="bi bi-lock me-1"></i> Đóng sự cố</button>`;
+      }
+      if (isAssignedTech && inc.status === 'ASSIGNED') {
+        actionsEl.innerHTML += `<button class="btn btn-sm btn-warning" onclick="window._startProgress(${inc.id})"><i class="bi bi-play-fill me-1"></i> Bắt đầu xử lý</button>`;
+      }
+      if (isAssignedTech && inc.status === 'IN_PROGRESS') {
+        actionsEl.innerHTML += `<button class="btn btn-sm btn-success" onclick="window._resolveIncident(${inc.id})"><i class="bi bi-check-circle-fill me-1"></i> Báo hoàn thành</button>`;
+      }
+
+      actionsEl.classList.remove('d-none');
+      actionsEl.classList.add('d-flex');
     }
 
-    // Populate Device and Edge selects if link form is rendered
+    // Nạp thiết bị & tuyến cho hộp chọn liên kết (nếu nhân viên vận hành cần liên kết)
     if (isStaff && inc.target_type === 'UNKNOWN') {
-      await ensureDevicesAndEdges();
       const devSelect = document.getElementById('link-device-select');
       const edgeSelect = document.getElementById('link-edge-select');
       if (devSelect && edgeSelect) {
@@ -512,6 +613,64 @@
     document.getElementById('filter-type').value = '';
     loadIncidents();
   });
+
+  window._focusLocalDevice = (deviceId) => {
+    ensureDevicesAndEdges().then(() => {
+      const dev = cachedDevices.find(d => d.id === deviceId);
+      if (dev && incidentMap && dev.latitude && dev.longitude) {
+        incidentMap.flyTo([dev.latitude, dev.longitude], 17);
+      }
+    });
+  };
+
+  window._focusLocalEdge = (edgeId) => {
+    ensureDevicesAndEdges().then(() => {
+      const edge = cachedEdges.find(e => e.id === edgeId);
+      if (edge && incidentMap && edge.from_device_detail && edge.to_device_detail) {
+        const fromD = edge.from_device_detail;
+        const toD = edge.to_device_detail;
+        if (fromD.latitude && fromD.longitude && toD.latitude && toD.longitude) {
+          const bounds = L.latLngBounds([
+            [fromD.latitude, fromD.longitude],
+            [toD.latitude, toD.longitude]
+          ]);
+          incidentMap.fitBounds(bounds, { padding: [40, 40] });
+        }
+      }
+    });
+  };
+
+  window._focusLocalCoord = (lat, lng) => {
+    if (incidentMap) {
+      incidentMap.flyTo([lat, lng], 17);
+    }
+  };
+
+  window._clearSelection = () => {
+    if (highlightLayer) highlightLayer.clearLayers();
+    
+    // Slide left layout: show list wrapper and hide details
+    document.getElementById('incident-detail-wrapper')?.classList.add('d-none');
+    document.getElementById('incident-list-wrapper')?.classList.remove('d-none');
+
+    const body = document.getElementById('incident-detail-body');
+    if (body) {
+      body.innerHTML = `
+        <div class="text-center py-4">
+          <div class="spinner-border text-danger" role="status"></div>
+        </div>`;
+    }
+    const actions = document.getElementById('incident-modal-actions');
+    if (actions) {
+      actions.classList.add('d-none');
+      actions.classList.remove('d-flex');
+      actions.innerHTML = '';
+    }
+    document.getElementById('incident-modal-title').innerHTML = 'Chi tiết Sự cố';
+    if (incidentMap) {
+      incidentMap.setView([16.0544, 108.2022], 13);
+    }
+  };
 
   setupNav();
   initMap();

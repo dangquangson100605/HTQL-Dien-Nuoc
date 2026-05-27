@@ -163,70 +163,80 @@
       </div>
     </div>
 
-    <!-- Bảng sự cố -->
+    <!-- Bảng danh sách & Chi tiết Sự cố -->
     <div class="col-lg-7">
-      <div class="card shadow-sm border-0">
-        <div class="card-header bg-white py-2 fw-semibold d-flex justify-content-between align-items-center">
-          <span>Danh sách Sự cố</span>
-          <span id="incident-count" class="badge bg-secondary"></span>
+      <!-- Wrapper cho Bảng danh sách sự cố -->
+      <div id="incident-list-wrapper">
+        <div class="card shadow-sm border-0">
+          <div class="card-header bg-white py-2 fw-semibold d-flex justify-content-between align-items-center">
+            <span>Danh sách Sự cố</span>
+            <span id="incident-count" class="badge bg-secondary"></span>
+          </div>
+          <div class="card-body p-0 table-responsive">
+            <table class="table table-premium table-hover table-sm mb-0 align-middle">
+              <thead class="table-light sticky-top">
+                <tr style="font-size: 0.8rem;">
+                  <th>Tiêu đề</th>
+                  <th class="text-center">Loại</th>
+                  <th class="text-center">Mức độ</th>
+                  <th class="text-center">Trạng thái</th>
+                  <th>Vị trí</th>
+                  <th>Người báo</th>
+                  <th>Thiết bị</th>
+                  <th>Tuyến</th>
+                  <th>KTV phụ trách</th>
+                  <th class="text-center">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="incident-table-body" style="font-size: 0.85rem;">
+                <tr><td colspan="10" class="text-center text-muted py-5">
+                  <div class="spinner-border spinner-border-sm text-danger" role="status"></div>
+                  <span class="ms-2">Đang tải...</span>
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div class="card-body p-0 table-responsive">
-          <table class="table table-premium table-hover table-sm mb-0 align-middle">
-            <thead class="table-light sticky-top">
-              <tr style="font-size: 0.8rem;">
-                <th>Tiêu đề</th>
-                <th class="text-center">Loại</th>
-                <th class="text-center">Mức độ</th>
-                <th class="text-center">Trạng thái</th>
-                <th>Vị trí</th>
-                <th>Người báo</th>
-                <th>Thiết bị</th>
-                <th>Tuyến</th>
-                <th>KTV phụ trách</th>
-                <th class="text-center">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody id="incident-table-body" style="font-size: 0.85rem;">
-              <tr><td colspan="10" class="text-center text-muted py-5">
-                <div class="spinner-border spinner-border-sm text-danger" role="status"></div>
-                <span class="ms-2">Đang tải...</span>
-              </td></tr>
-            </tbody>
-          </table>
+      </div>
+
+      <!-- Wrapper cho Thẻ chi tiết sự cố tích hợp (Hiển thị thay thế danh sách khi chọn) -->
+      <div id="incident-detail-wrapper" class="d-none">
+        <div class="card shadow-sm border-0" id="incident-detail-card">
+          <div class="card-header bg-white py-2 fw-semibold d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+              <button class="btn btn-sm btn-outline-secondary py-1 px-3 fw-semibold rounded-pill" onclick="window._clearSelection()">
+                <i class="bi bi-arrow-left me-1"></i> Quay lại danh sách
+              </button>
+              <span id="incident-modal-title" class="text-dark fw-bold ms-2">Chi tiết Sự cố</span>
+            </div>
+          </div>
+          <div class="card-body" id="incident-detail-body" style="max-height: 520px; overflow-y: auto;">
+            <div class="text-center py-4">
+              <div class="spinner-border text-danger" role="status"></div>
+            </div>
+          </div>
+          <div class="card-footer bg-light border-0 py-2 d-none justify-content-end gap-2" id="incident-modal-actions">
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Bản đồ sự cố -->
+    <!-- Bản đồ sự cố tại chỗ -->
     <div class="col-lg-5">
       <div class="card shadow-sm border-0">
-        <div class="card-header bg-white py-2 fw-semibold"><i class="bi bi-geo-alt-fill text-danger me-1"></i> Vị trí sự cố trên bản đồ</div>
+        <div class="card-header bg-white py-2 fw-semibold d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-geo-alt-fill text-danger me-1"></i> Bản đồ Sự cố tại chỗ</span>
+        </div>
         <div class="card-body p-0">
-          <div id="incident-map" style="height:480px;border-radius:0 0 12px 12px;"></div>
+          <div id="incident-map" style="height: 580px; border-radius: 0 0 12px 12px;"></div>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Modal chi tiết sự cố -->
-<div class="modal fade" id="incidentDetailModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content border-0 shadow">
-      <div class="modal-header border-0 pb-0">
-        <h5 class="modal-title fw-semibold" id="incident-modal-title">Chi tiết Sự cố</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body" id="incident-detail-body">
-        <div class="text-center py-4">
-          <div class="spinner-border text-danger" role="status"></div>
-        </div>
-      </div>
-      <div class="modal-footer border-0 pt-0 flex-wrap gap-2" id="incident-modal-actions">
-      </div>
-    </div>
-  </div>
-</div>
+<!-- Modal chi tiết sự cố (giữ placeholder để đảm bảo tương thích hoàn toàn với JS cũ) -->
+<div class="modal fade" id="incidentDetailModal" tabindex="-1" style="display: none;" aria-hidden="true"></div>
 
 <!-- Modal phân công -->
 <div class="modal fade" id="assignModal" tabindex="-1">

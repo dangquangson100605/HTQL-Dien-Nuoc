@@ -168,9 +168,9 @@ class NetworkEdge(models.Model):
                 raise ValidationError('Tuyến mạng từ thiết bị này đến thiết bị kia đã tồn tại.')
 
     def save(self, *args, **kwargs):
-        self.clean()
         if not self.code:
             self.code = f'EDGE_{self.from_device_id}_{self.to_device_id}'
+        self.full_clean()
         super().save(*args, **kwargs)
 
     def __str__(self):

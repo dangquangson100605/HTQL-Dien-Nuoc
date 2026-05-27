@@ -187,6 +187,65 @@
     }
   }
 
+  function showIncidentDetail(inc) {
+    document.getElementById('detail-title').textContent = inc.title;
+    
+    const statusBadges = {
+      PENDING_VERIFY: 'bg-warning text-dark',
+      OPEN: 'bg-warning text-dark',
+      CONFIRMED: 'bg-danger text-white',
+      ASSIGNED: 'bg-primary text-white',
+      IN_PROGRESS: 'bg-info text-white',
+      RESOLVED: 'bg-success text-white',
+      CLOSED: 'bg-secondary text-white',
+      REJECTED: 'bg-dark text-white'
+    };
+    const severityBadges = {
+      LOW: 'bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill',
+      MEDIUM: 'bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-pill',
+      HIGH: 'bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill',
+      CRITICAL: 'bg-danger text-white border border-danger rounded-pill'
+    };
+
+    const statusEl = document.getElementById('detail-status');
+    statusEl.textContent = inc.status_display;
+    statusEl.className = 'badge ' + (statusBadges[inc.status] || 'bg-secondary');
+
+    const severityEl = document.getElementById('detail-severity');
+    severityEl.textContent = 'Mức: ' + (inc.severity_display || inc.severity);
+    severityEl.className = 'badge ' + (severityBadges[inc.severity] || 'bg-secondary');
+
+    document.getElementById('detail-type').textContent = inc.type_display || inc.incident_type;
+    document.getElementById('detail-desc').textContent = inc.description;
+    
+    document.getElementById('detail-assignee').textContent = inc.assigned_to_username ? `@${inc.assigned_to_username}` : 'Chưa phân công';
+    
+    const lastUpdate = inc.updated_at ? new Date(inc.updated_at) : new Date(inc.created_at);
+    document.getElementById('detail-updated').textContent = lastUpdate.toLocaleString('vi-VN');
+
+    // Populate timeline notes
+    const notesContainer = document.getElementById('detail-notes-timeline');
+    if (notesContainer) {
+      if (!inc.notes || inc.notes.length === 0) {
+        notesContainer.innerHTML = '<div class="text-muted small py-2">Chưa có ghi chú xử lý nào.</div>';
+        notesContainer.classList.remove('border-start');
+      } else {
+        notesContainer.classList.add('border-start');
+        notesContainer.innerHTML = inc.notes.map(note => `
+          <div class="mb-3 position-relative ps-2" style="padding-left: 10px;">
+            <span class="position-absolute start-0 translate-middle bg-primary rounded-circle" style="width: 8px; height: 8px; margin-left: -4px; top: 8px;"></span>
+            <div class="small fw-bold text-dark">${note.author_name || note.author_username || 'Nhân viên'}</div>
+            <div class="text-muted small" style="font-size: 0.7rem;"><i class="bi bi-clock"></i> ${new Date(note.created_at).toLocaleString('vi-VN')}</div>
+            <div class="text-secondary small mt-1 p-2 bg-light rounded border">${note.content}</div>
+          </div>
+        `).join('');
+      }
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('incident-detail-modal'));
+    modal.show();
+  }
+
   async function loadMyIncidents() {
     const res = await apiFetch(API.incidents);
     if (!res.ok) return;
@@ -200,15 +259,39 @@
       return;
     }
 
-    const STATUS_COLOR = { OPEN: 'danger', ASSIGNED: 'warning', IN_PROGRESS: 'info', RESOLVED: 'success', CLOSED: 'secondary' };
+    const STATUS_COLOR = { 
+      PENDING_VERIFY: 'warning',
+      OPEN: 'warning', 
+      CONFIRMED: 'danger',
+      ASSIGNED: 'primary', 
+      IN_PROGRESS: 'info', 
+      RESOLVED: 'success', 
+      CLOSED: 'secondary',
+      REJECTED: 'dark'
+    };
+    
     el.innerHTML = incidents.map(inc => `
-      <div class="px-3 py-2 border-bottom">
-        <div class="fw-semibold small">${inc.title}</div>
-        <div class="d-flex gap-2 mt-1">
-          <span class="badge bg-${STATUS_COLOR[inc.status] || 'secondary'} bg-opacity-75">${inc.status_display}</span>
-          <span class="text-muted small">${new Date(inc.created_at).toLocaleDateString('vi-VN')}</span>
+      <div class="px-3 py-2 border-bottom my-incident-item" data-id="${inc.id}" style="cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor='transparent'">
+        <div class="d-flex justify-content-between align-items-start">
+          <div class="fw-semibold small text-dark">${inc.title}</div>
+          <span class="badge bg-${STATUS_COLOR[inc.status] || 'secondary'} bg-opacity-10 text-${STATUS_COLOR[inc.status] || 'secondary'} border border-${STATUS_COLOR[inc.status] || 'secondary'} border-opacity-25 rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">${inc.status_display}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-1">
+          <span class="text-muted small" style="font-size: 0.75rem;"><i class="bi bi-clock"></i> ${new Date(inc.created_at).toLocaleDateString('vi-VN')}</span>
+          <span class="text-primary small" style="font-size: 0.75rem;">Chi tiết <i class="bi bi-arrow-right"></i></span>
         </div>
       </div>`).join('');
+
+    // Bắt sự kiện click
+    el.querySelectorAll('.my-incident-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const id = item.getAttribute('data-id');
+        const inc = incidents.find(i => i.id == id);
+        if (inc) {
+          showIncidentDetail(inc);
+        }
+      });
+    });
   }
 
   function showAlert(msg, isSuccess = false) {
