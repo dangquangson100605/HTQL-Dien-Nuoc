@@ -90,7 +90,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 import sys
 
-if os.environ.get('USE_SQLITE') or 'test' in sys.argv:
+if os.environ.get('USE_SQLITE') or os.environ.get('GITHUB_ACTIONS') or 'test' in sys.argv:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
