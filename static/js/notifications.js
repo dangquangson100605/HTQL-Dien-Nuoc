@@ -62,6 +62,10 @@
     if (el) el.textContent = u ? `Xin chào, ${u}` : '';
     const labels = { ADMIN: 'Quản trị', OPERATOR: 'Vận hành', TECHNICIAN: 'Kỹ thuật', CITIZEN: 'Người dân' };
     if (roleEl) roleEl.textContent = labels[role] || role;
+    if (role === 'ADMIN' || role === 'OPERATOR') {
+      document.getElementById('nav-dashboard-link')?.classList.remove('d-none');
+      document.getElementById('nav-analytics-link')?.classList.remove('d-none');
+    }
     document.getElementById('btn-logout')?.addEventListener('click', async () => {
       const refresh = localStorage.getItem(STORAGE.refresh);
       await apiFetch('/api/auth/logout/', { method: 'POST', body: JSON.stringify({ refresh }) });
@@ -80,6 +84,8 @@
     ASSIGNED:     { icon: '👷', label: 'Được phân công', badgeClass: 'bg-warning text-dark' },
     STATUS_UPDATE:{ icon: '🔧', label: 'Cập nhật trạng thái', badgeClass: 'bg-info text-dark' },
     RESOLVED:     { icon: '✅', label: 'Đã giải quyết', badgeClass: 'bg-success' },
+    CONFIRMED:    { icon: '✔️', label: 'Đã xác nhận', badgeClass: 'bg-primary' },
+    REJECTED:     { icon: '❌', label: 'Từ chối', badgeClass: 'bg-dark' },
   };
 
   /* ── Render ──────────────────────────────────────────────────────── */

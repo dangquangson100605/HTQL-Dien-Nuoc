@@ -83,6 +83,24 @@ def handle_incident_notifications(sender, instance, created, **kwargs):
                 message=f"Sự cố '{instance.title}' đã chính thức đóng."
             )
 
+        elif status == Incident.Status.CONFIRMED:
+            # Thông báo cho người báo cáo khi sự cố được xác nhận
+            _create_notification(
+                recipient=instance.reported_by,
+                incident=instance,
+                notif_type=Notification.NotifType.CONFIRMED,
+                message=f"Sự cố '{instance.title}' đã được xác nhận."
+            )
+
+        elif status == Incident.Status.REJECTED:
+            # Thông báo cho người báo cáo khi sự cố bị từ chối
+            _create_notification(
+                recipient=instance.reported_by,
+                incident=instance,
+                notif_type=Notification.NotifType.REJECTED,
+                message=f"Sự cố '{instance.title}' đã bị từ chối. Lý do: {instance.rejection_reason or 'Không rõ'}."
+            )
+
     # 2. Lưu lịch sử thay đổi IncidentHistory
     old_status = getattr(instance, '_old_status', Incident.Status.PENDING_VERIFY)
     new_status = instance.status
@@ -111,9 +129,10 @@ def handle_incident_notifications(sender, instance, created, **kwargs):
         from assets.models import Device
         if instance.status in fault_statuses:
             if device.status != Device.Status.FAULT:
-                Device.objects.filter(pk=device.pk).update(status=Device.Status.FAULT, is_active=False)
                 device.status = Device.Status.FAULT
                 device.is_active = False
+                device._triggering_incident = instance
+                device.save()
         else:
             # Kiểm tra xem có sự cố hoạt động nào khác liên quan đến device này không
             has_other_active = Incident.objects.filter(
@@ -123,17 +142,19 @@ def handle_incident_notifications(sender, instance, created, **kwargs):
             
             if not has_other_active:
                 if device.status == Device.Status.FAULT:
-                    Device.objects.filter(pk=device.pk).update(status=Device.Status.ACTIVE, is_active=True)
                     device.status = Device.Status.ACTIVE
                     device.is_active = True
+                    device._triggering_incident = instance
+                    device.save()
 
     # Cập nhật NetworkEdge liên quan
     if edge:
         from assets.models import NetworkEdge
         if instance.status in fault_statuses:
             if edge.status != NetworkEdge.Status.FAULT:
-                NetworkEdge.objects.filter(pk=edge.pk).update(status=NetworkEdge.Status.FAULT)
                 edge.status = NetworkEdge.Status.FAULT
+                edge._triggering_incident = instance
+                edge.save()
         else:
             # Kiểm tra xem có sự cố hoạt động nào khác liên quan đến edge này không
             has_other_active = Incident.objects.filter(
@@ -143,6 +164,8 @@ def handle_incident_notifications(sender, instance, created, **kwargs):
             
             if not has_other_active:
                 if edge.status == NetworkEdge.Status.FAULT:
-                    NetworkEdge.objects.filter(pk=edge.pk).update(status=NetworkEdge.Status.ACTIVE)
                     edge.status = NetworkEdge.Status.ACTIVE
+                    edge._triggering_incident = instance
+                    edge.save()
+
 

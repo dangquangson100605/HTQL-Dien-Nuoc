@@ -10,7 +10,8 @@
     <div class="d-flex align-items-center gap-3">
       <a href="/app/" class="text-secondary text-decoration-none small hover-lift"><i class="bi bi-map"></i> Bản đồ</a>
       <a href="/incidents/" class="text-secondary text-decoration-none small hover-lift"><i class="bi bi-exclamation-octagon"></i> Sự cố</a>
-      <a href="/dashboard/" class="text-secondary text-decoration-none small hover-lift"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <a href="/dashboard/" class="text-secondary text-decoration-none small hover-lift d-none admin-only" id="nav-dashboard-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <a href="/analytics/" class="text-secondary text-decoration-none small hover-lift d-none admin-only" id="nav-analytics-link"><i class="bi bi-bar-chart-line"></i> Phân tích</a>
       <div class="d-flex align-items-center gap-2 small">
         <span id="nav-user" class="d-none d-md-inline fw-medium text-dark"></span>
         <span id="nav-role" class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-2 py-1"></span>

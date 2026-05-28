@@ -11,7 +11,8 @@
   };
   const API_REFRESH = '/api/auth/token/refresh/';
 
-  const STATUS_COLOR = { PENDING_VERIFY: 'warning', OPEN: 'warning', CONFIRMED: 'danger', ASSIGNED: 'primary', IN_PROGRESS: 'info', RESOLVED: 'success', CLOSED: 'secondary', REJECTED: 'dark' };
+  const STATUS_COLOR = { PENDING_VERIFY: 'warning', CONFIRMED: 'danger', ASSIGNED: 'primary', IN_PROGRESS: 'info', RESOLVED: 'success', CLOSED: 'secondary', REJECTED: 'dark' };
+  const STATUS_LABEL = { PENDING_VERIFY: 'Chờ xác minh', CONFIRMED: 'Đã xác nhận', ASSIGNED: 'Đã phân công', IN_PROGRESS: 'Đang xử lý', RESOLVED: 'Đã xử lý', CLOSED: 'Đã đóng', REJECTED: 'Từ chối' };
   const SEVERITY_COLOR = { LOW: 'success', MEDIUM: 'warning', HIGH: 'danger', CRITICAL: 'dark' };
   const SEVERITY_ICON = { LOW: '🟢', MEDIUM: '🟡', HIGH: '🔴', CRITICAL: '🚨' };
 
@@ -96,6 +97,7 @@
     if (roleEl) roleEl.textContent = labels[currentRole] || currentRole;
     if (currentRole === 'ADMIN' || currentRole === 'OPERATOR') {
       document.getElementById('nav-dashboard-link')?.classList.remove('d-none');
+      document.getElementById('nav-analytics-link')?.classList.remove('d-none');
     }
     if (currentRole === 'ADMIN') {
       document.getElementById('nav-users-link')?.classList.remove('d-none');
@@ -152,11 +154,7 @@
     const type = document.getElementById('filter-type').value;
     const params = new URLSearchParams();
     if (status) {
-      if (status === 'OPEN') {
-        params.append('status', 'PENDING_VERIFY');
-      } else {
-        params.append('status', status);
-      }
+      params.append('status', status);
     }
     if (severity) params.append('severity', severity);
     if (type) params.append('incident_type', type);
@@ -210,6 +208,8 @@
     // Slide left layout: hide list and show details wrapper
     document.getElementById('incident-list-wrapper')?.classList.add('d-none');
     document.getElementById('incident-detail-wrapper')?.classList.remove('d-none');
+
+
 
     const detailBody = document.getElementById('incident-detail-body');
     if (detailBody) detailBody.scrollTop = 0;
@@ -365,9 +365,30 @@
             <button onclick="window._focusLocalCoord(${inc.latitude}, ${inc.longitude})" class="btn btn-sm btn-outline-primary py-0 px-1" style="font-size: 10px;" title="Xem trên bản đồ bên cạnh"><i class="bi bi-geo-alt"></i> Định vị tại chỗ</button>
             <a href="/app/?lat=${inc.latitude}&lng=${inc.longitude}" class="btn btn-sm btn-outline-secondary py-0 px-1 text-decoration-none" style="font-size: 10px;" title="Chuyển sang bản đồ lớn"><i class="bi bi-map"></i> Bản đồ chính</a>
           </div></div>
+        <div class="col-6"><span class="text-muted small d-block">Người xác nhận:</span> <strong class="text-dark">${inc.confirmed_by_username || 'Chưa xác nhận'}</strong></div>
+        <div class="col-6"><span class="text-muted small d-block">Thời gian giải quyết:</span> <strong>${inc.resolved_at ? new Date(inc.resolved_at).toLocaleString('vi-VN') : '—'}</strong></div>
         <div class="col-12 mt-1"><span class="text-muted small d-block">Mô tả sự cố:</span><p class="mt-1 mb-0 bg-light p-2 rounded small text-secondary border">${inc.description || 'Không có mô tả chi tiết.'}</p></div>
+        ${inc.status === 'REJECTED' && inc.rejection_reason ? `<div class="col-12 mt-1"><span class="text-muted small d-block">Lý do từ chối:</span><p class="mt-1 mb-0 bg-danger bg-opacity-10 p-2 rounded small text-danger border border-danger border-opacity-25">${inc.rejection_reason}</p></div>` : ''}
+        ${inc.status === 'RESOLVED' && inc.result_note ? `<div class="col-12 mt-1"><span class="text-muted small d-block">Kết quả xử lý:</span><p class="mt-1 mb-0 bg-success bg-opacity-10 p-2 rounded small text-success border border-success border-opacity-25">${inc.result_note}</p></div>` : ''}
       </div>
       ${assocHtml}
+      
+      <hr class="my-3">
+      <h6 class="fw-semibold mb-2 text-dark"><i class="bi bi-clock-history me-1"></i> Lịch sử trạng thái</h6>
+      <div id="history-list" class="mb-3 ps-3 border-start border-2 border-secondary">
+        ${inc.history && inc.history.length ? inc.history.map(h => `
+          <div class="position-relative mb-3 pb-1" style="padding-left: 10px;">
+            <div class="position-absolute bg-secondary rounded-circle" style="width: 10px; height: 10px; left: -16px; top: 5px;"></div>
+            <div class="small text-muted fw-medium">${h.changed_by_username || 'Hệ thống'} — ${new Date(h.created_at).toLocaleString('vi-VN')}</div>
+            <div class="small mt-1">
+              ${h.old_status ? `<span class="badge bg-light text-secondary border">${STATUS_LABEL[h.old_status] || h.old_status}</span> ➡️ ` : ''}
+              <span class="badge badge-status-${h.new_status.toLowerCase()}">${STATUS_LABEL[h.new_status] || h.new_status}</span>
+            </div>
+            ${h.note ? `<div class="small mt-1 text-secondary fst-italic">"${h.note}"</div>` : ''}
+          </div>
+        `).join('') : '<div class="small text-muted fst-italic">Không có lịch sử.</div>'}
+      </div>
+
       ${addNoteHtml}
       <hr class="my-3">
       <h6 class="fw-semibold mb-2 text-dark"><i class="bi bi-journal-text me-1"></i> Ghi chú tiến độ xử lý</h6>
@@ -387,10 +408,10 @@
         actionsEl.innerHTML += `<button class="btn btn-sm btn-success" onclick="window._openConfirm(${inc.id})"><i class="bi bi-check-circle me-1"></i> Xác nhận</button>`;
         actionsEl.innerHTML += `<button class="btn btn-sm btn-outline-danger" onclick="window._openReject(${inc.id})"><i class="bi bi-x-circle me-1"></i> Từ chối</button>`;
       }
-      if (isStaff && ['PENDING_VERIFY', 'CONFIRMED','ASSIGNED','IN_PROGRESS'].includes(inc.status)) {
+      if (isStaff && ['PENDING_VERIFY', 'CONFIRMED','ASSIGNED'].includes(inc.status)) {
         actionsEl.innerHTML += `<button class="btn btn-sm btn-primary" onclick="window._openAssign(${inc.id})"><i class="bi bi-person-check me-1"></i> Phân công</button>`;
       }
-      if (isStaff && ['RESOLVED','CONFIRMED','IN_PROGRESS'].includes(inc.status)) {
+      if (isStaff && inc.status === 'RESOLVED') {
         actionsEl.innerHTML += `<button class="btn btn-sm btn-dark" onclick="window._closeIncident(${inc.id})"><i class="bi bi-lock me-1"></i> Đóng sự cố</button>`;
       }
       if (isAssignedTech && inc.status === 'ASSIGNED') {

@@ -96,10 +96,18 @@
   let chartInstance = null;
 
   const DEVICE_LABELS = {
-    ELECTRIC_POLE: 'Trụ điện',
-    WATER_METER: 'Đồng hồ nước',
     TRANSFORMER: 'Trạm biến áp',
-    VALVE: 'Van nước',
+    DISTRIBUTION_BOX: 'Tủ điện / tủ phân phối',
+    ELECTRIC_POLE: 'Trụ điện',
+    ELECTRIC_JUNCTION: 'Điểm nối điện',
+    ELECTRIC_METER: 'Công tơ điện',
+    WATER_TANK: 'Bể nước',
+    PUMP_STATION: 'Trạm bơm',
+    MAIN_VALVE: 'Van tổng',
+    BRANCH_VALVE: 'Van nhánh',
+    WATER_JUNCTION: 'Điểm nối nước',
+    WATER_METER: 'Đồng hồ nước',
+    VALVE: 'Van nước (cũ)',
   };
 
   async function loadConsumptions() {

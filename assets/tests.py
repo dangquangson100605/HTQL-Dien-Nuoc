@@ -465,5 +465,53 @@ class ConsumptionLogTests(APITestCase):
         self.assertEqual(len(res_data_wrong), 0)
 
 
+from assets.models import NetworkStatusHistory
+
+class IncidentStatusHistorySignalsTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="reporter_signals",
+            password="testpass123",
+            role=User.Role.CITIZEN
+        )
+        self.device = Device.objects.create(
+            name="Test Transformer Signals",
+            device_type="TRANSFORMER",
+            latitude=10.0,
+            longitude=106.0,
+            status=Device.Status.ACTIVE
+        )
+
+    def test_incident_creation_updates_device_status_and_creates_history(self):
+        # Check initial state (creation history record exists)
+        self.assertEqual(self.device.status, Device.Status.ACTIVE)
+        self.assertEqual(NetworkStatusHistory.objects.filter(device=self.device).count(), 1)
+
+        # Create active incident
+        incident = Incident.objects.create(
+            title="Transformer Explosion",
+            description="Loud bang and smoke.",
+            incident_type="ELECTRIC",
+            severity="CRITICAL",
+            status="PENDING_VERIFY",
+            latitude=10.0,
+            longitude=106.0,
+            device=self.device,
+            reported_by=self.user
+        )
+
+        # Sync check
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.status, Device.Status.FAULT)
+
+        # History log check
+        history_records = NetworkStatusHistory.objects.filter(device=self.device, new_status=Device.Status.FAULT)
+        self.assertEqual(history_records.count(), 1)
+        record = history_records.first()
+        self.assertEqual(record.incident, incident)
+        self.assertIn("Transformer Explosion", record.reason)
+
+
+
 
 

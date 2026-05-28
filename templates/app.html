@@ -54,6 +54,7 @@
       <a href="/report/" class="text-secondary text-decoration-none small hover-lift"><i class="bi bi-plus-circle"></i> Báo cáo</a>
       <a href="/users/" id="nav-users-link" class="text-secondary text-decoration-none small hover-lift d-none"><i class="bi bi-people"></i> Tài khoản</a>
       <a href="/dashboard/" id="nav-dashboard-link" class="text-secondary text-decoration-none small hover-lift d-none"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <a href="/analytics/" id="nav-analytics-link" class="text-secondary text-decoration-none small hover-lift d-none"><i class="bi bi-bar-chart-line"></i> Phân tích</a>
       <div class="d-flex align-items-center gap-2 small">
         <span id="nav-user" class="d-none d-md-inline fw-medium text-dark"></span>
         <span id="nav-role" class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-2 py-1"></span>
@@ -86,7 +87,14 @@
     <div class="col-lg-4">
       <div class="card shadow-sm border-0 h-100">
         <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <span class="fw-semibold">Danh sách thiết bị</span>
+          <ul class="nav nav-tabs card-header-tabs border-bottom-0" id="sidebar-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active py-1 px-3 fw-semibold text-secondary" id="devices-tab" data-bs-toggle="tab" data-bs-target="#devices-pane" type="button" role="tab" aria-controls="devices-pane" aria-selected="true" style="font-size: 13.5px;">Thiết bị</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link py-1 px-3 fw-semibold text-secondary" id="edges-tab" data-bs-toggle="tab" data-bs-target="#edges-pane" type="button" role="tab" aria-controls="edges-pane" aria-selected="false" style="font-size: 13.5px;">Tuyến mạng</button>
+            </li>
+          </ul>
           <div class="d-flex gap-1">
             <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-export-csv" title="Xuất CSV"><i class="bi bi-download"></i> CSV</button>
             <input type="file" id="file-import-csv" accept=".csv" class="d-none">
@@ -95,63 +103,108 @@
             <button type="button" class="btn btn-sm btn-primary admin-only d-none" id="btn-add-edge">+ Thêm tuyến</button>
           </div>
         </div>
-        <div class="bg-light p-2 border-bottom">
-          <div class="row g-1">
-            <div class="col-12 col-md-5">
-              <input type="text" id="search-device" class="form-control form-control-sm" placeholder="Tìm tên thiết bị...">
-            </div>
-            <div class="col-6 col-md-4">
-              <select id="filter-type" class="form-select form-select-sm">
-                <option value="">Tất cả loại</option>
-                <optgroup label="Nhóm điện">
-                  <option value="TRANSFORMER">Trạm biến áp</option>
-                  <option value="DISTRIBUTION_BOX">Tủ điện / tủ phân phối</option>
-                  <option value="ELECTRIC_POLE">Trụ điện</option>
-                  <option value="ELECTRIC_JUNCTION">Điểm nối điện</option>
-                  <option value="ELECTRIC_METER">Công tơ điện</option>
-                </optgroup>
-                <optgroup label="Nhóm nước">
-                  <option value="WATER_TANK">Bể nước</option>
-                  <option value="PUMP_STATION">Trạm bơm</option>
-                  <option value="MAIN_VALVE">Van tổng</option>
-                  <option value="BRANCH_VALVE">Van nhánh</option>
-                  <option value="WATER_JUNCTION">Điểm nối nước</option>
-                  <option value="WATER_METER">Đồng hồ nước</option>
-                </optgroup>
-              </select>
-            </div>
-            <div class="col-6 col-md-3">
-              <select id="sort-device" class="form-select form-select-sm">
-                <option value="-updated_at">Mới cập nhật</option>
-                <option value="name">Tên (A-Z)</option>
-                <option value="-name">Tên (Z-A)</option>
-              </select>
+
+        <div class="tab-content flex-grow-1" id="sidebar-tab-content" style="height: calc(100% - 45px);">
+          <!-- Tab Thiết bị -->
+          <div class="tab-pane fade show active" id="devices-pane" role="tabpanel" aria-labelledby="devices-tab" style="height: 100%;">
+            <div class="d-flex flex-column h-100">
+              <div class="bg-light p-2 border-bottom">
+                <div class="row g-1">
+                  <div class="col-12 col-md-5">
+                    <input type="text" id="search-device" class="form-control form-control-sm" placeholder="Tìm tên thiết bị...">
+                  </div>
+                  <div class="col-6 col-md-4">
+                    <select id="filter-type" class="form-select form-select-sm">
+                      <option value="">Tất cả loại</option>
+                      <optgroup label="Nhóm điện">
+                        <option value="TRANSFORMER">Trạm biến áp</option>
+                        <option value="DISTRIBUTION_BOX">Tủ điện / tủ phân phối</option>
+                        <option value="ELECTRIC_POLE">Trụ điện</option>
+                        <option value="ELECTRIC_JUNCTION">Điểm nối điện</option>
+                        <option value="ELECTRIC_METER">Công tơ điện</option>
+                      </optgroup>
+                      <optgroup label="Nhóm nước">
+                        <option value="WATER_TANK">Bể nước</option>
+                        <option value="PUMP_STATION">Trạm bơm</option>
+                        <option value="MAIN_VALVE">Van tổng</option>
+                        <option value="BRANCH_VALVE">Van nhánh</option>
+                        <option value="WATER_JUNCTION">Điểm nối nước</option>
+                        <option value="WATER_METER">Đồng hồ nước</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <select id="sort-device" class="form-select form-select-sm">
+                      <option value="-updated_at">Mới cập nhật</option>
+                      <option value="name">Tên (A-Z)</option>
+                      <option value="-name">Tên (Z-A)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="card-body p-0 table-responsive device-table-wrap flex-grow-1" style="overflow-y: auto;">
+                <table class="table table-hover table-sm mb-0 align-middle">
+                  <thead class="table-light sticky-top">
+                    <tr>
+                      <th>Tên</th>
+                      <th>Loại</th>
+                      <th>Trạng thái</th>
+                      <th class="admin-only d-none">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="device-table-body">
+                    <tr><td colspan="4" class="text-center text-muted py-5">
+                      <div class="spinner-border spinner-border-sm text-primary" role="status"></div><span class="ms-2">Đang tải...</span>
+                    </td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="card-footer bg-white py-1 mt-auto border-top">
+                <div class="d-flex justify-content-between align-items-center small">
+                  <span id="page-info" class="text-muted">Đang tải...</span>
+                  <div class="btn-group">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-prev-page" disabled>Trước</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-next-page" disabled>Sau</button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="card-body p-0 table-responsive device-table-wrap">
-          <table class="table table-hover table-sm mb-0 align-middle">
-            <thead class="table-light sticky-top">
-              <tr>
-                <th>Tên</th>
-                <th>Loại</th>
-                <th>Trạng thái</th>
-                <th class="admin-only d-none">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody id="device-table-body">
-              <tr><td colspan="4" class="text-center text-muted py-5">
-                <div class="spinner-border spinner-border-sm text-primary" role="status"></div><span class="ms-2">Đang tải...</span>
-              </td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="card-footer bg-white py-1">
-          <div class="d-flex justify-content-between align-items-center small">
-            <span id="page-info" class="text-muted">Đang tải...</span>
-            <div class="btn-group">
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-prev-page" disabled>Trước</button>
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-next-page" disabled>Sau</button>
+
+          <!-- Tab Tuyến mạng -->
+          <div class="tab-pane fade" id="edges-pane" role="tabpanel" aria-labelledby="edges-tab" style="height: 100%;">
+            <div class="d-flex flex-column h-100">
+              <div class="bg-light p-2 border-bottom">
+                <div class="row g-1">
+                  <div class="col-12 col-md-7">
+                    <input type="text" id="search-edge" class="form-control form-control-sm" placeholder="Tìm tên hoặc mã tuyến...">
+                  </div>
+                  <div class="col-12 col-md-5">
+                    <select id="filter-edge-type" class="form-select form-select-sm">
+                      <option value="">Tất cả loại tuyến</option>
+                      <option value="ELECTRIC">Tuyến điện ⚡</option>
+                      <option value="WATER">Tuyến nước 💧</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="card-body p-0 table-responsive device-table-wrap flex-grow-1" style="overflow-y: auto;">
+                <table class="table table-hover table-sm mb-0 align-middle">
+                  <thead class="table-light sticky-top">
+                    <tr>
+                      <th>Tên tuyến</th>
+                      <th>Loại</th>
+                      <th>Từ ➡️ Đến</th>
+                      <th class="admin-only d-none">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="edge-table-body">
+                    <tr><td colspan="4" class="text-center text-muted py-5">
+                      Chưa có dữ liệu tuyến mạng.
+                    </td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>

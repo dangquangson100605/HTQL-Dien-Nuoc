@@ -110,6 +110,7 @@
       <a href="/monitoring/" class="text-secondary text-decoration-none small hover-lift"><i class="bi bi-graph-up"></i> Tiêu thụ</a>
       <a href="/users/" id="nav-users-link" class="text-secondary text-decoration-none small hover-lift d-none"><i class="bi bi-people"></i> Tài khoản</a>
       <a href="/dashboard/" id="nav-dashboard-link" class="text-secondary text-decoration-none small hover-lift d-none"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <a href="/analytics/" id="nav-analytics-link" class="text-secondary text-decoration-none small hover-lift d-none"><i class="bi bi-bar-chart-line"></i> Phân tích</a>
       <div class="d-flex align-items-center gap-2 small">
         <span id="nav-user" class="d-none d-md-inline fw-medium text-dark"></span>
         <span id="nav-role" class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-2 py-1"></span>
@@ -134,11 +135,13 @@
           <div class="d-flex gap-2 flex-wrap align-items-center">
             <select class="form-select form-select-sm" id="filter-status" style="width:auto;">
               <option value="">Tất cả trạng thái</option>
-              <option value="OPEN">🆕 Mới</option>
+              <option value="PENDING_VERIFY">🆕 Chờ xác minh</option>
+              <option value="CONFIRMED">✔ Đã xác nhận</option>
               <option value="ASSIGNED">👷 Đã phân công</option>
               <option value="IN_PROGRESS">🔧 Đang xử lý</option>
               <option value="RESOLVED">✅ Đã xử lý</option>
               <option value="CLOSED">🔒 Đóng</option>
+              <option value="REJECTED">❌ Từ chối</option>
             </select>
             <select class="form-select form-select-sm" id="filter-severity" style="width:auto;">
               <option value="">Tất cả mức độ</option>
@@ -276,12 +279,14 @@
         <div class="mb-3">
           <label class="form-label">Trạng thái mới</label>
           <select class="form-select" id="status-new">
-            <option value="OPEN">🆕 Mới</option>
-            <option value="ASSIGNED">👷 Đã phân công</option>
-            <option value="IN_PROGRESS">🔧 Đang xử lý</option>
-            <option value="RESOLVED">✅ Đã xử lý</option>
-            <option value="CLOSED">🔒 Đóng</option>
-          </select>
+             <option value="PENDING_VERIFY">🆕 Chờ xác minh</option>
+             <option value="CONFIRMED">✔ Đã xác nhận</option>
+             <option value="ASSIGNED">👷 Đã phân công</option>
+             <option value="IN_PROGRESS">🔧 Đang xử lý</option>
+             <option value="RESOLVED">✅ Đã xử lý</option>
+             <option value="CLOSED">🔒 Đóng</option>
+             <option value="REJECTED">❌ Từ chối</option>
+           </select>
         </div>
         <div class="mb-3">
           <label class="form-label">Ghi chú tiến độ (tùy chọn)</label>

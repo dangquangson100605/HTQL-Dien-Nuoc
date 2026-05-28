@@ -38,6 +38,8 @@
   let routeLayer = null;
   /** @type {Map<number, L.CircleMarker>} */
   const markersById = new Map();
+  /** @type {Map<number, L.Polyline>} */
+  const polylinesById = new Map();
   /** @type {L.LayerGroup | null} */
   let incidentLayer = null;
 
@@ -331,6 +333,19 @@
       `;
     }
 
+    let attributesHtml = '';
+    if (d.attributes && typeof d.attributes === 'object' && Object.keys(d.attributes).length > 0) {
+      attributesHtml = `
+        <div class="mt-2 pt-1 border-top" style="font-size: 11px;">
+          <span class="text-muted fw-semibold">Thông số bổ sung:</span>
+          <ul class="mb-0 ps-3 text-secondary" style="font-size: 10.5px; padding-left: 15px; margin-top: 2px;">
+      `;
+      for (const [key, value] of Object.entries(d.attributes)) {
+        attributesHtml += `<li><strong>${escapeHtml(key)}:</strong> ${escapeHtml(String(value))}</li>`;
+      }
+      attributesHtml += `</ul></div>`;
+    }
+
     return `
       <div class="p-1" style="min-width: 180px;">
         <h6 class="fw-bold mb-1 border-bottom pb-1 text-primary d-flex align-items-center justify-content-between">
@@ -342,6 +357,7 @@
           <div class="mb-1"><strong>Trạng thái:</strong> ${statusHtml}</div>
           <div class="mb-1"><strong>Khu vực:</strong> <span class="text-muted">${escapeHtml(d.area || '—')}</span></div>
           <div class="mb-1"><strong>Địa chỉ:</strong> <span class="text-muted">${escapeHtml(d.address || '—')}</span></div>
+          ${attributesHtml}
         </div>
         <div class="d-grid mt-2">
           <a href="#" onclick="window._triggerReport('DEVICE', ${d.id}, ${d.latitude}, ${d.longitude}, '${typeParam}', '${escapeHtml(d.name)}', '${escapeHtml(d.area || '')}', '${escapeHtml(d.address || '')}'); event.preventDefault();" class="btn btn-danger btn-sm text-white fw-medium py-1 px-2 border-0 rounded d-flex align-items-center justify-content-center gap-1" style="font-size: 12px; background-color: #dc3545; transition: background 0.2s;">
@@ -440,6 +456,7 @@
   function renderNetworkEdges(edges) {
     if (!routeLayer) return;
     routeLayer.clearLayers();
+    polylinesById.clear();
     
     edges.forEach(edge => {
       const fromDev = edge.from_device_detail;
@@ -464,8 +481,113 @@
         
         const poly = L.polyline(pts, lineOptions).addTo(routeLayer);
         poly.bindPopup(edgePopupHtml(edge));
+        polylinesById.set(edge.id, poly);
       }
     });
+  }
+
+  function renderEdgeTable(edges) {
+    const tbody = document.getElementById('edge-table-body');
+    if (!tbody) return;
+    const admin = isAdmin();
+    const colspan = admin ? 4 : 3;
+
+    // Lấy bộ lọc từ DOM
+    const searchVal = document.getElementById('search-edge')?.value.toLowerCase().trim() || '';
+    const typeVal = document.getElementById('filter-edge-type')?.value || '';
+
+    let filtered = edges;
+    if (searchVal) {
+      filtered = filtered.filter(e => 
+        (e.name && e.name.toLowerCase().includes(searchVal)) || 
+        (e.code && e.code.toLowerCase().includes(searchVal))
+      );
+    }
+    if (typeVal) {
+      filtered = filtered.filter(e => e.network_type === typeVal);
+    }
+
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted py-4">Chưa có dữ liệu tuyến mạng phù hợp.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered
+      .map((e) => {
+        const typeLabel = e.network_type === 'ELECTRIC' ? '<span class="badge bg-warning text-dark">Điện ⚡</span>' : '<span class="badge bg-primary">Nước 💧</span>';
+        const fromName = e.from_device_detail ? escapeHtml(e.from_device_detail.name) : 'Không rõ';
+        const toName = e.to_device_detail ? escapeHtml(e.to_device_detail.name) : 'Không rõ';
+        
+        const statusBadges = {
+          ACTIVE: '<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill">Hoạt động</span>',
+          FAULT: '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill">Lỗi</span>',
+          MAINTENANCE: '<span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-pill">Bảo trì</span>',
+          INACTIVE: '<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 rounded-pill">Ngưng sử dụng</span>'
+        };
+        const statusHtml = statusBadges[e.status] || `<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 rounded-pill">${e.status}</span>`;
+        
+        const actions = admin
+          ? `<td class="admin-only text-nowrap">
+            <button type="button" class="btn btn-sm btn-outline-primary btn-edit-edge" data-id="${e.id}">Sửa</button>
+            <button type="button" class="btn btn-sm btn-outline-danger btn-del-edge" data-id="${e.id}">Xóa</button>
+          </td>`
+          : '';
+
+        return `<tr class="edge-row" data-id="${e.id}" style="cursor:pointer;">
+        <td>
+          <div class="fw-semibold text-dark">${escapeHtml(e.name)}</div>
+          <small class="text-muted" style="font-size: 10px;">#${escapeHtml(e.code)}</small>
+        </td>
+        <td>${typeLabel}<br>${statusHtml}</td>
+        <td>
+          <div style="font-size: 11px;" title="${fromName} ➡️ ${toName}">
+            ${fromName}<br>➡️ ${toName}
+          </div>
+        </td>
+        ${admin ? actions : ''}
+      </tr>`;
+      })
+      .join('');
+
+    tbody.querySelectorAll('.edge-row').forEach((row) => {
+      row.addEventListener('click', (ev) => {
+        if (ev.target.closest('button')) return;
+        const id = Number(row.getAttribute('data-id'));
+        const edge = edges.find((x) => x.id === id);
+        if (edge && map) {
+          const fromDev = edge.from_device_detail;
+          const toDev = edge.to_device_detail;
+          if (fromDev && toDev) {
+            const midLat = (fromDev.latitude + toDev.latitude) / 2;
+            const midLng = (fromDev.longitude + toDev.longitude) / 2;
+            map.flyTo([midLat, midLng], 15);
+            const poly = polylinesById.get(id);
+            if (poly) poly.openPopup();
+          }
+        }
+      });
+    });
+
+    tbody.querySelectorAll('.btn-edit-edge').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = Number(btn.getAttribute('data-id'));
+        openEditEdgeModal(id);
+      });
+    });
+
+    tbody.querySelectorAll('.btn-del-edge').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = Number(btn.getAttribute('data-id'));
+        const edge = edges.find((x) => x.id === id);
+        if (edge) openDeleteEdgeModal(id, edge.name);
+      });
+    });
+
+    if (admin) {
+      tbody.querySelectorAll('.admin-only').forEach((el) => el.classList.remove('d-none'));
+    }
   }
 
   let cachedEdges = [];
@@ -480,6 +602,7 @@
     const data = await res.json();
     cachedEdges = data.results ?? data;
     renderNetworkEdges(cachedEdges);
+    renderEdgeTable(cachedEdges);
   }
 
   async function refreshMap() {
@@ -1059,7 +1182,7 @@
       const incidents = data.results ?? data;
       if (incidentLayer) incidentLayer.clearLayers();
       else { incidentLayer = L.layerGroup().addTo(map); }
-      const SCOLOR = { OPEN: '#ef4444', ASSIGNED: '#f59e0b', IN_PROGRESS: '#0ea5e9', RESOLVED: '#22c55e', CLOSED: '#94a3b8' };
+      const SCOLOR = { PENDING_VERIFY: '#ef4444', CONFIRMED: '#ea580c', ASSIGNED: '#f59e0b', IN_PROGRESS: '#0ea5e9', RESOLVED: '#22c55e', CLOSED: '#94a3b8', REJECTED: '#64748b' };
       incidents.forEach(inc => {
         const color = SCOLOR[inc.status] || '#94a3b8';
         const m = L.circleMarker([inc.latitude, inc.longitude], {
@@ -1143,6 +1266,8 @@
     if (isAdmin()) {
       adminCols.forEach((c) => c.classList.remove('d-none'));
       if (navUsersLink) navUsersLink.classList.remove('d-none');
+    }
+    if (role === 'ADMIN' || role === 'OPERATOR') {
       if (navDashboardLink) navDashboardLink.classList.remove('d-none');
     }
   }
@@ -1268,6 +1393,21 @@
     if (nextEl) {
       nextEl.addEventListener('click', () => {
         currentPage++; refreshMap();
+      });
+    }
+
+    // UX Filters for Edges
+    const searchEdgeEl = document.getElementById('search-edge');
+    const filterEdgeTypeEl = document.getElementById('filter-edge-type');
+    
+    if (searchEdgeEl) {
+      searchEdgeEl.addEventListener('input', () => {
+        renderEdgeTable(cachedEdges);
+      });
+    }
+    if (filterEdgeTypeEl) {
+      filterEdgeTypeEl.addEventListener('change', () => {
+        renderEdgeTable(cachedEdges);
       });
     }
     

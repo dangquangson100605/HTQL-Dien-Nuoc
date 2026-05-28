@@ -1,7 +1,15 @@
 from rest_framework import serializers
 from accounts.models import User
-from .models import Incident, IncidentNote, Notification
+from .models import Incident, IncidentNote, Notification, IncidentHistory
 from assets.serializers import DeviceMinimalSerializer, NetworkEdgeSerializer
+
+class IncidentHistorySerializer(serializers.ModelSerializer):
+    changed_by_username = serializers.CharField(source='changed_by.username', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = IncidentHistory
+        fields = ['id', 'old_status', 'new_status', 'note', 'changed_by', 'changed_by_username', 'created_at']
+        read_only_fields = ['id', 'created_at']
 
 
 class IncidentNoteSerializer(serializers.ModelSerializer):
@@ -26,6 +34,7 @@ class IncidentSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     severity_display = serializers.CharField(source='get_severity_display', read_only=True)
     type_display = serializers.CharField(source='get_incident_type_display', read_only=True)
+    history = IncidentHistorySerializer(many=True, read_only=True)
 
     class Meta:
         model = Incident
@@ -40,7 +49,7 @@ class IncidentSerializer(serializers.ModelSerializer):
             'confirmed_by', 'confirmed_by_username',
             'address', 'area',
             'rejection_reason', 'result_note', 'target_type',
-            'notes', 'created_at', 'updated_at', 'resolved_at',
+            'notes', 'history', 'created_at', 'updated_at', 'resolved_at',
         ]
         read_only_fields = ['id', 'reported_by', 'created_at', 'updated_at']
 

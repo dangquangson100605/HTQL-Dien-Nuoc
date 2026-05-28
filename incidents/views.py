@@ -38,7 +38,7 @@ class IncidentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Incident.objects.select_related('reported_by', 'assigned_to', 'device', 'edge', 'confirmed_by').prefetch_related('notes')
+        qs = Incident.objects.select_related('reported_by', 'assigned_to', 'device', 'edge', 'confirmed_by').prefetch_related('notes', 'history', 'history__changed_by')
 
         # Citizen chỉ xem sự cố của mình
         if user.role == 'CITIZEN':
