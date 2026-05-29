@@ -18,7 +18,7 @@ from .serializers import IncidentSerializer, IncidentNoteSerializer, Notificatio
 VALID_TRANSITIONS = {
     'PENDING_VERIFY': ['CONFIRMED', 'REJECTED', 'ASSIGNED'],
     'CONFIRMED': ['ASSIGNED', 'REJECTED'],
-    'ASSIGNED': ['IN_PROGRESS', 'CONFIRMED'],
+    'ASSIGNED': ['IN_PROGRESS', 'CONFIRMED', 'REJECTED'],
     'IN_PROGRESS': ['RESOLVED'],
     'RESOLVED': ['CLOSED', 'IN_PROGRESS'],
     'CLOSED': [],
@@ -148,6 +148,26 @@ class IncidentViewSet(viewsets.ModelViewSet):
             incident.resolved_at = timezone.now()
         elif new_status == Incident.Status.CONFIRMED:
             incident.confirmed_by = user
+            if current_status == Incident.Status.ASSIGNED:
+                incident.status = Incident.Status.ASSIGNED
+                
+                # Tạo lịch sử và thông báo thủ công vì trạng thái thực tế không đổi
+                from .models import IncidentHistory, Notification
+                IncidentHistory.objects.create(
+                    incident=incident,
+                    old_status=Incident.Status.ASSIGNED,
+                    new_status=Incident.Status.ASSIGNED,
+                    note='Đã xác nhận sự cố',
+                    changed_by=user
+                )
+                
+                if incident.reported_by:
+                    Notification.objects.create(
+                        recipient=incident.reported_by,
+                        incident=incident,
+                        notif_type=Notification.NotifType.CONFIRMED,
+                        message=f"Sự cố '{incident.title}' đã được xác nhận."
+                    )
 
         # Ghi nhận người thay đổi cho IncidentHistory (signal sẽ đọc attr này)
         incident._changed_by = user

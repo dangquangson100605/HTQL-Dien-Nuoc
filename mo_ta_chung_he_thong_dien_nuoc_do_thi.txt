@@ -1,0 +1,294 @@
+MÔ TẢ CHUNG HỆ THỐNG QUẢN LÝ HẠ TẦNG ĐIỆN – NƯỚC ĐÔ THỊ TRÊN BẢN ĐỒ
+
+1. BẢN CHẤT HỆ THỐNG
+
+Hệ thống được xây dựng nhằm hỗ trợ quản lý hạ tầng điện – nước đô thị trên nền bản đồ số.
+
+Toàn bộ hạ tầng được mô hình hóa dưới dạng một mạng lưới gồm:
+
+- Thiết bị: là các điểm trên bản đồ.
+- Tuyến: là các đường kết nối giữa các thiết bị.
+
+Trong đó, các thiết bị như trạm biến áp, trụ điện, công tơ điện, trạm bơm, van nước hoặc đồng hồ nước được hiển thị dưới dạng các điểm đánh dấu trên bản đồ. Các tuyến điện hoặc tuyến nước được hiển thị dưới dạng các đường nối giữa các thiết bị.
+
+Như vậy, hệ thống không chỉ hiển thị vị trí riêng lẻ của từng thiết bị, mà còn thể hiện được mối quan hệ kết nối giữa các thành phần trong hạ tầng điện – nước đô thị.
+
+Trong phạm vi đề tài, hệ thống tập trung vào việc quản lý thiết bị, tuyến kết nối, trạng thái vận hành và quy trình xử lý sự cố. Các chức năng phân tích ảnh hưởng tự động theo mạng lưới sẽ được xem là hướng phát triển trong tương lai.
+
+
+2. GIAI ĐOẠN KHỞI TẠO DỮ LIỆU
+
+Ở giai đoạn ban đầu, quản trị viên là người tạo dữ liệu hạ tầng cho hệ thống.
+
+Quy trình khởi tạo gồm các bước chính:
+
+Bước 1: Thêm thiết bị lên bản đồ.
+Quản trị viên đặt các thiết bị điện hoặc nước lên bản đồ bằng cách chọn vị trí tương ứng.
+
+Bước 2: Nhập thông tin thiết bị.
+Mỗi thiết bị sẽ có các thông tin như mã thiết bị, tên thiết bị, loại thiết bị, địa chỉ, khu vực và trạng thái hoạt động.
+
+Bước 3: Tạo tuyến kết nối giữa các thiết bị.
+Quản trị viên nối các thiết bị lại với nhau bằng các tuyến điện hoặc tuyến nước. Mỗi tuyến thể hiện mối liên kết giữa hai thiết bị trong hệ thống.
+
+Bước 4: Lưu cấu trúc hạ tầng vào hệ thống.
+Sau khi tạo thiết bị và tuyến kết nối, hệ thống sẽ lưu lại dữ liệu để phục vụ cho quá trình vận hành và xử lý sự cố.
+
+Sau giai đoạn này, hệ thống có thể hiển thị một mạng lưới hạ tầng trực quan trên bản đồ, gồm các điểm thiết bị và các tuyến kết nối.
+
+
+3. GIAI ĐOẠN VẬN HÀNH
+
+Trong quá trình vận hành, Operator là người theo dõi và xử lý chính.
+
+Operator có thể quan sát bản đồ để nắm được tình trạng tổng quan của hệ thống, bao gồm:
+
+- Thiết bị nào đang hoạt động bình thường.
+- Thiết bị nào đang gặp sự cố.
+- Tuyến nào đang hoạt động bình thường.
+- Tuyến nào đang gặp sự cố.
+- Sự cố nào đang chờ xác nhận.
+- Sự cố nào đã được phân công kỹ thuật viên.
+- Sự cố nào đang trong quá trình xử lý.
+
+Mỗi thiết bị và tuyến đều có trạng thái riêng. Ví dụ:
+
+- ACTIVE: Hoạt động bình thường.
+- FAULT: Đang gặp sự cố.
+- MAINTENANCE: Đang bảo trì.
+- INACTIVE: Ngưng hoạt động.
+
+Nhờ việc hiển thị trạng thái trên bản đồ, Operator có thể dễ dàng theo dõi tình hình vận hành của hệ thống điện – nước đô thị.
+
+
+4. KHI CÓ SỰ CỐ XẢY RA
+
+Sự cố có thể phát sinh từ hai nguồn chính:
+
+1. Người dân báo sự cố.
+2. Operator hoặc nhân viên hệ thống phát hiện sự cố trong quá trình vận hành.
+
+Khi người dân báo sự cố, hệ thống sẽ tạo một phiếu sự cố, gọi là Incident.
+
+Sự cố có thể gắn với:
+
+- Một vị trí trên bản đồ.
+- Một thiết bị cụ thể.
+- Một tuyến điện hoặc tuyến nước.
+
+Ví dụ 1:
+Người dân báo mất điện tại khu vực A. Operator kiểm tra trên bản đồ và xác định sự cố liên quan đến trạm biến áp TBA-01. Khi đó, hệ thống cập nhật trạng thái trạm biến áp TBA-01 thành FAULT.
+
+Ví dụ 2:
+Người dân báo rò rỉ nước trên một tuyến đường. Operator kiểm tra và xác định sự cố thuộc tuyến nước giữa Van A và Đồng hồ B. Khi đó, hệ thống cập nhật trạng thái tuyến nước đó thành FAULT.
+
+
+5. LOGIC XỬ LÝ TRẠNG THÁI
+
+Trong phạm vi đề tài, hệ thống xử lý trạng thái theo cách đơn giản và dễ kiểm soát.
+
+Khi một thiết bị gặp sự cố:
+- Thiết bị đó được đánh dấu là FAULT.
+
+Khi một tuyến gặp sự cố:
+- Tuyến đó được đánh dấu là FAULT.
+
+Hệ thống không tự động lan truyền lỗi sang các thiết bị phía sau trong mạng lưới. Việc đánh giá phạm vi ảnh hưởng sẽ do Operator quan sát và xử lý dựa trên thông tin hiển thị trên bản đồ.
+
+Cách làm này giúp hệ thống:
+
+- Dễ triển khai hơn.
+- Ít phát sinh lỗi hơn.
+- Phù hợp với phạm vi môn Quản lí dự án.
+- Vẫn thể hiện được mô hình quản lý hạ tầng điện – nước theo dạng mạng lưới.
+
+
+6. VAI TRÒ NGƯỜI DÙNG TRONG HỆ THỐNG
+
+6.1. Người dân
+
+Người dân là người cung cấp dữ liệu đầu vào cho hệ thống thông qua chức năng báo sự cố.
+
+Người dân có thể:
+
+- Báo sự cố tại một vị trí trên bản đồ.
+- Theo dõi trạng thái sự cố mình đã gửi.
+- Tra cứu chỉ số tiêu thụ bằng mã công tơ hoặc mã đồng hồ nếu hệ thống hỗ trợ.
+
+Người dân không tham gia vào quá trình xác nhận, phân công hoặc xử lý sự cố.
+
+
+6.2. Operator
+
+Operator là người vận hành chính của hệ thống.
+
+Khi có sự cố, Operator sẽ:
+
+- Xem thông tin sự cố.
+- Kiểm tra vị trí sự cố trên bản đồ.
+- Xác định sự cố thuộc thiết bị hoặc tuyến nào.
+- Xác nhận hoặc từ chối sự cố.
+- Phân công kỹ thuật viên xử lý.
+- Theo dõi tiến độ xử lý.
+- Đóng sự cố sau khi hoàn thành.
+
+Operator đóng vai trò trung tâm trong quy trình xử lý sự cố.
+
+
+6.3. Technician
+
+Technician là kỹ thuật viên được phân công xử lý sự cố.
+
+Technician có thể:
+
+- Xem danh sách sự cố được giao.
+- Xem vị trí thiết bị hoặc tuyến gặp sự cố trên bản đồ.
+- Bắt đầu xử lý sự cố.
+- Cập nhật ghi chú trong quá trình xử lý.
+- Báo hoàn thành sau khi sửa xong.
+
+Technician không trực tiếp xác nhận hoặc phân công sự cố.
+
+
+6.4. Admin
+
+Admin là người quản trị hệ thống.
+
+Admin không tham gia trực tiếp vào luồng xử lý sự cố hằng ngày, mà chủ yếu quản lý các thành phần nền tảng của hệ thống.
+
+Admin có thể:
+
+- Quản lý tài khoản người dùng.
+- Quản lý vai trò người dùng.
+- Quản lý danh sách thiết bị.
+- Quản lý danh sách tuyến.
+- Cấu hình dữ liệu hệ thống.
+
+Admin đảm bảo hệ thống có đầy đủ dữ liệu và người dùng cần thiết để vận hành.
+
+
+7. QUY TRÌNH XỬ LÝ SỰ CỐ
+
+Quy trình xử lý sự cố có thể được mô tả như sau:
+
+Bước 1: Người dân gửi báo cáo sự cố.
+Người dân chọn vị trí trên bản đồ hoặc nhập thông tin mô tả sự cố.
+
+Bước 2: Hệ thống tạo Incident.
+Sự cố được lưu vào hệ thống với trạng thái chờ xác nhận.
+
+Bước 3: Operator kiểm tra sự cố.
+Operator xem vị trí, nội dung báo cáo và xác định sự cố có hợp lệ hay không.
+
+Bước 4: Operator xác nhận hoặc từ chối.
+Nếu sự cố không đúng, Operator có thể từ chối và ghi rõ lý do.
+Nếu sự cố hợp lệ, Operator xác nhận và xác định thiết bị hoặc tuyến liên quan.
+
+Bước 5: Operator phân công kỹ thuật viên.
+Operator chọn kỹ thuật viên phù hợp để xử lý sự cố.
+
+Bước 6: Technician xử lý sự cố.
+Technician nhận nhiệm vụ, đến vị trí cần xử lý và cập nhật tiến độ trong hệ thống.
+
+Bước 7: Technician báo hoàn thành.
+Sau khi xử lý xong, Technician cập nhật trạng thái hoàn thành.
+
+Bước 8: Operator kiểm tra và đóng sự cố.
+Operator kiểm tra lại thông tin, sau đó đóng sự cố nếu việc xử lý đã hoàn tất.
+
+Bước 9: Hệ thống cập nhật trạng thái.
+Thiết bị hoặc tuyến liên quan được cập nhật lại trạng thái phù hợp, ví dụ từ FAULT về ACTIVE.
+
+
+8. KHI SỰ CỐ ĐƯỢC XỬ LÝ XONG
+
+Sau khi Technician xử lý xong, hệ thống sẽ thực hiện các bước sau:
+
+Bước 1: Technician cập nhật trạng thái sự cố là đã xử lý.
+Bước 2: Operator kiểm tra lại kết quả xử lý.
+Bước 3: Operator đóng sự cố.
+Bước 4: Hệ thống cập nhật trạng thái thiết bị hoặc tuyến liên quan về bình thường nếu phù hợp.
+
+Ví dụ:
+Trạm biến áp TBA-01 đang ở trạng thái FAULT. Sau khi Technician sửa xong và Operator xác nhận hoàn thành, hệ thống đổi trạng thái TBA-01 về ACTIVE.
+
+Ví dụ:
+Tuyến nước A-B đang ở trạng thái FAULT do rò rỉ. Sau khi Technician xử lý xong và Operator đóng sự cố, hệ thống đổi trạng thái tuyến A-B về ACTIVE.
+
+
+9. CHỨC NĂNG TRA CỨU CỦA NGƯỜI DÂN
+
+Chức năng tra cứu tiêu thụ của người dân không phụ thuộc vào mô hình mạng lưới.
+
+Luồng xử lý đơn giản là:
+
+Bước 1: Người dân nhập mã công tơ hoặc mã đồng hồ.
+Bước 2: Hệ thống tìm dữ liệu tiêu thụ tương ứng.
+Bước 3: Hệ thống hiển thị kết quả cho người dân.
+
+Chức năng này phục vụ nhu cầu tra cứu thông tin và không ảnh hưởng trực tiếp đến quy trình xử lý sự cố.
+
+
+10. NGUYÊN TẮC CỐT LÕI CỦA HỆ THỐNG
+
+10.1. Bản đồ là giao diện trực quan
+
+Bản đồ giúp người dùng dễ dàng quan sát vị trí thiết bị, tuyến kết nối và sự cố.
+
+Tuy nhiên, dữ liệu chính của hệ thống nằm ở các thành phần:
+
+- Device: thiết bị.
+- NetworkEdge: tuyến kết nối.
+- Incident: sự cố.
+- User Role: vai trò người dùng.
+- Status: trạng thái hoạt động.
+
+10.2. Thiết bị và tuyến đều có trạng thái
+
+Mỗi thiết bị và tuyến trong hệ thống đều có trạng thái riêng.
+
+Nhờ đó, Operator có thể nhanh chóng nhận biết thành phần nào đang hoạt động bình thường, thành phần nào đang gặp sự cố hoặc đang được bảo trì.
+
+10.3. Role quyết định quyền thao tác
+
+Vai trò người dùng không làm thay đổi bản chất dữ liệu hệ thống, mà chỉ quyết định người dùng được phép thao tác gì.
+
+Ví dụ:
+
+- Citizen chỉ được báo sự cố và theo dõi sự cố của mình.
+- Operator được xác nhận, từ chối, phân công và đóng sự cố.
+- Technician được cập nhật tiến độ xử lý sự cố.
+- Admin được quản lý toàn bộ hệ thống.
+
+
+11. PHẠM VI ĐỀ TÀI
+
+Trong phạm vi môn Quản lí dự án, hệ thống tập trung vào các chức năng chính sau:
+
+- Quản lý thiết bị điện – nước trên bản đồ.
+- Quản lý tuyến kết nối giữa các thiết bị.
+- Hiển thị trạng thái thiết bị và tuyến.
+- Cho phép người dân báo sự cố.
+- Cho phép Operator xác nhận và phân công xử lý sự cố.
+- Cho phép Technician cập nhật tiến độ xử lý.
+- Cho phép người dân tra cứu thông tin tiêu thụ nếu có dữ liệu.
+
+Các chức năng nâng cao như tự động phân tích phạm vi ảnh hưởng theo mạng lưới, lan truyền lỗi downstream, tối ưu dữ liệu bản đồ lớn, real-time notification hoặc dự đoán sự cố sẽ được xem là hướng phát triển trong tương lai.
+
+
+12. KẾT LUẬN
+
+Hệ thống có thể được mô tả là một hệ thống quản lý hạ tầng điện – nước đô thị trên nền bản đồ số. Trong đó, thiết bị được biểu diễn dưới dạng điểm, tuyến điện/nước được biểu diễn dưới dạng đường kết nối, và sự cố được quản lý theo quy trình xác nhận – phân công – xử lý.
+
+Thông qua hệ thống, người vận hành có thể quan sát trực quan tình trạng của hạ tầng, tiếp nhận báo cáo sự cố từ người dân, phân công kỹ thuật viên xử lý và cập nhật trạng thái thiết bị hoặc tuyến liên quan.
+
+Trong phạm vi đề tài, hệ thống không tập trung vào xử lý tự động các thuật toán mạng phức tạp, mà tập trung vào việc quản lý dữ liệu hạ tầng, quy trình xử lý sự cố và trực quan hóa trạng thái trên bản đồ. Đây là phạm vi phù hợp với môn Quản lí dự án, vừa đảm bảo tính thực tế, vừa tránh làm hệ thống quá lớn và khó kiểm soát.
+
+
+CÂU MÔ TẢ NGẮN GỌN CÓ THỂ DÙNG TRONG BÁO CÁO
+
+Hệ thống hỗ trợ quản lý hạ tầng điện – nước đô thị trên nền bản đồ số. Các thiết bị được hiển thị dưới dạng điểm, các tuyến điện/nước được hiển thị dưới dạng đường kết nối. Khi có sự cố, người dân có thể gửi báo cáo, Operator xác nhận và phân công kỹ thuật viên xử lý. Trạng thái của thiết bị hoặc tuyến liên quan được cập nhật trực quan trên bản đồ, giúp quá trình vận hành và theo dõi sự cố hiệu quả hơn.
+
+CÂU CHỐT CÓ THỂ DÙNG KHI THUYẾT TRÌNH
+
+Trong phạm vi đề tài, hệ thống tập trung vào quản lý thiết bị, tuyến kết nối, sự cố và quy trình xử lý trên bản đồ. Các chức năng phân tích ảnh hưởng tự động theo mạng lưới sẽ được xem là hướng phát triển trong tương lai.

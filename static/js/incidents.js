@@ -20,6 +20,8 @@
   let incidentMap = null;
   let incidentMarkers = [];
   let highlightLayer = null;
+  let localDeviceLayer = null;
+  let localEdgeLayer = null;
   // detailModal now operates as a sleek, non-blocking dummy object to keep compatibility
   const detailModal = { show: () => {}, hide: () => {} };
   const assignModal = new bootstrap.Modal(document.getElementById('assignModal'));
@@ -123,9 +125,201 @@
     } catch {}
   }
 
+  const DEVICE_LABELS = {
+    TRANSFORMER: 'Trạm biến áp',
+    DISTRIBUTION_BOX: 'Tủ điện / tủ phân phối',
+    ELECTRIC_POLE: 'Trụ điện',
+    ELECTRIC_JUNCTION: 'Điểm nối điện',
+    ELECTRIC_METER: 'Công tơ điện',
+    WATER_TANK: 'Bể nước',
+    PUMP_STATION: 'Trạm bơm',
+    MAIN_VALVE: 'Van tổng',
+    BRANCH_VALVE: 'Van nhánh',
+    WATER_JUNCTION: 'Điểm nối nước',
+    WATER_METER: 'Đồng hồ nước',
+    VALVE: 'Van nước (cũ)'
+  };
+
+  function getDeviceIconByTypeAndStatus(type, status) {
+    let color = '#198754';
+    let iconClass = 'bi-cpu';
+    let pulseClass = '';
+
+    switch(type) {
+      case 'TRANSFORMER':
+        iconClass = 'bi-lightning-charge';
+        break;
+      case 'DISTRIBUTION_BOX':
+        iconClass = 'bi-box-seam';
+        break;
+      case 'ELECTRIC_POLE':
+        iconClass = 'bi-alt';
+        break;
+      case 'ELECTRIC_JUNCTION':
+        iconClass = 'bi-signpost-split';
+        break;
+      case 'ELECTRIC_METER':
+        iconClass = 'bi-speedometer';
+        break;
+      case 'WATER_TANK':
+        iconClass = 'bi-moisture';
+        break;
+      case 'PUMP_STATION':
+        iconClass = 'bi-water';
+        break;
+      case 'MAIN_VALVE':
+      case 'BRANCH_VALVE':
+      case 'VALVE':
+        iconClass = 'bi-valve';
+        break;
+      case 'WATER_JUNCTION':
+        iconClass = 'bi-diagram-3';
+        break;
+      case 'WATER_METER':
+        iconClass = 'bi-speedometer2';
+        break;
+    }
+
+    switch(status) {
+      case 'ACTIVE':
+        color = '#198754';
+        break;
+      case 'FAULT':
+        color = '#dc3545';
+        iconClass = 'bi-exclamation-triangle-fill';
+        pulseClass = 'pulse-danger';
+        break;
+      case 'MAINTENANCE':
+        color = '#6f42c1';
+        iconClass = 'bi-tools';
+        break;
+      case 'INACTIVE':
+        color = '#6c757d';
+        iconClass = 'bi-slash-circle';
+        break;
+    }
+
+    return L.divIcon({
+      className: 'custom-device-marker',
+      html: `
+        <div class="marker-wrapper ${pulseClass}" style="background-color: ${color}; width: 32px; height: 32px; border-radius: 50%; border: 2px solid white; color: white; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 3px 6px rgba(0,0,0,0.3);">
+          <i class="bi ${iconClass}"></i>
+        </div>
+      `,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      popupAnchor: [0, -16]
+    });
+  }
+
+  function getEdgeColorByTypeAndStatus(type, status) {
+    let color = '#6c757d';
+    let dashArray = null;
+    let weight = 4;
+
+    if (status === 'FAULT') {
+      color = '#dc3545';
+      dashArray = '6, 8';
+      weight = 8;
+    } else if (status === 'INACTIVE') {
+      color = '#6c757d';
+      weight = 3;
+    } else {
+      if (type === 'ELECTRIC') {
+        color = '#fd7e14';
+      } else if (type === 'WATER') {
+        color = '#0d6efd';
+      }
+    }
+
+    if (status === 'MAINTENANCE') {
+      dashArray = '8, 8';
+      weight = 5;
+    }
+
+    return { color, dashArray, weight };
+  }
+
+  function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function devicePopupHtml(d) {
+    const typeLabel = DEVICE_LABELS[d.device_type] || d.device_type;
+    const statusLabels = {
+      ACTIVE: '<span class="badge bg-success bg-opacity-10 text-success">Hoạt động</span>',
+      FAULT: '<span class="badge bg-danger bg-opacity-10 text-danger">Lỗi trực tiếp</span>',
+      MAINTENANCE: '<span class="badge bg-warning bg-opacity-10 text-warning">Đang bảo trì</span>',
+      INACTIVE: '<span class="badge bg-secondary bg-opacity-10 text-secondary">Ngưng hoạt động</span>'
+    };
+    const statusHtml = statusLabels[d.status] || d.status;
+
+    let attributesHtml = '';
+    if (d.attributes && typeof d.attributes === 'object' && Object.keys(d.attributes).length > 0) {
+      attributesHtml = `
+        <div class="mt-2 pt-1 border-top" style="font-size: 11px;">
+          <span class="text-muted fw-semibold">Thông số bổ sung:</span>
+          <ul class="mb-0 ps-3 text-secondary" style="font-size: 10.5px; padding-left: 15px; margin-top: 2px;">
+      `;
+      for (const [key, value] of Object.entries(d.attributes)) {
+        attributesHtml += `<li><strong>${escapeHtml(key)}:</strong> ${escapeHtml(String(value))}</li>`;
+      }
+      attributesHtml += `</ul></div>`;
+    }
+
+    return `
+      <div class="p-1" style="min-width: 180px;">
+        <h6 class="fw-bold mb-1 border-bottom pb-1 text-primary d-flex align-items-center justify-content-between">
+          <span>${escapeHtml(d.name)}</span>
+          <small class="text-muted" style="font-size: 11px;">#${escapeHtml(d.code)}</small>
+        </h6>
+        <div class="small mb-1" style="font-size: 12px; line-height: 1.4;">
+          <div class="mb-1"><strong>Loại:</strong> <span class="text-secondary">${escapeHtml(typeLabel)}</span></div>
+          <div class="mb-1"><strong>Trạng thái:</strong> ${statusHtml}</div>
+          <div class="mb-1"><strong>Khu vực:</strong> <span class="text-muted">${escapeHtml(d.area || '—')}</span></div>
+          <div class="mb-1"><strong>Địa chỉ:</strong> <span class="text-muted">${escapeHtml(d.address || '—')}</span></div>
+          ${attributesHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  function edgePopupHtml(edge) {
+    const fromDevName = edge.from_device_detail ? edge.from_device_detail.name : 'Không rõ';
+    const toDevName = edge.to_device_detail ? edge.to_device_detail.name : 'Không rõ';
+    
+    const typeLabel = edge.network_type === 'ELECTRIC' ? 'Điện ⚡' : 'Nước 💧';
+    const statusLabels = {
+      ACTIVE: '<span class="badge bg-success bg-opacity-10 text-success">Hoạt động</span>',
+      FAULT: '<span class="badge bg-danger bg-opacity-10 text-danger">Lỗi trực tiếp</span>',
+      MAINTENANCE: '<span class="badge bg-warning bg-opacity-10 text-warning">Đang bảo trì</span>',
+      INACTIVE: '<span class="badge bg-secondary bg-opacity-10 text-secondary">Ngưng sử dụng</span>'
+    };
+    const statusHtml = statusLabels[edge.status] || edge.status;
+
+    return `
+      <div class="p-1" style="min-width: 180px;">
+        <h6 class="fw-bold mb-1 border-bottom pb-1 text-primary d-flex align-items-center justify-content-between">
+          <span>${escapeHtml(edge.name || 'Tuyến mạng')}</span>
+          <small class="text-muted" style="font-size: 11px;">#${escapeHtml(edge.code)}</small>
+        </h6>
+        <div class="small mb-1" style="font-size: 12px; line-height: 1.4;">
+          <div class="mb-1"><strong>Từ:</strong> <span class="text-secondary">${escapeHtml(fromDevName)}</span></div>
+          <div class="mb-1"><strong>Đến:</strong> <span class="text-secondary">${escapeHtml(toDevName)}</span></div>
+          <div class="mb-1"><strong>Loại mạng:</strong> <span class="fw-medium">${escapeHtml(typeLabel)}</span></div>
+          <div class="mb-1"><strong>Trạng thái:</strong> ${statusHtml}</div>
+        </div>
+      </div>
+    `;
+  }
+
   function initMap() {
     incidentMap = L.map('incident-map').setView([16.0544, 108.2022], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(incidentMap);
+    localEdgeLayer = L.layerGroup().addTo(incidentMap);
+    localDeviceLayer = L.layerGroup().addTo(incidentMap);
     highlightLayer = L.layerGroup().addTo(incidentMap);
   }
 
@@ -351,19 +545,19 @@
         <div class="col-6"><span class="text-muted small d-block">Thiết bị liên quan:</span> ${inc.device ? `<strong>${inc.device_name}</strong> 
           <div class="mt-1 d-flex gap-1">
             <button onclick="window._focusLocalDevice(${inc.device})" class="btn btn-sm btn-outline-primary py-0 px-1" style="font-size: 10px;" title="Xem trên bản đồ bên cạnh"><i class="bi bi-geo-alt"></i> Định vị tại chỗ</button>
-            <a href="/app/?device=${inc.device}" class="btn btn-sm btn-outline-secondary py-0 px-1 text-decoration-none" style="font-size: 10px;" title="Chuyển sang bản đồ lớn"><i class="bi bi-map"></i> Bản đồ chính</a>
+            <button onclick="window._focusLocalNetwork()" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 10px;" title="Xem toàn bộ mạng lưới"><i class="bi bi-map"></i> Xem tổng quan mạng</button>
           </div>` : '<strong>—</strong>'}</div>
         <div class="col-6"><span class="text-muted small d-block">Tuyến mạng liên quan:</span> ${inc.edge ? `<strong>${inc.edge_name}</strong> 
           <div class="mt-1 d-flex gap-1">
             <button onclick="window._focusLocalEdge(${inc.edge})" class="btn btn-sm btn-outline-primary py-0 px-1" style="font-size: 10px;" title="Xem trên bản đồ bên cạnh"><i class="bi bi-geo-alt"></i> Định vị tại chỗ</button>
-            <a href="/app/?edge=${inc.edge}" class="btn btn-sm btn-outline-secondary py-0 px-1 text-decoration-none" style="font-size: 10px;" title="Chuyển sang bản đồ lớn"><i class="bi bi-map"></i> Bản đồ chính</a>
+            <button onclick="window._focusLocalNetwork()" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 10px;" title="Xem toàn bộ mạng lưới"><i class="bi bi-map"></i> Xem tổng quan mạng</button>
           </div>` : '<strong>—</strong>'}</div>
         <div class="col-6"><span class="text-muted small d-block">Khu vực quản lý:</span> <strong>${inc.area || '—'}</strong></div>
         <div class="col-12"><span class="text-muted small d-block">Địa chỉ chi tiết:</span> <strong>${inc.address || '—'}</strong></div>
         <div class="col-12"><span class="text-muted small d-block">Tọa độ địa lý:</span> <code>${inc.latitude.toFixed(5)}, ${inc.longitude.toFixed(5)}</code> 
           <div class="mt-1 d-flex gap-1">
             <button onclick="window._focusLocalCoord(${inc.latitude}, ${inc.longitude})" class="btn btn-sm btn-outline-primary py-0 px-1" style="font-size: 10px;" title="Xem trên bản đồ bên cạnh"><i class="bi bi-geo-alt"></i> Định vị tại chỗ</button>
-            <a href="/app/?lat=${inc.latitude}&lng=${inc.longitude}" class="btn btn-sm btn-outline-secondary py-0 px-1 text-decoration-none" style="font-size: 10px;" title="Chuyển sang bản đồ lớn"><i class="bi bi-map"></i> Bản đồ chính</a>
+            <button onclick="window._focusLocalNetwork()" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 10px;" title="Xem toàn bộ mạng lưới"><i class="bi bi-map"></i> Xem tổng quan mạng</button>
           </div></div>
         <div class="col-6"><span class="text-muted small d-block">Người xác nhận:</span> <strong class="text-dark">${inc.confirmed_by_username || 'Chưa xác nhận'}</strong></div>
         <div class="col-6"><span class="text-muted small d-block">Thời gian giải quyết:</span> <strong>${inc.resolved_at ? new Date(inc.resolved_at).toLocaleString('vi-VN') : '—'}</strong></div>
@@ -404,7 +598,7 @@
     if (actionsEl) {
       actionsEl.innerHTML = `<button class="btn btn-sm btn-outline-secondary" onclick="window._clearSelection()"><i class="bi bi-x-circle me-1"></i> Bỏ chọn</button>`;
       
-      if (isStaff && inc.status === 'PENDING_VERIFY') {
+      if (isStaff && (inc.status === 'PENDING_VERIFY' || (inc.status === 'ASSIGNED' && !inc.confirmed_by))) {
         actionsEl.innerHTML += `<button class="btn btn-sm btn-success" onclick="window._openConfirm(${inc.id})"><i class="bi bi-check-circle me-1"></i> Xác nhận</button>`;
         actionsEl.innerHTML += `<button class="btn btn-sm btn-outline-danger" onclick="window._openReject(${inc.id})"><i class="bi bi-x-circle me-1"></i> Từ chối</button>`;
       }
@@ -693,6 +887,54 @@
     }
   };
 
+  async function loadFullNetworkOnLocalMap() {
+    await ensureDevicesAndEdges();
+    
+    if (!localDeviceLayer) localDeviceLayer = L.layerGroup().addTo(incidentMap);
+    if (!localEdgeLayer) localEdgeLayer = L.layerGroup().addTo(incidentMap);
+    
+    localDeviceLayer.clearLayers();
+    localEdgeLayer.clearLayers();
+
+    // Render Edges
+    cachedEdges.forEach(edge => {
+      const fromDev = edge.from_device_detail;
+      const toDev = edge.to_device_detail;
+      if (fromDev && toDev && fromDev.latitude && fromDev.longitude && toDev.latitude && toDev.longitude) {
+        const style = getEdgeColorByTypeAndStatus(edge.network_type, edge.status);
+        const pts = [
+          [fromDev.latitude, fromDev.longitude],
+          [toDev.latitude, toDev.longitude]
+        ];
+        const lineOptions = {
+          color: style.color,
+          weight: style.weight || 4,
+          opacity: 0.8
+        };
+        if (style.dashArray) {
+          lineOptions.dashArray = style.dashArray;
+        }
+        const poly = L.polyline(pts, lineOptions).addTo(localEdgeLayer);
+        poly.bindPopup(edgePopupHtml(edge));
+      }
+    });
+
+    // Render Devices
+    cachedDevices.forEach(d => {
+      const customIcon = getDeviceIconByTypeAndStatus(d.device_type, d.status);
+      const m = L.marker([d.latitude, d.longitude], { icon: customIcon }).addTo(localDeviceLayer);
+      m.bindPopup(devicePopupHtml(d));
+    });
+  }
+
+  window._focusLocalNetwork = () => {
+    ensureDevicesAndEdges().then(() => {
+      if (!cachedDevices.length || !incidentMap) return;
+      const pts = cachedDevices.map(d => [d.latitude, d.longitude]);
+      incidentMap.fitBounds(L.latLngBounds(pts), { padding: [50, 50] });
+    });
+  };
+
   const role = localStorage.getItem(STORAGE.role) || '';
   if (role === 'CITIZEN') {
     window.location.href = '/report/';
@@ -700,6 +942,7 @@
     setupNav();
     initMap();
     loadIncidents();
+    loadFullNetworkOnLocalMap();
     pollNotifBadge();
     setInterval(pollNotifBadge, 30000);
   }

@@ -433,4 +433,75 @@ class IncidentWorkflowPermissionsTests(APITestCase):
         )
         self.assertEqual(response.status_code, 400)
 
+    def test_assign_first_then_confirm_and_reject(self):
+        """Kiểm tra luồng phân công trước, sau đó xác nhận hoặc từ chối."""
+        # 1. Phân công trước từ trạng thái PENDING_VERIFY -> ASSIGNED
+        self.client.force_authenticate(user=self.operator)
+        response = self.client.patch(
+            f"/api/incidents/{self.incident.id}/assign/",
+            {"assigned_to": self.tech1.id},
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.incident.refresh_from_db()
+        self.assertEqual(self.incident.status, Incident.Status.ASSIGNED)
+        self.assertEqual(self.incident.assigned_to, self.tech1)
+        self.assertIsNone(self.incident.confirmed_by)
+
+        # 2. Xác nhận sự cố khi đang ở trạng thái ASSIGNED
+        response = self.client.patch(
+            f"/api/incidents/{self.incident.id}/update-status/",
+            {"status": "CONFIRMED"},
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.incident.refresh_from_db()
+        # Trạng thái phải giữ nguyên là ASSIGNED
+        self.assertEqual(self.incident.status, Incident.Status.ASSIGNED)
+        # confirmed_by phải được cập nhật
+        self.assertEqual(self.incident.confirmed_by, self.operator)
+
+        # Kiểm tra Notification cho CONFIRMED được gửi cho người báo cáo
+        from incidents.models import Notification
+        notif_exists = Notification.objects.filter(
+            recipient=self.citizen,
+            incident=self.incident,
+            notif_type=Notification.NotifType.CONFIRMED
+        ).exists()
+        self.assertTrue(notif_exists)
+
+        # Kiểm tra IncidentHistory đã được lưu
+        history_exists = IncidentHistory.objects.filter(
+            incident=self.incident,
+            old_status=Incident.Status.ASSIGNED,
+            new_status=Incident.Status.ASSIGNED,
+            note='Đã xác nhận sự cố',
+            changed_by=self.operator
+        ).exists()
+        self.assertTrue(history_exists)
+
+    def test_assign_first_then_reject(self):
+        """Kiểm tra luồng phân công trước, sau đó từ chối sự cố."""
+        # 1. Phân công trước từ trạng thái PENDING_VERIFY -> ASSIGNED
+        self.client.force_authenticate(user=self.operator)
+        response = self.client.patch(
+            f"/api/incidents/{self.incident.id}/assign/",
+            {"assigned_to": self.tech1.id},
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.incident.refresh_from_db()
+        self.assertEqual(self.incident.status, Incident.Status.ASSIGNED)
+
+        # 2. Từ chối sự cố khi đang ở trạng thái ASSIGNED
+        response = self.client.patch(
+            f"/api/incidents/{self.incident.id}/update-status/",
+            {"status": "REJECTED", "rejection_reason": "Báo cáo sai thực tế"},
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.incident.refresh_from_db()
+        self.assertEqual(self.incident.status, Incident.Status.REJECTED)
+        self.assertEqual(self.incident.rejection_reason, "Báo cáo sai thực tế")
+
 
