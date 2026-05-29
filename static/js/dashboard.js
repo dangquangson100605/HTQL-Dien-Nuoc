@@ -112,7 +112,7 @@
       document.getElementById('stat-resolved').textContent = 'N/A';
     }
 
-    // Fetch detailed stats for charts (accessible only to ADMIN)
+    // Fetch detailed stats for charts (accessible to ADMIN and OPERATOR)
     let stats = null;
     try {
       const res = await apiFetch('/api/incidents/stats/');
@@ -124,7 +124,7 @@
     }
 
     if (!stats) {
-      console.log("Detailed stats not available (likely non-ADMIN role), skipping charts.");
+      console.log("Detailed stats not available (likely non-ADMIN/OPERATOR role), skipping charts.");
       return;
     }
 

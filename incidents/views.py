@@ -192,9 +192,9 @@ class IncidentViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='stats')
     def stats(self, request):
-        """Dashboard stats — chỉ ADMIN."""
-        if request.user.role != 'ADMIN':
-            return Response({'detail': 'Chỉ Admin.'}, status=status.HTTP_403_FORBIDDEN)
+        """Dashboard stats — ADMIN và OPERATOR."""
+        if request.user.role not in ('ADMIN', 'OPERATOR'):
+            return Response({'detail': 'Chỉ Admin hoặc Operator.'}, status=status.HTTP_403_FORBIDDEN)
 
         total_devices = Device.objects.count()
 
