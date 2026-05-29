@@ -877,6 +877,10 @@
     await refreshMap();
   }
 
+  const ELECTRIC_TYPES = ['TRANSFORMER', 'DISTRIBUTION_BOX', 'ELECTRIC_POLE', 'ELECTRIC_JUNCTION', 'ELECTRIC_METER'];
+  const WATER_TYPES = ['WATER_TANK', 'PUMP_STATION', 'MAIN_VALVE', 'BRANCH_VALVE', 'WATER_JUNCTION', 'WATER_METER', 'VALVE'];
+  let cachedEdgeDevices = [];
+
   async function populateEdgeDeviceSelects() {
     const fromSelect = document.getElementById('edge-from-device');
     const toSelect = document.getElementById('edge-to-device');
@@ -889,18 +893,45 @@
       const res = await apiFetch(`${API.devices}?page_size=1000`);
       if (!res.ok) throw new Error();
       const data = await res.json();
-      const allDevices = data.results || data;
-      
-      let options = '<option value="">-- Chọn thiết bị --</option>';
-      allDevices.forEach(d => {
-        const typeLabel = DEVICE_LABELS[d.device_type] || d.device_type;
-        options += `<option value="${d.id}">${escapeHtml(d.name)} (${escapeHtml(typeLabel)})</option>`;
-      });
-      fromSelect.innerHTML = options;
-      toSelect.innerHTML = options;
+      cachedEdgeDevices = data.results || data;
     } catch (e) {
       fromSelect.innerHTML = '<option value="">-- Lỗi tải thiết bị --</option>';
       toSelect.innerHTML = '<option value="">-- Lỗi tải thiết bị --</option>';
+    }
+  }
+
+  function filterEdgeDevicesByType() {
+    const fromSelect = document.getElementById('edge-from-device');
+    const toSelect = document.getElementById('edge-to-device');
+    const edgeTypeSelect = document.getElementById('edge-type');
+    if (!fromSelect || !toSelect || !edgeTypeSelect) return;
+
+    const edgeType = edgeTypeSelect.value;
+    const prevFromVal = fromSelect.value;
+    const prevToVal = toSelect.value;
+    
+    const filtered = cachedEdgeDevices.filter(d => {
+      if (edgeType === 'ELECTRIC') {
+        return ELECTRIC_TYPES.includes(d.device_type);
+      } else {
+        return WATER_TYPES.includes(d.device_type);
+      }
+    });
+    
+    let options = '<option value="">-- Chọn thiết bị --</option>';
+    filtered.forEach(d => {
+      const typeLabel = DEVICE_LABELS[d.device_type] || d.device_type;
+      options += `<option value="${d.id}">${escapeHtml(d.name)} (${escapeHtml(typeLabel)})</option>`;
+    });
+    
+    fromSelect.innerHTML = options;
+    toSelect.innerHTML = options;
+    
+    if (filtered.some(d => String(d.id) === prevFromVal)) {
+      fromSelect.value = prevFromVal;
+    }
+    if (filtered.some(d => String(d.id) === prevToVal)) {
+      toSelect.value = prevToVal;
     }
   }
 
@@ -926,6 +957,7 @@
     document.getElementById('edge-code').value = '';
     document.getElementById('edge-type').value = 'ELECTRIC';
     document.getElementById('edge-status').value = 'ACTIVE';
+    filterEdgeDevicesByType();
     document.getElementById('edge-from-device').value = '';
     document.getElementById('edge-to-device').value = '';
     document.getElementById('edge-description').value = '';
@@ -948,6 +980,7 @@
     document.getElementById('edge-code').value = edge.code || '';
     document.getElementById('edge-type').value = edge.network_type || 'ELECTRIC';
     document.getElementById('edge-status').value = edge.status || 'ACTIVE';
+    filterEdgeDevicesByType();
     document.getElementById('edge-from-device').value = edge.from_device ? String(edge.from_device) : '';
     document.getElementById('edge-to-device').value = edge.to_device ? String(edge.to_device) : '';
     document.getElementById('edge-description').value = edge.description || '';
@@ -1413,6 +1446,13 @@
     
     const btnCpSave = document.getElementById('cp-save');
     if (btnCpSave) btnCpSave.addEventListener('click', () => changePassword());
+
+    const edgeTypeSelect = document.getElementById('edge-type');
+    if (edgeTypeSelect) {
+      edgeTypeSelect.addEventListener('change', () => {
+        filterEdgeDevicesByType();
+      });
+    }
 
 
 
