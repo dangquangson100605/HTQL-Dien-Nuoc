@@ -17,7 +17,12 @@
       if (!res.ok) return;
       const data = await res.json().catch(() => ({}));
       if (data.authenticated && localStorage.getItem(STORAGE.access)) {
-        window.location.href = '/app/';
+        const role = localStorage.getItem(STORAGE.role);
+        if (role === 'CITIZEN') {
+          window.location.href = '/lookup/';
+        } else {
+          window.location.href = '/app/';
+        }
         return;
       }
       clearStoredAuth();
@@ -51,7 +56,11 @@
     localStorage.setItem(STORAGE.refresh, data.refresh);
     if (data.role) localStorage.setItem(STORAGE.role, data.role);
     if (data.username) localStorage.setItem(STORAGE.username, data.username);
-    window.location.href = '/app/';
+    if (data.role === 'CITIZEN') {
+      window.location.href = '/lookup/';
+    } else {
+      window.location.href = '/app/';
+    }
   }
 
   document.addEventListener('DOMContentLoaded', async () => {

@@ -693,9 +693,14 @@
     }
   };
 
-  setupNav();
-  initMap();
-  loadIncidents();
-  pollNotifBadge();
-  setInterval(pollNotifBadge, 30000);
+  const role = localStorage.getItem(STORAGE.role) || '';
+  if (role === 'CITIZEN') {
+    window.location.href = '/report/';
+  } else {
+    setupNav();
+    initMap();
+    loadIncidents();
+    pollNotifBadge();
+    setInterval(pollNotifBadge, 30000);
+  }
 })();

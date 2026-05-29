@@ -13,7 +13,8 @@ from .serializers import (
     CustomTokenObtainPairSerializer,
     UserSerializer,
     ChangePasswordSerializer,
-    AuditLogSerializer
+    AuditLogSerializer,
+    RegisterSerializer
 )
 
 
@@ -118,3 +119,14 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = AuditLog.objects.all().order_by("-timestamp")
     serializer_class = AuditLogSerializer
     permission_classes = [IsAuthenticated, IsAdminRole]
+
+
+class RegisterView(APIView):
+    permission_classes = []  # Public endpoint
+
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"detail": "Đăng ký tài khoản người dân thành công!"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

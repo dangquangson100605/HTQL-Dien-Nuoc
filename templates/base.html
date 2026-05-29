@@ -180,7 +180,9 @@
               }
               
               setTimeout(() => {
-                if (window.location.pathname === '/login/') {
+                if (data.role === 'CITIZEN') {
+                  window.location.href = '/lookup/';
+                } else if (window.location.pathname === '/login/' || window.location.pathname === '/lookup/') {
                   window.location.href = '/app/';
                 } else {
                   window.location.reload();

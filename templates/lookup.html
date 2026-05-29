@@ -34,9 +34,35 @@
 {% endblock %}
 
 {% block body %}
+<!-- Standard navbar for logged-in users (hidden by default) -->
+<nav class="navbar navbar-expand-lg navbar-light sticky-top bg-white border-bottom shadow-sm mb-4 d-none" id="logged-in-nav">
+  <div class="container-fluid px-3">
+    <span class="navbar-brand fw-bold text-primary"><i class="bi bi-water text-info"></i><i class="bi bi-lightning-charge-fill text-warning"></i> Quản lý hạ tầng</span>
+    <div class="d-flex align-items-center gap-3">
+      <a href="/app/" id="nav-map-link" class="text-secondary text-decoration-none small hover-lift"><i class="bi bi-map"></i> Bản đồ</a>
+      <a href="/monitoring/" id="nav-monitoring-link" class="text-secondary text-decoration-none small hover-lift"><i class="bi bi-graph-up"></i> Tiêu thụ</a>
+      <a href="/incidents/" id="nav-incidents-link" class="text-secondary text-decoration-none small hover-lift"><i class="bi bi-exclamation-octagon"></i> Sự cố</a>
+      <a href="/lookup/" id="nav-lookup-link" class="text-primary fw-semibold text-decoration-none small hover-lift"><i class="bi bi-search"></i> Tra cứu</a>
+      <a href="/report/" id="nav-report-link" class="text-secondary text-decoration-none small hover-lift"><i class="bi bi-plus-circle"></i> Báo cáo</a>
+      <a href="/users/" id="nav-users-link" class="text-secondary text-decoration-none small hover-lift d-none"><i class="bi bi-people"></i> Tài khoản</a>
+      <a href="/dashboard/" id="nav-dashboard-link" class="text-secondary text-decoration-none small hover-lift d-none"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <a href="/analytics/" id="nav-analytics-link" class="text-secondary text-decoration-none small hover-lift d-none"><i class="bi bi-bar-chart-line"></i> Phân tích</a>
+      <div class="d-flex align-items-center gap-2 small ms-2">
+        <span id="nav-user" class="d-none d-md-inline fw-medium text-dark"></span>
+        <span id="nav-role" class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-2 py-1"></span>
+        <a href="/notifications/" class="position-relative text-secondary me-2" title="Thông báo">
+          <i class="bi bi-bell fs-5"></i>
+          <span id="notif-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size:0.6rem;"></span>
+        </a>
+        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill" id="btn-logout" title="Đăng xuất"><i class="bi bi-box-arrow-right"></i></button>
+      </div>
+    </div>
+  </div>
+</nav>
+
 <div class="container px-3 lookup-container">
-  <!-- Header -->
-  <div class="d-flex justify-content-between align-items-center mb-4">
+  <!-- Header (shown only to guest/not logged in users) -->
+  <div class="d-flex justify-content-between align-items-center mb-4" id="guest-header">
     <div class="d-flex align-items-center gap-2">
       <span class="fs-3 fw-bold text-primary"><i class="bi bi-water text-info"></i><i class="bi bi-lightning-charge-fill text-warning"></i> Dịch Vụ Công Cộng</span>
     </div>
@@ -143,6 +169,96 @@
 <script>
   (function() {
     let chartInstance = null;
+
+    // Logged in navbar setup
+    document.addEventListener('DOMContentLoaded', () => {
+      const token = localStorage.getItem('infra_access');
+      const role = localStorage.getItem('infra_role');
+      const username = localStorage.getItem('infra_username');
+
+      if (token) {
+        // Hide guest header
+        document.getElementById('guest-header')?.classList.add('d-none');
+        // Show logged-in navbar
+        const nav = document.getElementById('logged-in-nav');
+        if (nav) {
+          nav.classList.remove('d-none');
+          
+          // Fill user details
+          const navUser = document.getElementById('nav-user');
+          if (navUser) navUser.textContent = username ? `Xin chào, ${username}` : '';
+          
+          const navRole = document.getElementById('nav-role');
+          if (navRole) {
+            const labels = { ADMIN: 'Quản trị', OPERATOR: 'Vận hành', TECHNICIAN: 'Kỹ thuật', CITIZEN: 'Người dân' };
+            navRole.textContent = labels[role] || role || '—';
+            
+            // Premium background colors for role badge in lookup
+            if (role === 'ADMIN') navRole.style.background = 'rgba(251, 191, 36, 0.1)';
+            else if (role === 'OPERATOR') navRole.style.background = 'rgba(59, 130, 246, 0.1)';
+            else if (role === 'TECHNICIAN') navRole.style.background = 'rgba(168, 85, 247, 0.1)';
+            else if (role === 'CITIZEN') navRole.style.background = 'rgba(16, 185, 129, 0.1)';
+          }
+          
+          // Show specific links based on role
+          if (role === 'CITIZEN') {
+            document.getElementById('nav-map-link')?.classList.add('d-none');
+            document.getElementById('nav-monitoring-link')?.classList.add('d-none');
+            document.getElementById('nav-incidents-link')?.classList.add('d-none');
+            
+            const lookupLink = document.getElementById('nav-lookup-link');
+            if (lookupLink) {
+              lookupLink.classList.remove('text-secondary');
+              lookupLink.classList.add('text-primary', 'fw-semibold');
+            }
+          } else {
+            if (role === 'ADMIN') {
+              document.getElementById('nav-users-link')?.classList.remove('d-none');
+            }
+            if (role === 'ADMIN' || role === 'OPERATOR') {
+              document.getElementById('nav-dashboard-link')?.classList.remove('d-none');
+              document.getElementById('nav-analytics-link')?.classList.remove('d-none');
+            }
+          }
+          
+          // Handle logout
+          document.getElementById('btn-logout')?.addEventListener('click', async () => {
+            const refresh = localStorage.getItem('infra_refresh');
+            try {
+              await fetch('/api/auth/logout/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(refresh ? { refresh } : {}),
+              });
+            } catch (err) {
+              console.error(err);
+            }
+            localStorage.clear();
+            window.location.href = '/login/';
+          });
+          
+          // Poll notification badge if logged in
+          pollNotifBadge();
+          setInterval(pollNotifBadge, 30000);
+        }
+      }
+    });
+
+    async function pollNotifBadge() {
+      try {
+        const token = localStorage.getItem('infra_access');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+        const res = await fetch('/api/notifications/unread-count/', { headers });
+        if (!res.ok) return;
+        const { unread_count } = await res.json();
+        const badge = document.getElementById('notif-badge');
+        if (badge) {
+          if (unread_count > 0) { badge.textContent = unread_count > 99 ? '99+' : unread_count; badge.classList.remove('d-none'); }
+          else badge.classList.add('d-none');
+        }
+      } catch {}
+    }
 
     document.getElementById('lookup-form').addEventListener('submit', async (e) => {
       e.preventDefault();

@@ -616,6 +616,11 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     if (!requireAuth()) return;
+    const role = localStorage.getItem(STORAGE.role) || '';
+    if (role === 'CITIZEN') {
+      window.location.href = '/lookup/';
+      return;
+    }
     setupNav();
     loadDevicesForAutocomplete();
 

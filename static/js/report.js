@@ -54,6 +54,19 @@
       const labels = { ADMIN: 'Quản trị', OPERATOR: 'Vận hành', TECHNICIAN: 'Kỹ thuật', CITIZEN: 'Người dân' };
       roleEl.textContent = labels[role] || role;
     }
+
+    if (role === 'CITIZEN') {
+      const mapLink = document.querySelector('a[href="/app/"]');
+      if (mapLink) {
+        mapLink.setAttribute('href', '/lookup/');
+        mapLink.innerHTML = '<i class="bi bi-search"></i> Tra cứu';
+      }
+      const incidentsLink = document.querySelector('a[href="/incidents/"]');
+      if (incidentsLink) {
+        incidentsLink.classList.add('d-none');
+      }
+    }
+
     document.getElementById('btn-logout')?.addEventListener('click', async () => {
       const refresh = localStorage.getItem(STORAGE.refresh);
       await apiFetch(API.logout, { method: 'POST', body: JSON.stringify({ refresh }) });

@@ -66,6 +66,20 @@
       document.getElementById('nav-dashboard-link')?.classList.remove('d-none');
       document.getElementById('nav-analytics-link')?.classList.remove('d-none');
     }
+
+    if (role === 'CITIZEN') {
+      const mapLink = document.querySelector('a[href="/app/"]');
+      if (mapLink) {
+        mapLink.setAttribute('href', '/lookup/');
+        mapLink.innerHTML = '<i class="bi bi-search"></i> Tra cứu';
+      }
+      const incidentsLink = document.querySelector('a[href="/incidents/"]');
+      if (incidentsLink) {
+        incidentsLink.setAttribute('href', '/report/');
+        incidentsLink.innerHTML = '<i class="bi bi-plus-circle"></i> Báo cáo';
+      }
+    }
+
     document.getElementById('btn-logout')?.addEventListener('click', async () => {
       const refresh = localStorage.getItem(STORAGE.refresh);
       await apiFetch('/api/auth/logout/', { method: 'POST', body: JSON.stringify({ refresh }) });
