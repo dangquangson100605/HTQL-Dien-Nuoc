@@ -123,6 +123,26 @@
       if (reportMarker) reportMap.removeLayer(reportMarker);
       reportMarker = L.marker([lat, lng], { icon: L.divIcon({ className: '', html: '<div style="background:#ef4444;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>', iconAnchor: [8, 8] }) }).addTo(reportMap);
     });
+
+    document.getElementById('report-area')?.addEventListener('change', (e) => {
+      const area = e.target.value;
+      if (!area) return;
+      
+      const areaCoords = {
+        'Hải Châu': [16.0474, 108.2198],
+        'Thanh Khê': [16.0610, 108.1818],
+        'Sơn Trà': [16.0899, 108.2612],
+        'Ngũ Hành Sơn': [16.0150, 108.2633],
+        'Liên Chiểu': [16.0805, 108.1492],
+        'Cẩm Lệ': [16.0155, 108.1963],
+        'Hòa Vang': [15.9867, 108.1215]
+      };
+      
+      const coords = areaCoords[area];
+      if (coords && reportMap) {
+        reportMap.flyTo(coords, 14, { duration: 1.5 });
+      }
+    });
   }
 
   function prefillIncidentType() {
@@ -264,11 +284,18 @@
     if (!res.ok) return;
     const data = await res.json();
     const incidents = data.results ?? data;
+    
+    // Update the count badge
+    const countEl = document.getElementById('my-incidents-count');
+    if (countEl) {
+      countEl.textContent = `${incidents.length} sự cố`;
+    }
+
     const el = document.getElementById('my-incidents-list');
     if (!el) return;
 
     if (!incidents.length) {
-      el.innerHTML = '<div class="text-center text-muted small py-4">Chưa có sự cố nào.</div>';
+      el.innerHTML = '<div class="text-center text-muted py-5 small"><i class="bi bi-info-circle me-1 fs-5"></i> Bạn chưa báo cáo sự cố nào.</div>';
       return;
     }
 
@@ -283,17 +310,55 @@
       REJECTED: 'dark'
     };
     
-    el.innerHTML = incidents.map(inc => `
-      <div class="px-3 py-2 border-bottom my-incident-item" data-id="${inc.id}" style="cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor='transparent'">
-        <div class="d-flex justify-content-between align-items-start">
-          <div class="fw-semibold small text-dark">${inc.title}</div>
-          <span class="badge bg-${STATUS_COLOR[inc.status] || 'secondary'} bg-opacity-10 text-${STATUS_COLOR[inc.status] || 'secondary'} border border-${STATUS_COLOR[inc.status] || 'secondary'} border-opacity-25 rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">${inc.status_display}</span>
-        </div>
-        <div class="d-flex justify-content-between align-items-center mt-1">
-          <span class="text-muted small" style="font-size: 0.75rem;"><i class="bi bi-clock"></i> ${new Date(inc.created_at).toLocaleDateString('vi-VN')}</span>
-          <span class="text-primary small" style="font-size: 0.75rem;">Chi tiết <i class="bi bi-arrow-right"></i></span>
-        </div>
-      </div>`).join('');
+    const SEVERITY_ICON = { LOW: '🟢', MEDIUM: '🟡', HIGH: '🔴', CRITICAL: '🚨' };
+    const TYPE_ICON = { ELECTRIC: '⚡ Điện', WATER: '💧 Nước', OTHER: '🔧 Khác' };
+
+    el.innerHTML = `
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 13.5px;">
+          <thead class="table-light">
+            <tr>
+              <th scope="col" class="ps-3 py-3">Tiêu đề sự cố</th>
+              <th scope="col" class="text-center py-3">Loại sự cố</th>
+              <th scope="col" class="text-center py-3">Mức độ</th>
+              <th scope="col" class="text-center py-3">Trạng thái</th>
+              <th scope="col" class="text-center py-3">Khu vực</th>
+              <th scope="col" class="text-center py-3">Ngày báo cáo</th>
+              <th scope="col" class="text-center py-3">Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${incidents.map(inc => {
+              const statusCol = STATUS_COLOR[inc.status] || 'secondary';
+              const sev = inc.severity || 'MEDIUM';
+              return `
+                <tr class="my-incident-item" data-id="${inc.id}" style="cursor: pointer;">
+                  <td class="ps-3 fw-semibold text-dark">${inc.title}</td>
+                  <td class="text-center">${TYPE_ICON[inc.incident_type] || inc.type_display || '🔧 Khác'}</td>
+                  <td class="text-center">
+                    <span class="badge bg-light text-dark border px-2 py-1 rounded-pill" style="font-size: 11.5px; font-weight: 500;">
+                      ${SEVERITY_ICON[sev] || ''} ${inc.severity_display || sev}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-${statusCol} bg-opacity-10 text-${statusCol} border border-${statusCol} border-opacity-25 rounded-pill px-2.5 py-1" style="font-size: 11.5px; font-weight: 600;">
+                      ${inc.status_display}
+                    </span>
+                  </td>
+                  <td class="text-center text-secondary">${inc.area || '—'}</td>
+                  <td class="text-center text-muted small">${new Date(inc.created_at).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                  <td class="text-center">
+                    <button class="btn btn-sm btn-outline-primary px-3 py-1 rounded-pill fw-semibold" style="font-size: 12px;">
+                      <i class="bi bi-eye"></i> Xem
+                    </button>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
 
     // Bắt sự kiện click
     el.querySelectorAll('.my-incident-item').forEach(item => {
@@ -322,8 +387,11 @@
     const desc = document.getElementById('report-desc').value.trim();
     const lat = parseFloat(document.getElementById('report-lat').value);
     const lng = parseFloat(document.getElementById('report-lng').value);
+    const area = document.getElementById('report-area').value;
+    const address = document.getElementById('report-address').value.trim();
 
     if (!title || !desc) { showAlert('Vui lòng nhập tiêu đề và mô tả.'); return; }
+    if (!area) { showAlert('Vui lòng chọn khu vực quản lý.'); return; }
     if (isNaN(lat) || isNaN(lng)) { showAlert('Vui lòng chọn vị trí trên bản đồ.'); return; }
 
     const body = {
@@ -335,7 +403,9 @@
       longitude: lng,
       device: document.getElementById('report-device').value || null,
       edge: (targetTypeParam === 'EDGE' && edgeIdParam) ? parseInt(edgeIdParam) : null,
-      target_type: targetTypeParam || (document.getElementById('report-device').value ? 'DEVICE' : 'UNKNOWN')
+      target_type: targetTypeParam || (document.getElementById('report-device').value ? 'DEVICE' : 'UNKNOWN'),
+      area,
+      address
     };
 
     const btn = document.getElementById('btn-submit-report');
@@ -362,6 +432,13 @@
       }
     } catch { showAlert('Lỗi kết nối.'); }
     finally { btn.disabled = false; btn.innerHTML = '<i class="bi bi-send me-1"></i> Gửi báo cáo'; }
+  });
+
+  // Fix Leaflet map sizing when returning to reporting tab
+  document.getElementById('new-report-tab')?.addEventListener('shown.bs.tab', () => {
+    if (reportMap) {
+      reportMap.invalidateSize();
+    }
   });
 
   setupNav();

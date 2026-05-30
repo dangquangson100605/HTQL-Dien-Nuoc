@@ -23,90 +23,153 @@
   </div>
 </nav>
 
-<div class="container py-4" style="max-width:900px;">
+<div class="container py-4" style="max-width:1150px;">
   <div id="app-alert" class="alert py-2 small d-none" role="alert"></div>
 
-  <div class="row g-4">
-    <!-- Form báo cáo -->
-    <div class="col-lg-5">
-      <div class="card shadow-sm border-0">
-        <div class="card-header bg-white py-2 fw-semibold"><i class="bi bi-pencil-square text-warning me-1"></i> Thông tin sự cố</div>
-        <div class="card-body">
-          <form id="report-form" novalidate>
-            <div class="mb-3">
-              <label class="form-label">Tiêu đề sự cố <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="report-title" required maxlength="200" placeholder="Mô tả ngắn sự cố...">
-              <div class="invalid-feedback">Vui lòng nhập tiêu đề.</div>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Mô tả chi tiết <span class="text-danger">*</span></label>
-              <textarea class="form-control" id="report-desc" rows="3" required placeholder="Mô tả chi tiết tình trạng..."></textarea>
-              <div class="invalid-feedback">Vui lòng nhập mô tả.</div>
-            </div>
-            <div class="row g-2 mb-3">
-              <div class="col-6">
-                <label class="form-label">Loại sự cố</label>
-                <select class="form-select" id="report-type">
-                  <option value="ELECTRIC">⚡ Điện</option>
-                  <option value="WATER">💧 Nước</option>
-                  <option value="OTHER">🔧 Khác</option>
-                </select>
-              </div>
-              <div class="col-6">
-                <label class="form-label">Mức độ</label>
-                <select class="form-select" id="report-severity">
-                  <option value="LOW">🟢 Thấp</option>
-                  <option value="MEDIUM" selected>🟡 Trung bình</option>
-                  <option value="HIGH">🔴 Cao</option>
-                  <option value="CRITICAL">🚨 Khẩn cấp</option>
-                </select>
-              </div>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Thiết bị liên quan (tùy chọn)</label>
-              <select class="form-select" id="report-device">
-                <option value="">-- Không rõ --</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Vị trí <span class="text-danger">*</span></label>
-              <div class="input-group mb-1">
-                <input type="number" step="any" class="form-control" id="report-lat" placeholder="Vĩ độ" required>
-                <input type="number" step="any" class="form-control" id="report-lng" placeholder="Kinh độ" required>
-              </div>
-              <div class="form-text"><i class="bi bi-cursor-fill text-primary"></i> Click lên bản đồ để chọn vị trí.</div>
-            </div>
-            <button type="submit" class="btn btn-warning w-100 fw-semibold" id="btn-submit-report">
-              <i class="bi bi-send me-1"></i> Gửi báo cáo
-            </button>
-          </form>
-        </div>
-      </div>
+  <!-- Tabs Navigation -->
+  <ul class="nav nav-tabs mb-4 border-bottom-0 gap-2" id="citizen-tabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active px-4 py-2.5 rounded-pill border-0 shadow-sm fw-semibold d-flex align-items-center gap-2" id="new-report-tab" data-bs-toggle="tab" data-bs-target="#new-report-pane" type="button" role="tab" aria-controls="new-report-pane" aria-selected="true" style="transition: all 0.2s;">
+        <i class="bi bi-pencil-square text-warning fs-5"></i>
+        <span>Báo cáo sự cố mới</span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link px-4 py-2.5 rounded-pill border-0 shadow-sm fw-semibold d-flex align-items-center gap-2" id="my-reports-tab" data-bs-toggle="tab" data-bs-target="#my-reports-pane" type="button" role="tab" aria-controls="my-reports-pane" aria-selected="false" style="transition: all 0.2s;">
+        <i class="bi bi-clock-history text-primary fs-5"></i>
+        <span>Sự cố đã báo cáo của tôi</span>
+      </button>
+    </li>
+  </ul>
 
-      <!-- Sự cố của tôi -->
-      <div class="card shadow-sm border-0 mt-3">
-        <div class="card-header bg-white py-2 fw-semibold"><i class="bi bi-clock-history me-1"></i> Sự cố đã báo cáo</div>
-        <div class="card-body p-0">
-          <div id="my-incidents-list" style="max-height:300px;overflow-y:auto;">
-            <div class="text-center text-muted py-4 small">
-              <div class="spinner-border spinner-border-sm text-warning" role="status"></div>
-              <span class="ms-2">Đang tải...</span>
+  <!-- CSS styling for tabs active state to make it look super premium -->
+  <style>
+    #citizen-tabs .nav-link {
+      background-color: #f8f9fa;
+      color: #495057;
+    }
+    #citizen-tabs .nav-link.active {
+      background-color: #212529 !important;
+      color: #fff !important;
+    }
+    #citizen-tabs .nav-link:hover:not(.active) {
+      background-color: #e9ecef;
+      transform: translateY(-1px);
+    }
+  </style>
+
+  <div class="tab-content" id="citizen-tabs-content">
+    <!-- Tab 1: Form & Map -->
+    <div class="tab-pane fade show active" id="new-report-pane" role="tabpanel" aria-labelledby="new-report-tab" tabindex="0">
+      <div class="row g-4">
+        <!-- Form báo cáo -->
+        <div class="col-lg-5">
+          <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3 fw-semibold border-bottom-0"><i class="bi bi-pencil-square text-warning me-1"></i> Thông tin sự cố</div>
+            <div class="card-body pt-0">
+              <form id="report-form" novalidate>
+                <div class="mb-3">
+                  <label class="form-label text-muted small fw-medium">Tiêu đề sự cố <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="report-title" required maxlength="200" placeholder="Mô tả ngắn sự cố...">
+                  <div class="invalid-feedback">Vui lòng nhập tiêu đề.</div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label text-muted small fw-medium">Mô tả chi tiết <span class="text-danger">*</span></label>
+                  <textarea class="form-control" id="report-desc" rows="3" required placeholder="Mô tả chi tiết tình trạng..."></textarea>
+                  <div class="invalid-feedback">Vui lòng nhập mô tả.</div>
+                </div>
+                <div class="row g-2 mb-3">
+                  <div class="col-6">
+                    <label class="form-label text-muted small fw-medium">Loại sự cố</label>
+                    <select class="form-select" id="report-type">
+                      <option value="ELECTRIC">⚡ Điện</option>
+                      <option value="WATER">💧 Nước</option>
+                      <option value="OTHER">🔧 Khác</option>
+                    </select>
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label text-muted small fw-medium">Mức độ</label>
+                    <select class="form-select" id="report-severity">
+                      <option value="LOW">🟢 Thấp</option>
+                      <option value="MEDIUM" selected>🟡 Trung bình</option>
+                      <option value="HIGH">🔴 Cao</option>
+                      <option value="CRITICAL">🚨 Khẩn cấp</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label text-muted small fw-medium">Thiết bị liên quan (tùy chọn)</label>
+                  <select class="form-select" id="report-device">
+                    <option value="">-- Không rõ --</option>
+                  </select>
+                </div>
+                <div class="row g-2 mb-3">
+                  <div class="col-6">
+                    <label class="form-label text-muted small fw-medium">Khu vực quản lý <span class="text-danger">*</span></label>
+                    <select class="form-select" id="report-area" required>
+                      <option value="">-- Chọn khu vực --</option>
+                      <option value="Hải Châu">Hải Châu</option>
+                      <option value="Thanh Khê">Thanh Khê</option>
+                      <option value="Sơn Trà">Sơn Trà</option>
+                      <option value="Ngũ Hành Sơn">Ngũ Hành Sơn</option>
+                      <option value="Liên Chiểu">Liên Chiểu</option>
+                      <option value="Cẩm Lệ">Cẩm Lệ</option>
+                      <option value="Hòa Vang">Hòa Vang</option>
+                    </select>
+                    <div class="invalid-feedback">Vui lòng chọn khu vực.</div>
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label text-muted small fw-medium">Địa chỉ chi tiết</label>
+                    <input type="text" class="form-control" id="report-address" placeholder="Số nhà, tên đường...">
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label text-muted small fw-medium">Vị trí <span class="text-danger">*</span></label>
+                  <div class="input-group mb-1">
+                    <input type="number" step="any" class="form-control" id="report-lat" placeholder="Vĩ độ" required>
+                    <input type="number" step="any" class="form-control" id="report-lng" placeholder="Kinh độ" required>
+                  </div>
+                  <div class="form-text"><i class="bi bi-cursor-fill text-primary"></i> Click lên bản đồ bên phải để chọn vị trí.</div>
+                </div>
+                <button type="submit" class="btn btn-warning w-100 fw-semibold py-2" id="btn-submit-report">
+                  <i class="bi bi-send me-1"></i> Gửi báo cáo
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bản đồ chọn vị trí -->
+        <div class="col-lg-7">
+          <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3 fw-semibold border-bottom-0"><i class="bi bi-geo-alt-fill text-danger me-1"></i> Chọn vị trí trên bản đồ</div>
+            <div class="card-body p-0">
+              <div id="report-map" style="height: 520px; border-radius: 0 0 12px 12px;"></div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Bản đồ chọn vị trí -->
-    <div class="col-lg-7">
-      <div class="card shadow-sm border-0 h-100">
-        <div class="card-header bg-white py-2 fw-semibold"><i class="bi bi-geo-alt-fill text-danger me-1"></i> Chọn vị trí trên bản đồ</div>
+    <!-- Tab 2: My Reported Incidents (Full-width table) -->
+    <div class="tab-pane fade" id="my-reports-pane" role="tabpanel" aria-labelledby="my-reports-tab" tabindex="0">
+      <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3 fw-semibold text-dark border-bottom-0 d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-clock-history text-primary me-1"></i> Danh sách sự cố bạn đã báo cáo</span>
+          <span class="badge bg-light text-dark border px-2.5 py-1 rounded-pill" id="my-incidents-count" style="font-size: 12px; font-weight: 500;">0 sự cố</span>
+        </div>
         <div class="card-body p-0">
-          <div id="report-map" style="height:500px;border-radius:0 0 12px 12px;"></div>
+          <div id="my-incidents-list">
+            <div class="text-center text-muted py-5">
+              <div class="spinner-border text-primary" role="status"></div>
+              <div class="mt-2 small">Đang tải danh sách sự cố...</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
+</div>
 
   <!-- Modal Chi tiết Sự cố -->
   <div class="modal fade" id="incident-detail-modal" tabindex="-1" aria-labelledby="incidentDetailModalLabel" aria-hidden="true" data-bs-backdrop="false">
@@ -159,5 +222,5 @@
 {% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<script src="{% static 'js/report.js' %}?v=1"></script>
+<script src="{% static 'js/report.js' %}?v=2"></script>
 {% endblock %}

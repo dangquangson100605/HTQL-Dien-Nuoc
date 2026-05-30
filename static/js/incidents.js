@@ -327,6 +327,7 @@
     incidentMarkers.forEach(m => incidentMap.removeLayer(m));
     incidentMarkers = [];
     incidents.forEach(inc => {
+      if (inc.status === 'CLOSED') return;
       const color = inc.status === 'RESOLVED' || inc.status === 'CLOSED' ? '#22c55e' :
                     inc.severity === 'CRITICAL' ? '#7f1d1d' :
                     inc.severity === 'HIGH' ? '#ef4444' : '#f59e0b';
@@ -552,8 +553,28 @@
             <button onclick="window._focusLocalEdge(${inc.edge})" class="btn btn-sm btn-outline-primary py-0 px-1" style="font-size: 10px;" title="Xem trên bản đồ bên cạnh"><i class="bi bi-geo-alt"></i> Định vị tại chỗ</button>
             <button onclick="window._focusLocalNetwork()" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 10px;" title="Xem toàn bộ mạng lưới"><i class="bi bi-map"></i> Xem tổng quan mạng</button>
           </div>` : '<strong>—</strong>'}</div>
-        <div class="col-6"><span class="text-muted small d-block">Khu vực quản lý:</span> <strong>${inc.area || '—'}</strong></div>
-        <div class="col-12"><span class="text-muted small d-block">Địa chỉ chi tiết:</span> <strong>${inc.address || '—'}</strong></div>
+        <div class="col-6"><span class="text-muted small d-block">Khu vực quản lý:</span> 
+          ${isStaff || isTech ? `
+            <select id="edit-incident-area-${inc.id}" class="form-select form-select-sm" style="font-size:12px; font-weight: 500; height: 30px; padding: 2px 8px;">
+              <option value="">-- Chọn khu vực --</option>
+              <option value="Hải Châu" ${inc.area === 'Hải Châu' ? 'selected' : ''}>Hải Châu</option>
+              <option value="Thanh Khê" ${inc.area === 'Thanh Khê' ? 'selected' : ''}>Thanh Khê</option>
+              <option value="Sơn Trà" ${inc.area === 'Sơn Trà' ? 'selected' : ''}>Sơn Trà</option>
+              <option value="Ngũ Hành Sơn" ${inc.area === 'Ngũ Hành Sơn' ? 'selected' : ''}>Ngũ Hành Sơn</option>
+              <option value="Liên Chiểu" ${inc.area === 'Liên Chiểu' ? 'selected' : ''}>Liên Chiểu</option>
+              <option value="Cẩm Lệ" ${inc.area === 'Cẩm Lệ' ? 'selected' : ''}>Cẩm Lệ</option>
+              <option value="Hòa Vang" ${inc.area === 'Hòa Vang' ? 'selected' : ''}>Hòa Vang</option>
+            </select>
+          ` : `<strong>${inc.area || '—'}</strong>`}
+        </div>
+        <div class="col-12"><span class="text-muted small d-block">Địa chỉ chi tiết:</span> 
+          ${isStaff || isTech ? `
+            <div class="input-group input-group-sm">
+              <input type="text" id="edit-incident-address-${inc.id}" class="form-control" style="font-size:12px; height: 30px;" value="${escapeHtml(inc.address || '')}" placeholder="Nhập địa chỉ chi tiết...">
+              <button class="btn btn-primary btn-sm px-3" style="height: 30px; font-size:12px;" onclick="window._saveGeoInfo(${inc.id})"><i class="bi bi-save"></i> Lưu</button>
+            </div>
+          ` : `<strong>${inc.address || '—'}</strong>`}
+        </div>
         <div class="col-12"><span class="text-muted small d-block">Tọa độ địa lý:</span> <code>${inc.latitude.toFixed(5)}, ${inc.longitude.toFixed(5)}</code> 
           <div class="mt-1 d-flex gap-1">
             <button onclick="window._focusLocalCoord(${inc.latitude}, ${inc.longitude})" class="btn btn-sm btn-outline-primary py-0 px-1" style="font-size: 10px;" title="Xem trên bản đồ bên cạnh"><i class="bi bi-geo-alt"></i> Định vị tại chỗ</button>
@@ -664,6 +685,24 @@
     statusModal.show();
   };
 
+  window._saveGeoInfo = async (id) => {
+    const area = document.getElementById(`edit-incident-area-${id}`).value;
+    const address = document.getElementById(`edit-incident-address-${id}`).value.trim();
+
+    const res = await apiFetch(`${API.incidents}${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify({ area, address })
+    });
+    if (res.ok) {
+      showAlert('Cập nhật khu vực và địa chỉ thành công!', true);
+      viewIncident(id);
+      loadIncidents();
+    } else {
+      const d = await res.json().catch(() => ({}));
+      showAlert(d.detail || JSON.stringify(d) || 'Lỗi cập nhật địa chỉ.');
+    }
+  };
+
   window._saveAssociation = async (id) => {
     const deviceId = document.getElementById('link-device-select').value;
     const edgeId = document.getElementById('link-edge-select').value;
@@ -692,7 +731,7 @@
   };
 
   window._openConfirm = async (id) => {
-    if (!confirm('Bạn có chắc muốn xác nhận sự cố này?')) return;
+    if (!confirm('Bạn có chắc chắn muốn xác nhận sự cố này không?')) return;
     const res = await apiFetch(`${API.incidents}${id}/update-status/`, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'CONFIRMED' })
@@ -717,7 +756,7 @@
     });
     if (res.ok) {
       showAlert('Từ chối sự cố thành công!', true);
-      detailModal.hide();
+      viewIncident(id);
       loadIncidents();
     } else {
       const d = await res.json().catch(() => ({}));
@@ -733,7 +772,7 @@
     });
     if (res.ok) {
       showAlert('Đóng sự cố thành công!', true);
-      detailModal.hide();
+      viewIncident(id);
       loadIncidents();
     } else {
       const d = await res.json().catch(() => ({}));
@@ -804,7 +843,12 @@
     const techId = document.getElementById('assign-technician').value;
     if (!techId) { showAlert('Vui lòng chọn kỹ thuật viên.'); return; }
     const res = await apiFetch(`${API.incidents}${id}/assign/`, { method: 'PATCH', body: JSON.stringify({ assigned_to: techId }) });
-    if (res.ok) { showAlert('Phân công thành công!', true); assignModal.hide(); loadIncidents(); }
+    if (res.ok) {
+      showAlert('Phân công thành công!', true);
+      assignModal.hide();
+      loadIncidents();
+      viewIncident(id);
+    }
     else { const d = await res.json().catch(() => ({})); showAlert(d.detail || 'Lỗi phân công.'); }
   });
 
@@ -818,6 +862,7 @@
       showAlert('Cập nhật trạng thái thành công!', true);
       statusModal.hide();
       loadIncidents();
+      viewIncident(id);
     } else { const d = await res.json().catch(() => ({})); showAlert(d.detail || 'Lỗi cập nhật.'); }
   });
 

@@ -129,8 +129,24 @@
     }
 
     // Chart: status
-    const statusLabels = { OPEN: 'Mới', ASSIGNED: 'Phân công', IN_PROGRESS: 'Đang xử lý', RESOLVED: 'Đã xử lý', CLOSED: 'Đóng' };
-    const statusColors = { OPEN: '#ef4444', ASSIGNED: '#f59e0b', IN_PROGRESS: '#0ea5e9', RESOLVED: '#22c55e', CLOSED: '#94a3b8' };
+    const statusLabels = {
+      PENDING_VERIFY: 'Chờ xác minh',
+      CONFIRMED: 'Đã xác nhận',
+      ASSIGNED: 'Đã phân công',
+      IN_PROGRESS: 'Đang xử lý',
+      RESOLVED: 'Đã xử lý',
+      CLOSED: 'Đã đóng',
+      REJECTED: 'Từ chối'
+    };
+    const statusColors = {
+      PENDING_VERIFY: '#f59e0b',
+      CONFIRMED: '#ef4444',
+      ASSIGNED: '#3b82f6',
+      IN_PROGRESS: '#0ea5e9',
+      RESOLVED: '#22c55e',
+      CLOSED: '#94a3b8',
+      REJECTED: '#64748b'
+    };
     const sKeys = Object.keys(stats.by_status || {});
     makeChart('chart-status', 'doughnut', sKeys.map(k => statusLabels[k] || k), sKeys.map(k => stats.by_status[k]), sKeys.map(k => statusColors[k] || '#94a3b8'));
 

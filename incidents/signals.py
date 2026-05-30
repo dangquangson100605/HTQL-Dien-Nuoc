@@ -118,7 +118,8 @@ def handle_incident_notifications(sender, instance, created, **kwargs):
         Incident.Status.PENDING_VERIFY,
         Incident.Status.CONFIRMED,
         Incident.Status.ASSIGNED,
-        Incident.Status.IN_PROGRESS
+        Incident.Status.IN_PROGRESS,
+        Incident.Status.RESOLVED
     ]
 
     device = instance.device

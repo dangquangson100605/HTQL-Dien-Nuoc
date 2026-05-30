@@ -217,20 +217,54 @@
     if (!byArea) {
       tbody.querySelectorAll('.btn-del').forEach(btn => {
         btn.addEventListener('click', async (e) => {
-          if (!confirm('Bạn có chắc muốn xóa bản ghi này?')) return;
-          const id = btn.getAttribute('data-id');
-          try {
-            const res = await apiFetch(`${API.consumptions}${id}/`, { method: 'DELETE' });
-            if (res.ok) {
-              showAlert('Xóa bản ghi thành công', true);
-              loadConsumptions();
-            } else {
-              showAlert('Lỗi khi xóa bản ghi');
+          Swal.fire({
+            title: 'Xóa bản ghi?',
+            text: 'Bạn có chắc chắn muốn xóa bản ghi tiêu thụ này không?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Đồng ý xóa',
+            cancelButtonText: 'Hủy',
+            customClass: { popup: 'rounded-4 shadow border-0' }
+          }).then(async (result) => {
+            if (result.isConfirmed) {
+              const id = btn.getAttribute('data-id');
+              try {
+                const res = await apiFetch(`${API.consumptions}${id}/`, { method: 'DELETE' });
+                if (res.ok) {
+                  Swal.fire({
+                    title: 'Thành công!',
+                    text: 'Xóa bản ghi thành công!',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    customClass: { popup: 'rounded-4 shadow border-0' }
+                  });
+                  loadConsumptions();
+                } else {
+                  Swal.fire({
+                    title: 'Thất bại!',
+                    text: 'Lỗi khi xóa bản ghi.',
+                    icon: 'error',
+                    confirmButtonText: 'Đóng',
+                    confirmButtonColor: '#dc3545',
+                    customClass: { popup: 'rounded-4 shadow border-0' }
+                  });
+                }
+              } catch (err) {
+                console.error(err);
+                Swal.fire({
+                  title: 'Thất bại!',
+                  text: 'Lỗi hệ thống khi xóa bản ghi.',
+                  icon: 'error',
+                  confirmButtonText: 'Đóng',
+                  confirmButtonColor: '#dc3545',
+                  customClass: { popup: 'rounded-4 shadow border-0' }
+                });
+              }
             }
-          } catch (err) {
-            console.error(err);
-            showAlert('Lỗi hệ thống khi xóa bản ghi');
-          }
+          });
         });
       });
     }

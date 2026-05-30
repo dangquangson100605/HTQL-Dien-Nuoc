@@ -1217,6 +1217,7 @@
       else { incidentLayer = L.layerGroup().addTo(map); }
       const SCOLOR = { PENDING_VERIFY: '#ef4444', CONFIRMED: '#ea580c', ASSIGNED: '#f59e0b', IN_PROGRESS: '#0ea5e9', RESOLVED: '#22c55e', CLOSED: '#94a3b8', REJECTED: '#64748b' };
       incidents.forEach(inc => {
+        if (inc.status === 'CLOSED') return;
         const color = SCOLOR[inc.status] || '#94a3b8';
         const m = L.circleMarker([inc.latitude, inc.longitude], {
           radius: 8, color: '#fff', weight: 2, fillColor: color, fillOpacity: 0.9
@@ -1315,14 +1316,42 @@
     setupNav();
     initMap();
 
-    deviceModal = new bootstrap.Modal(document.getElementById('device-modal'));
+    deviceModal = {
+      show: () => {
+        document.getElementById('sidebar-list-container')?.classList.add('d-none');
+        document.getElementById('sidebar-edge-form-container')?.classList.add('d-none');
+        document.getElementById('sidebar-device-form-container')?.classList.remove('d-none');
+        pickLocationMode = true;
+      },
+      hide: () => {
+        document.getElementById('sidebar-device-form-container')?.classList.add('d-none');
+        document.getElementById('sidebar-list-container')?.classList.remove('d-none');
+        pickLocationMode = false;
+      }
+    };
+
+    edgeModal = {
+      show: () => {
+        document.getElementById('sidebar-list-container')?.classList.add('d-none');
+        document.getElementById('sidebar-device-form-container')?.classList.add('d-none');
+        document.getElementById('sidebar-edge-form-container')?.classList.remove('d-none');
+      },
+      hide: () => {
+        document.getElementById('sidebar-edge-form-container')?.classList.add('d-none');
+        document.getElementById('sidebar-list-container')?.classList.remove('d-none');
+      }
+    };
+
     deleteModal = new bootstrap.Modal(document.getElementById('delete-modal'));
     reportModal = new bootstrap.Modal(document.getElementById('report-incident-modal'));
-    edgeModal = new bootstrap.Modal(document.getElementById('edge-modal'));
     deleteEdgeModal = new bootstrap.Modal(document.getElementById('delete-edge-modal'));
 
-    document.getElementById('device-modal').addEventListener('hidden.bs.modal', () => {
-      pickLocationMode = false;
+    // Bind cancel/close buttons for sidebar forms
+    document.querySelectorAll('.btn-cancel-device').forEach(btn => {
+      btn.addEventListener('click', () => deviceModal.hide());
+    });
+    document.querySelectorAll('.btn-cancel-edge').forEach(btn => {
+      btn.addEventListener('click', () => edgeModal.hide());
     });
 
     document.getElementById('btn-logout').addEventListener('click', () => logout());

@@ -85,7 +85,8 @@
       </div>
     </div>
     <div class="col-lg-4">
-      <div class="card shadow-sm border-0 h-100">
+      <!-- Sidebar List View -->
+      <div id="sidebar-list-container" class="card shadow-sm border-0 h-100 flex-column d-flex">
         <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
           <ul class="nav nav-tabs card-header-tabs border-bottom-0" id="sidebar-tabs" role="tablist">
             <li class="nav-item" role="presentation">
@@ -209,107 +210,166 @@
           </div>
         </div>
       </div>
+
+      <!-- Sidebar Form thêm / sửa thiết bị (Mặc định ẩn) -->
+      <div id="sidebar-device-form-container" class="card shadow-sm border-0 h-100 flex-column d-none">
+        <div class="card-header bg-white py-3 fw-bold text-primary border-bottom-0 d-flex justify-content-between align-items-center">
+          <span id="device-modal-title">Thêm thiết bị</span>
+          <button type="button" class="btn-close btn-cancel-device" aria-label="Đóng"></button>
+        </div>
+        <div class="card-body py-2 flex-grow-1" style="overflow-y: auto; max-height: min(70vh, 560px);">
+          <div id="modal-alert" class="alert alert-danger py-2 small d-none"></div>
+          <form id="device-form" novalidate>
+            <input type="hidden" id="device-id" value="">
+            <div class="mb-2">
+              <label for="device-name" class="form-label small mb-1 fw-semibold text-secondary">Tên / mã thiết bị <span class="text-danger">*</span></label>
+              <input type="text" class="form-control form-control-sm" id="device-name" required maxlength="150" placeholder="VD: Trạm biến áp Hải Châu 1">
+              <div class="invalid-feedback">Vui lòng nhập tên/mã thiết bị hợp lệ.</div>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label for="device-type" class="form-label small mb-1 fw-semibold text-secondary">Loại thiết bị</label>
+                <select class="form-select form-select-sm" id="device-type" required>
+                  <optgroup label="Nhóm điện">
+                    <option value="TRANSFORMER">Trạm biến áp</option>
+                    <option value="DISTRIBUTION_BOX">Tủ điện / phân phối</option>
+                    <option value="ELECTRIC_POLE">Trụ điện</option>
+                    <option value="ELECTRIC_JUNCTION">Điểm nối điện</option>
+                    <option value="ELECTRIC_METER">Công tơ điện</option>
+                  </optgroup>
+                  <optgroup label="Nhóm nước">
+                    <option value="WATER_TANK">Bể nước</option>
+                    <option value="PUMP_STATION">Trạm bơm</option>
+                    <option value="MAIN_VALVE">Van tổng</option>
+                    <option value="BRANCH_VALVE">Van nhánh</option>
+                    <option value="WATER_JUNCTION">Điểm nối nước</option>
+                    <option value="WATER_METER">Đồng hồ nước</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div class="col-6">
+                <label for="device-status" class="form-label small mb-1 fw-semibold text-secondary">Trạng thái</label>
+                <select class="form-select" id="device-status" required class="form-select form-select-sm">
+                  <option value="ACTIVE">Hoạt động</option>
+                  <option value="FAULT">Lỗi trực tiếp</option>
+                  <option value="MAINTENANCE">Đang bảo trì</option>
+                  <option value="INACTIVE">Ngưng hoạt động</option>
+                </select>
+              </div>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label for="device-parent" class="form-label small mb-1 fw-semibold text-secondary">Nguồn cấp</label>
+                <select class="form-select form-select-sm" id="device-parent">
+                  <option value="">-- Không có --</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label for="device-area" class="form-label small mb-1 fw-semibold text-secondary">Khu vực</label>
+                <input type="text" class="form-control form-control-sm" id="device-area" placeholder="Hải Châu, Sơn Trà...">
+              </div>
+            </div>
+            <div class="mb-2">
+              <label for="device-address" class="form-label small mb-1 fw-semibold text-secondary">Địa chỉ</label>
+              <input type="text" class="form-control form-control-sm" id="device-address" placeholder="Số nhà, tên đường...">
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label for="device-lat" class="form-label small mb-1 fw-semibold text-secondary">Vĩ độ <span class="text-danger">*</span></label>
+                <input type="number" step="any" class="form-control form-control-sm" id="device-lat" required>
+                <div class="invalid-feedback">Vĩ độ từ -90 đến 90.</div>
+              </div>
+              <div class="col-6">
+                <label for="device-lng" class="form-label small mb-1 fw-semibold text-secondary">Kinh độ <span class="text-danger">*</span></label>
+                <input type="number" step="any" class="form-control form-control-sm" id="device-lng" required>
+                <div class="invalid-feedback">Kinh độ từ -180 đến 180.</div>
+              </div>
+            </div>
+            <div class="form-text small text-primary mt-1 mb-2"><i class="bi bi-info-circle"></i> Click lên bản đồ bên trái để lấy tọa độ tự động.</div>
+            <div class="mb-2">
+              <label for="device-attributes" class="form-label small mb-1 fw-semibold text-secondary">JSON thuộc tính (tùy chọn)</label>
+              <textarea class="form-control form-control-sm font-monospace" id="device-attributes" rows="2" placeholder='{"dung_tich": "500m3"}'></textarea>
+              <div class="invalid-feedback">JSON không hợp lệ.</div>
+            </div>
+            <div class="form-check mb-0">
+              <input class="form-check-input" type="checkbox" id="device-active" checked>
+              <label class="form-check-label small fw-semibold text-secondary" for="device-active">Kích hoạt hoạt động</label>
+            </div>
+          </form>
+        </div>
+        <div class="card-footer bg-white border-top d-flex gap-2 py-2">
+          <button type="button" class="btn btn-sm btn-secondary btn-cancel-device flex-fill">Hủy</button>
+          <button type="button" class="btn btn-sm btn-primary flex-fill" id="device-save">Lưu thiết bị</button>
+        </div>
+      </div>
+
+      <!-- Sidebar Form thêm / sửa tuyến mạng (Mặc định ẩn) -->
+      <div id="sidebar-edge-form-container" class="card shadow-sm border-0 h-100 flex-column d-none">
+        <div class="card-header bg-white py-3 fw-bold text-primary border-bottom-0 d-flex justify-content-between align-items-center">
+          <span id="edge-modal-title">Thêm tuyến mạng</span>
+          <button type="button" class="btn-close btn-cancel-edge" aria-label="Đóng"></button>
+        </div>
+        <div class="card-body py-2 flex-grow-1" style="overflow-y: auto; max-height: min(70vh, 560px);">
+          <div id="edge-modal-alert" class="alert alert-danger py-2 small d-none"></div>
+          <form id="edge-form" novalidate>
+            <input type="hidden" id="edge-id" value="">
+            <div class="mb-2">
+              <label for="edge-name" class="form-label small mb-1 fw-semibold text-secondary">Tên tuyến đường <span class="text-danger">*</span></label>
+              <input type="text" class="form-control form-control-sm" id="edge-name" required placeholder="VD: Tuyến nguồn bơm 1 -> Van nhánh A">
+              <div class="invalid-feedback">Vui lòng nhập tên tuyến.</div>
+            </div>
+            <div class="mb-2">
+              <label for="edge-code" class="form-label small mb-1 fw-semibold text-secondary">Mã tuyến (tùy chọn)</label>
+              <input type="text" class="form-control form-control-sm" id="edge-code" placeholder="Tự sinh nếu để trống">
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label for="edge-type" class="form-label small mb-1 fw-semibold text-secondary">Loại mạng</label>
+                <select class="form-select form-select-sm" id="edge-type" required>
+                  <option value="ELECTRIC">⚡ Điện</option>
+                  <option value="WATER">💧 Nước</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label for="edge-status" class="form-label small mb-1 fw-semibold text-secondary">Trạng thái</label>
+                <select class="form-select form-select-sm" id="edge-status" required>
+                  <option value="ACTIVE">Hoạt động</option>
+                  <option value="FAULT">Lỗi mạng</option>
+                  <option value="MAINTENANCE">Bảo trì</option>
+                  <option value="INACTIVE">Ngưng sử dụng</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-2">
+              <label for="edge-from-device" class="form-label small mb-1 fw-semibold text-secondary">Thiết bị đầu nguồn <span class="text-danger">*</span></label>
+              <select class="form-select form-select-sm" id="edge-from-device" required>
+                <option value="">-- Chọn thiết bị đầu --</option>
+              </select>
+              <div class="invalid-feedback">Vui lòng chọn thiết bị đầu.</div>
+            </div>
+            <div class="mb-2">
+              <label for="edge-to-device" class="form-label small mb-1 fw-semibold text-secondary">Thiết bị cuối nguồn <span class="text-danger">*</span></label>
+              <select class="form-select form-select-sm" id="edge-to-device" required>
+                <option value="">-- Chọn thiết bị cuối --</option>
+              </select>
+              <div class="invalid-feedback">Vui lòng chọn thiết bị cuối.</div>
+            </div>
+            <div class="mb-2">
+              <label for="edge-description" class="form-label small mb-1 fw-semibold text-secondary">Mô tả chi tiết tuyến</label>
+              <textarea class="form-control form-control-sm" id="edge-description" rows="2" placeholder="Chi tiết đường đi, dây cáp..."></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="card-footer bg-white border-top d-flex gap-2 py-2">
+          <button type="button" class="btn btn-sm btn-secondary btn-cancel-edge flex-fill">Hủy</button>
+          <button type="button" class="btn btn-sm btn-primary flex-fill" id="edge-save">Lưu tuyến mạng</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Modal thêm / sửa -->
-<div class="modal fade" id="device-modal" data-bs-backdrop="false" tabindex="-1" aria-labelledby="device-modal-title" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="device-modal-title">Thiết bị</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-      </div>
-      <div class="modal-body">
-        <div id="modal-alert" class="alert alert-danger py-2 small d-none"></div>
-        <form id="device-form">
-          <input type="hidden" id="device-id" value="">
-          <div class="mb-3">
-            <label for="device-name" class="form-label">Tên / mã</label>
-            <input type="text" class="form-control" id="device-name" required maxlength="150">
-            <div class="invalid-feedback">Vui lòng nhập tên/mã thiết bị hợp lệ.</div>
-          </div>
-          <div class="row g-2 mb-3">
-            <div class="col-md-6">
-              <label for="device-type" class="form-label">Loại</label>
-              <select class="form-select" id="device-type" required>
-                <optgroup label="Nhóm điện">
-                  <option value="TRANSFORMER">Trạm biến áp</option>
-                  <option value="DISTRIBUTION_BOX">Tủ điện / tủ phân phối</option>
-                  <option value="ELECTRIC_POLE">Trụ điện</option>
-                  <option value="ELECTRIC_JUNCTION">Điểm nối điện</option>
-                  <option value="ELECTRIC_METER">Công tơ điện</option>
-                </optgroup>
-                <optgroup label="Nhóm nước">
-                  <option value="WATER_TANK">Bể nước</option>
-                  <option value="PUMP_STATION">Trạm bơm</option>
-                  <option value="MAIN_VALVE">Van tổng</option>
-                  <option value="BRANCH_VALVE">Van nhánh</option>
-                  <option value="WATER_JUNCTION">Điểm nối nước</option>
-                  <option value="WATER_METER">Đồng hồ nước</option>
-                </optgroup>
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label for="device-status" class="form-label">Trạng thái mạng</label>
-              <select class="form-select" id="device-status" required>
-                <option value="ACTIVE">Hoạt động</option>
-                <option value="FAULT">Lỗi trực tiếp</option>
-                <option value="MAINTENANCE">Đang bảo trì</option>
-                <option value="INACTIVE">Ngưng hoạt động</option>
-              </select>
-            </div>
-          </div>
-          <div class="row g-2 mb-3">
-            <div class="col-md-6">
-              <label for="device-parent" class="form-label">Nguồn cấp (Tùy chọn)</label>
-              <select class="form-select" id="device-parent">
-                <option value="">-- Không có --</option>
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label for="device-area" class="form-label">Khu vực</label>
-              <input type="text" class="form-control" id="device-area" placeholder="Khu vực Q1, Q2...">
-            </div>
-          </div>
-          <div class="mb-3">
-            <label for="device-address" class="form-label">Địa chỉ</label>
-            <input type="text" class="form-control" id="device-address" placeholder="Địa chỉ chi tiết...">
-          </div>
-          <div class="row g-2">
-            <div class="col-md-6">
-              <label for="device-lat" class="form-label">Vĩ độ</label>
-              <input type="number" step="any" class="form-control" id="device-lat" required>
-              <div class="invalid-feedback">Vĩ độ phải từ -90 đến 90.</div>
-            </div>
-            <div class="col-md-6">
-              <label for="device-lng" class="form-label">Kinh độ</label>
-              <input type="number" step="any" class="form-control" id="device-lng" required>
-              <div class="invalid-feedback">Kinh độ phải từ -180 đến 180.</div>
-            </div>
-          </div>
-          <p class="form-text small text-muted mt-1 mb-3">Gợi ý: mở form rồi click trên bản đồ để điền tọa độ.</p>
-          <div class="mb-3">
-            <label for="device-attributes" class="form-label">Cấu hình mở rộng (JSON tùy chọn)</label>
-            <textarea class="form-control font-monospace" id="device-attributes" rows="2" placeholder='{"chieu_cao": "10m"}'></textarea>
-            <div class="invalid-feedback">JSON không hợp lệ.</div>
-          </div>
-          <div class="form-check mb-0">
-            <input class="form-check-input" type="checkbox" id="device-active" checked>
-            <label class="form-check-label" for="device-active">Đang hoạt động</label>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-        <button type="button" class="btn btn-primary" id="device-save">Lưu</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Xác nhận xóa -->
+<!-- Xác nhận xóa thiết bị -->
 <div class="modal fade" id="delete-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -323,75 +383,6 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
         <button type="button" class="btn btn-danger" id="delete-confirm">Xóa</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal thêm / sửa tuyến mạng -->
-<div class="modal fade" id="edge-modal" data-bs-backdrop="false" tabindex="-1" aria-labelledby="edge-modal-title" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="edge-modal-title">Tuyến mạng lưới</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-      </div>
-      <div class="modal-body">
-        <div id="edge-modal-alert" class="alert alert-danger py-2 small d-none"></div>
-        <form id="edge-form">
-          <input type="hidden" id="edge-id" value="">
-          <div class="mb-3">
-            <label for="edge-name" class="form-label">Tên tuyến</label>
-            <input type="text" class="form-control" id="edge-name" required maxlength="150" placeholder="VD: Tuyến nối Trạm bơm -> Van A">
-            <div class="invalid-feedback">Vui lòng nhập tên tuyến hợp lệ.</div>
-          </div>
-          <div class="mb-3">
-            <label for="edge-code" class="form-label">Mã tuyến (Tùy chọn)</label>
-            <input type="text" class="form-control" id="edge-code" maxlength="64" placeholder="Tự sinh nếu bỏ trống">
-          </div>
-          <div class="row g-2 mb-3">
-            <div class="col-md-6">
-              <label for="edge-type" class="form-label">Loại mạng</label>
-              <select class="form-select" id="edge-type" required>
-                <option value="ELECTRIC">Điện</option>
-                <option value="WATER">Nước</option>
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label for="edge-status" class="form-label">Trạng thái</label>
-              <select class="form-select" id="edge-status" required>
-                <option value="ACTIVE">Hoạt động</option>
-                <option value="FAULT">Lỗi trực tiếp</option>
-                <option value="MAINTENANCE">Đang bảo trì</option>
-                <option value="INACTIVE">Ngưng sử dụng</option>
-              </select>
-            </div>
-          </div>
-          <div class="row g-2 mb-3">
-            <div class="col-md-6">
-              <label for="edge-from-device" class="form-label">Thiết bị đầu</label>
-              <select class="form-select" id="edge-from-device" required>
-                <option value="">-- Chọn thiết bị --</option>
-              </select>
-              <div class="invalid-feedback">Vui lòng chọn thiết bị đầu.</div>
-            </div>
-            <div class="col-md-6">
-              <label for="edge-to-device" class="form-label">Thiết bị cuối</label>
-              <select class="form-select" id="edge-to-device" required>
-                <option value="">-- Chọn thiết bị --</option>
-              </select>
-              <div class="invalid-feedback">Vui lòng chọn thiết bị cuối.</div>
-            </div>
-          </div>
-          <div class="mb-3">
-            <label for="edge-description" class="form-label">Mô tả chi tiết</label>
-            <textarea class="form-control" id="edge-description" rows="2" placeholder="Ghi chú thêm về tuyến đường dẫn..."></textarea>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-        <button type="button" class="btn btn-primary" id="edge-save">Lưu</button>
       </div>
     </div>
   </div>

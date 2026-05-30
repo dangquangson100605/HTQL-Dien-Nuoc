@@ -75,7 +75,7 @@ class IncidentStatusSyncTests(TestCase):
         self.assertTrue(history_exists)
 
     def test_incident_resolution_restores_device_status(self):
-        """Giải quyết incident -> Device trở lại ACTIVE."""
+        """Giải quyết incident -> Device trở lại ACTIVE khi đóng sự cố."""
         incident = Incident.objects.create(
             title="Sự cố rò rỉ điện",
             description="Có khói phát ra từ cột điện",
@@ -89,8 +89,16 @@ class IncidentStatusSyncTests(TestCase):
         self.device.refresh_from_db()
         self.assertEqual(self.device.status, Device.Status.FAULT)
 
-        # Giải quyết sự cố
+        # Giải quyết sự cố (RESOLVED)
         incident.status = Incident.Status.RESOLVED
+        incident.save()
+
+        # Thiết bị vẫn phải là FAULT
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.status, Device.Status.FAULT)
+
+        # Đóng sự cố (CLOSED)
+        incident.status = Incident.Status.CLOSED
         incident.save()
 
         self.device.refresh_from_db()
@@ -123,22 +131,36 @@ class IncidentStatusSyncTests(TestCase):
         self.device.refresh_from_db()
         self.assertEqual(self.device.status, Device.Status.FAULT)
 
-        # Giải quyết sự cố 1 -> Thiết bị VẪN lỗi vì sự cố 2 chưa giải quyết
+        # Giải quyết sự cố 1 (RESOLVED) -> Thiết bị VẪN lỗi vì sự cố 2 chưa giải quyết
         inc1.status = Incident.Status.RESOLVED
         inc1.save()
 
         self.device.refresh_from_db()
         self.assertEqual(self.device.status, Device.Status.FAULT)
 
-        # Giải quyết nốt sự cố 2 -> Thiết bị trở lại ACTIVE
+        # Đóng sự cố 1 -> Thiết bị VẪN lỗi vì sự cố 2 vẫn ở trạng thái lỗi (chưa giải quyết)
+        inc1.status = Incident.Status.CLOSED
+        inc1.save()
+
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.status, Device.Status.FAULT)
+
+        # Giải quyết nốt sự cố 2 (RESOLVED) -> Thiết bị VẪN lỗi vì chưa đóng
         inc2.status = Incident.Status.RESOLVED
+        inc2.save()
+
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.status, Device.Status.FAULT)
+
+        # Đóng nốt sự cố 2 -> Thiết bị trở lại ACTIVE
+        inc2.status = Incident.Status.CLOSED
         inc2.save()
 
         self.device.refresh_from_db()
         self.assertEqual(self.device.status, Device.Status.ACTIVE)
 
     def test_incident_on_network_edge(self):
-        """Tạo sự cố cho tuyến -> Tuyến chuyển sang FAULT và ngược lại."""
+        """Tạo sự cố cho tuyến -> Tuyến chuyển sang FAULT và ngược lại khi đóng sự cố."""
         self.assertEqual(self.edge.status, NetworkEdge.Status.ACTIVE)
 
         # Tạo sự cố cho Tuyến
@@ -155,8 +177,16 @@ class IncidentStatusSyncTests(TestCase):
         self.edge.refresh_from_db()
         self.assertEqual(self.edge.status, NetworkEdge.Status.FAULT)
 
-        # Giải quyết sự cố
+        # Giải quyết sự cố (RESOLVED)
         incident.status = Incident.Status.RESOLVED
+        incident.save()
+
+        # Tuyến vẫn phải là FAULT
+        self.edge.refresh_from_db()
+        self.assertEqual(self.edge.status, NetworkEdge.Status.FAULT)
+
+        # Đóng sự cố (CLOSED)
+        incident.status = Incident.Status.CLOSED
         incident.save()
 
         self.edge.refresh_from_db()
@@ -372,7 +402,7 @@ class IncidentWorkflowPermissionsTests(APITestCase):
         self.incident.refresh_from_db()
         self.assertEqual(self.incident.status, Incident.Status.RESOLVED)
         self.device.refresh_from_db()
-        self.assertEqual(self.device.status, Device.Status.ACTIVE)
+        self.assertEqual(self.device.status, Device.Status.FAULT) # Thiết bị vẫn phải là FAULT
 
         # 5. OPERATOR kiểm tra và đóng sự cố -> status = CLOSED
         self.client.force_authenticate(user=self.operator)
@@ -384,6 +414,8 @@ class IncidentWorkflowPermissionsTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.incident.refresh_from_db()
         self.assertEqual(self.incident.status, Incident.Status.CLOSED)
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.status, Device.Status.ACTIVE) # Thiết bị trở lại ACTIVE sau khi CLOSED
 
     def test_workflow_permission_violations(self):
         """Kiểm tra việc ngăn chặn hành động trái thẩm quyền."""

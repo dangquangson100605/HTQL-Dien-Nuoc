@@ -1,93 +1,81 @@
-# 🗺️ Hệ thống Quản lý Hạ tầng Điện – Nước Đô thị dựa trên Bản đồ
+# 🗺️ Hệ Thống Quản Lý Hạ Tầng Điện – Nước Đô Thị Dựa Trên Bản Đồ (Map-based Infra Manager)
 
-Hệ thống quản lý, trực quan hóa và giám sát mạng lưới hạ tầng kỹ thuật điện – nước đô thị thời gian thực trên nền bản đồ tương tác số, hỗ trợ đắc lực cho việc theo dõi, báo cáo và xử lý sự cố.
+[![Django](https://img.shields.io/badge/Django-5.x-092E20?style=for-the-badge&logo=django&logoColor=white)](https://www.djangoproject.com/)
+[![Django REST Framework](https://img.shields.io/badge/DRF-API-red?style=for-the-badge)](https://www.django-rest-framework.org/)
+[![MySQL](https://img.shields.io/badge/MySQL-Active-blue?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![SQLite](https://img.shields.io/badge/SQLite-Fallback%20%2F%20Test-lightgrey?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![Leaflet.js](https://img.shields.io/badge/Leaflet-Map-green?style=for-the-badge&logo=leaflet&logoColor=white)](https://leafletjs.com/)
+[![Bootstrap 5](https://img.shields.io/badge/Bootstrap-5.3-purple?style=for-the-badge&logo=bootstrap&logoColor=white)](https://getbootstrap.com/)
 
----
-
-## 🚀 1. Giới thiệu Hệ thống
-
-Dự án được phát triển dưới dạng một ứng dụng **Django Monolith** tích hợp bản đồ số để hỗ trợ quản lý và vận hành toàn diện hạ tầng kỹ thuật điện và nước trong khu vực đô thị. Giao diện trực quan cho phép các bên liên quan từ Quản trị viên, Nhân viên vận hành, Kỹ thuật viên bảo trì cho đến Người dân đô thị có thể tương tác trực tiếp với các thực thể hạ tầng (trạm biến áp, tủ điện, bể nước, tuyến ống dẫn, cột điện...) và phối hợp xử lý sự cố nhanh chóng, hiệu quả.
-
----
-
-## 🛠️ 2. Công nghệ Sử dụng
-
-Hệ thống được phát triển dựa trên các công nghệ cốt lõi hiện đại, tối ưu hiệu năng và khả năng bảo mật:
-
-* **Backend Framework**: `Django` (Python) mạnh mẽ, an toàn và có cấu trúc chặt chẽ.
-* **API Engine**: `Django REST Framework (DRF)` cung cấp hệ thống API chuẩn RESTful.
-* **Xác thực (Authentication)**: `JWT SimpleJWT` (JSON Web Token) kết hợp duy trì `Django Session` song song, bảo vệ nghiêm ngặt các endpoints và views.
-* **Frontend Rendering**: `Django Templates` tích hợp công cụ thiết kế giao diện linh hoạt.
-* **Styling & UI**: `Bootstrap 5` và `Vanilla CSS` mang lại trải nghiệm responsive mượt mà và giao diện premium.
-* **Logic điều khiển**: `Vanilla JavaScript` (ES6+) thuần giúp tối ưu tốc độ tải trang.
-* **Bản đồ tương tác**: Thư viện mã nguồn mở `Leaflet.js` hiển thị dữ liệu địa lý trên nền bản đồ `OpenStreetMap`.
-* **Cơ sở dữ liệu**: `SQLite` (cực kỳ gọn nhẹ cho môi trường thử nghiệm và phát triển local).
+> Giải pháp toàn diện cho việc giám sát, trực quan hóa mạng lưới hạ tầng kỹ thuật điện – nước và quản lý, điều phối xử lý sự cố đô thị theo thời gian thực trên nền bản đồ số tương tác.
 
 ---
 
-## 🔑 3. Chức năng Chính của Hệ thống
+## 🚀 1. Tổng Quan Hệ Thống
 
-Hệ thống cung cấp một quy trình khép kín từ quản lý hạ tầng đến giải quyết các vấn đề phát sinh:
-
-1. **Đăng nhập và phân quyền (RBAC)**:
-   * Phân quyền chặt chẽ cho 4 vai trò chính:
-     * 👑 **ADMIN (Quản trị viên)**: CRUD đầy đủ tất cả tài nguyên, quản lý người dùng, nhập/xuất CSV dữ liệu thiết bị, và phân công xử lý sự cố.
-     * 🏢 **OPERATOR (Vận hành viên)**: Theo dõi bản đồ hạ tầng, quản lý tuyến mạng lưới, kiểm tra báo cáo và phân công kỹ thuật viên.
-     * 🛠️ **TECHNICIAN (Kỹ thuật viên)**: Xem danh sách sự cố được giao hoặc sự cố mở, thêm ghi chú tiến độ sửa chữa, và cập nhật trạng thái sự cố.
-     * 👥 **CITIZEN (Người dân)**: Xem bản đồ công cộng, tạo báo cáo sự cố trực tiếp từ vị trí bất kỳ trên bản đồ, và theo dõi tiến trình sự cố của chính mình.
-2. **Quản lý thiết bị hạ tầng (Device Management)**:
-   * Quản lý thông tin chi tiết của 11 loại thiết bị thuộc 2 nhóm chính:
-     * *Nhóm Điện*: Trạm biến áp (`TRANSFORMER`), Tủ phân phối (`DISTRIBUTION_BOX`), Trụ điện (`ELECTRIC_POLE`), Điểm nối điện (`ELECTRIC_JUNCTION`), Công tơ điện (`ELECTRIC_METER`).
-     * *Nhóm Nước*: Bể nước (`WATER_TANK`), Trạm bơm (`PUMP_STATION`), Van tổng (`MAIN_VALVE`), Van nhánh (`BRANCH_VALVE`), Điểm nối nước (`WATER_JUNCTION`), Đồng hồ nước (`WATER_METER`).
-3. **Quản lý tuyến truyền dẫn (NetworkEdge Management)**:
-   * Quản lý các tuyến mạng dây dẫn điện hoặc ống dẫn nước kết nối giữa các thiết bị (`from_device` và `to_device`).
-   * Ràng buộc nghiệp vụ tự động ngăn chặn tuyến tự nối hoặc trùng lặp hướng kết nối.
-4. **Hiển thị hạ tầng trực quan trên Bản đồ**:
-   * Trực quan hóa thiết bị bằng các biểu tượng icon chuyên biệt thay đổi màu sắc theo trạng thái hoạt động thực tế.
-   * Vẽ mạng lưới tuyến truyền dẫn bằng các đường polyline sinh động (Màu vàng/cam cho Điện, Màu xanh dương cho Nước).
-5. **Báo cáo sự cố từ Bản đồ (Incident Reporting)**:
-   * Cho phép người dân click trực tiếp vào một thiết bị, một tuyến truyền dẫn, hoặc bất kỳ điểm trống nào trên bản đồ để kích hoạt biểu mẫu báo cáo sự cố (`target_type = DEVICE / EDGE / UNKNOWN`), tự động thu thập tọa độ và địa chỉ liên quan.
-6. **Luồng xử lý và phân công sự cố (Incident Workflow)**:
-   * Vòng đời sự cố tiêu chuẩn: `OPEN` (Mới tạo) -> `ASSIGNED` (Đã phân công kỹ thuật viên) -> `IN_PROGRESS` (Đang xử lý) -> `RESOLVED` (Đã giải quyết thành công) -> `CLOSED` (Đã đóng phiếu).
-   * Tự động thay đổi trạng thái thiết bị/tuyến liên kết thành `FAULT` (lỗi) khi có sự cố hoạt động và khôi phục thành `ACTIVE` (bình thường) khi sự cố đã được sửa xong.
-7. **Theo dõi trạng thái và giám sát chỉ số**:
-   * Dashboard cung cấp các biểu đồ thống kê KPI trực quan (Chart.js) về cơ cấu trạng thái sự cố, mức độ nghiêm trọng, và xu hướng phát sinh sự cố trong 7 ngày gần nhất.
-   * Tra cứu lịch sử tiêu thụ điện/nước của các thiết bị đo lường (`ConsumptionLog`).
+Dự án được xây dựng dưới dạng **Django Monolith** kết hợp kiến trúc API RESTful mạnh mẽ để quản lý mạng lưới thiết bị và tuyến truyền dẫn trong đô thị. Ứng dụng cung cấp các công cụ trực quan hóa địa lý trên bản đồ tương tác số, hỗ trợ đắc lực cho quy trình báo cáo sự cố từ người dân đến quy trình tiếp nhận, phê duyệt và điều phối sửa chữa của các cấp quản trị.
 
 ---
 
-## 🚫 4. Phạm vi Đề tài (Project Scope)
+## 🛠️ 2. Công Nghệ Sử Dụng
 
-Trong khuôn khổ môn học **Quản lý Dự án CNTT**, để đảm bảo tính thực tiễn, tối ưu thời gian phát triển và tập trung giải quyết xuất sắc các yêu cầu nghiệp vụ cốt lõi, hệ thống **không thực hiện** các tính năng phân tích nâng cao sau:
-
-* 🛑 **Lan truyền ảnh hưởng downstream (Downstream propagation)**: Khi một thiết bị hay tuyến ở thượng nguồn bị lỗi, hệ thống chỉ cập nhật trạng thái lỗi của đúng đối tượng đó mà không tự động lan truyền để đổi trạng thái hàng loạt các thiết bị phía hạ lưu.
-* 🛑 **Duyệt đồ thị nâng cao (BFS/DFS graph traversal)**: Không áp dụng các thuật toán duyệt đồ thị mạng lưới để phân tích đường đi hay tìm điểm nghẽn tự động.
-* 🛑 **Real-time WebSocket**: Cập nhật trạng thái thông qua các tương tác AJAX/REST API và cơ chế làm mới UI linh hoạt thay vì duy trì các kết nối WebSocket thời gian thực liên tục.
-* 🛑 **Bản đồ nhiệt mật độ sự cố (Heatmap)**: Chưa hỗ trợ tính năng hiển thị bản đồ nhiệt mật độ sự cố theo không gian địa lý.
-* 🛑 **CSDL Không gian PostGIS**: Lưu trữ dữ liệu tọa độ kinh/vĩ độ trực tiếp dưới dạng số thực float chuẩn hóa trong SQLite thay vì cài đặt và cấu hình hệ quản trị cơ sở dữ liệu không gian PostGIS phức tạp.
-* 🛑 **AI dự đoán sự cố**: Không tích hợp các thuật toán trí tuệ nhân tạo hoặc học máy để phân tích dữ liệu lịch sử nhằm dự đoán trước các điểm có nguy cơ hỏng hóc.
-
----
-
-## 📈 5. Hướng Phát triển Tương lai
-
-Khi dự án được mở rộng ra quy mô thực tế, các hướng phát triển tiếp theo bao gồm:
-
-1. **Tự động phân tích phạm vi ảnh hưởng**: Phát triển dịch vụ phân tích cấu trúc cây hạ tầng để tự động cảnh báo danh sách các hộ dân ở hạ lưu sẽ bị mất điện/nước khi một trạm biến áp hay van tổng thượng nguồn gặp sự cố.
-2. **Tối ưu bản đồ với dữ liệu lớn**: Tích hợp thư viện `Leaflet.markercluster` giúp gom nhóm hàng ngàn thiết bị trên bản đồ khi thu nhỏ, tránh hiện tượng giật lag trình duyệt.
-3. **Thông báo thời gian thực**: Sử dụng `Django Channels` và `WebSockets` để đẩy thông báo sự cố mới ngay lập tức tới điện thoại hay trình duyệt của nhân viên kỹ thuật và vận hành.
-4. **Heatmap sự cố**: Sử dụng plugin `Leaflet.heat` trực quan hóa các khu vực "nóng" thường xuyên xảy ra sự cố điện/nước nhằm hỗ trợ lên kế hoạch nâng cấp hạ tầng chủ động.
-5. **Cơ sở dữ liệu không gian PostGIS**: Chuyển đổi cơ sở dữ liệu sang PostgreSQL + PostGIS và sử dụng thư viện GeoDjango để tối ưu hóa các truy vấn không gian địa lý phức tạp.
+* **Backend Engine**: `Django` (Python 3.x) & `Django REST Framework` (API chuẩn RESTful).
+* **Authentication**: `SimpleJWT` (JWT) kết hợp `Django Session` song song, bảo mật chặt chẽ bằng cơ chế phân quyền dựa trên vai trò (RBAC).
+* **Frontend UI**: `Bootstrap 5`, `Vanilla CSS` cao cấp & `SweetAlert2` cho các hộp thoại thông báo mượt mà.
+* **Map Visualization**: `Leaflet.js` hiển thị bản đồ địa lý dựa trên nguồn dữ liệu mở `OpenStreetMap`.
+* **Database Engine**:
+  * 🗄️ **MySQL (Mặc định)**: Lưu trữ dữ liệu chính thức cho toàn bộ ứng dụng local/production.
+  * 💾 **SQLite (Dự phòng / Chạy Test)**: Dành riêng cho môi trường chạy Unit Tests tự động hoặc chế độ chạy nhanh gọn nhẹ không cần cài đặt MySQL.
 
 ---
 
-## 🏃 6. Hướng dẫn Chạy Dự án (Local Setup Guide)
+## 🔑 3. Các Tính Năng Cốt Lõi & Phân Quyền (RBAC)
 
-Hãy làm theo các bước dưới đây để khởi động nhanh dự án trong môi trường phát triển local:
+Hệ thống được thiết kế bảo mật chặt chẽ với 4 nhóm vai trò cốt lõi sở hữu quyền hạn nghiệp vụ riêng biệt:
 
-### Bước 1: Chuẩn bị mã nguồn và Tạo môi trường ảo
-Mở terminal tại thư mục gốc của dự án và chạy lệnh:
+### 👑 Quản trị viên (ADMIN)
+* **Quản trị toàn quyền**: CRUD toàn bộ tài nguyên hệ thống (Người dùng, Thiết bị, Tuyến dẫn, Sự cố).
+* **Quản lý tài khoản**: Phê duyệt, phân quyền, khóa tài khoản chống Brute-force.
+* **Xuất nhập dữ liệu**: Nhập/xuất dữ liệu thiết bị, tuyến dẫn qua file CSV chất lượng cao.
+* **Điều phối sự cố**: Tiếp nhận và phân công kỹ thuật viên xử lý các sự cố mới.
 
+### 🏢 Nhân viên vận hành (OPERATOR)
+* **Giám sát hạ tầng**: Xem bản đồ tương tác toàn bộ mạng lưới (Điện và Nước) theo thời gian thực.
+* **Phân công sửa chữa**: Chỉ định trực tiếp `TECHNICIAN` xử lý sự cố.
+* **Phê duyệt sự cố**: Chuyển trạng thái sự cố từ Chờ xác minh (`PENDING_VERIFY`) sang Xác nhận (`CONFIRMED`) hoặc Từ chối (`REJECTED`) kèm lý do rõ ràng.
+
+### 🛠️ Kỹ thuật viên (TECHNICIAN)
+* **Nhận nhiệm vụ**: Xem danh sách sự cố được phân công riêng cho bản thân.
+* **Cập nhật tiến độ**: Chuyển trạng thái sự cố sang Đang xử lý (`IN_PROGRESS`) và báo cáo hoàn thành (`RESOLVED`).
+* **Ghi chú kỹ thuật**: Thêm nhật ký xử lý chi tiết (`IncidentNote`) tại hiện trường.
+
+### 👥 Người dân đô thị (CITIZEN)
+* **Bản đồ công cộng**: Xem bản đồ hạ tầng đô thị mở rộng.
+* **Báo cáo sự cố**: Click trực tiếp vào một điểm bất kỳ trên bản đồ để gửi báo cáo sự cố (hệ thống tự lấy tọa độ và địa chỉ địa lý).
+* **Tra cứu công cộng**: Tra cứu lịch sử tiêu thụ điện – nước 12 tháng gần nhất thông qua mã công tơ/đồng hồ (`lookup.html`).
+
+---
+
+## 🚦 4. Quy Trình Vòng Đời Sự Cố (Incident Workflow)
+
+Sự cố hạ tầng tuân thủ nghiêm ngặt quy trình chuyển đổi trạng thái (State Transition Machine):
+
+```
+[Người dân]                   [Vận hành viên]               [Kỹ thuật viên]            [Vận hành viên]
+Báo sự cố  ──> PENDING_VERIFY ──> CONFIRMED ──> ASSIGNED ──> IN_PROGRESS ──> RESOLVED ──> CLOSED
+                     │              │
+                     └─────── Từ chối ──> REJECTED
+```
+
+* 🔔 **Signals Tự Động**: Khi sự cố được tạo/phân công/xử lý, hệ thống tự động bắn thông báo (`Notification`) tới các tài khoản liên quan và ghi lại lịch sử thay đổi trạng thái (`IncidentHistory`).
+* ⚡ **Đồng Bộ Trạng Thái Thiết Bị**: Khi có sự cố hoạt động, thiết bị hoặc tuyến dẫn liên quan tự động chuyển sang trạng thái lỗi (`FAULT`) và tự động phục hồi về hoạt động bình thường (`ACTIVE`) ngay khi sự cố chính thức đóng (`CLOSED`).
+
+---
+
+## 🏃 5. Hướng Dẫn Cài Đặt & Chạy Dự Án (Local Setup)
+
+### Bước 1: Chuẩn bị mã nguồn và Môi trường ảo
+Mở terminal tại thư mục gốc của dự án và chạy:
 ```bash
 # Tạo môi trường ảo python
 python -m venv venv
@@ -95,55 +83,83 @@ python -m venv venv
 # Kích hoạt môi trường ảo
 # Trên Windows (PowerShell):
 venv\Scripts\Activate.ps1
-# Hoặc trên Windows (CMD):
-venv\Scripts\activate.bat
 # Trên macOS / Linux:
 source venv/bin/activate
 ```
 
-### Bước 2: Cài đặt các thư viện phụ thuộc
-Cài đặt tất cả thư viện cần thiết được ghi nhận trong file `requirements.txt`:
-
+### Bước 2: Cài đặt thư viện phụ thuộc
 ```bash
 pip install -r requirements.txt
 ```
 
-### Bước 3: Thực hiện đồng bộ Cơ sở dữ liệu (Migration)
-Khởi tạo cấu trúc bảng dữ liệu trên SQLite:
+### Bước 3: Cấu hình Cơ sở dữ liệu (MySQL hoặc SQLite)
 
-```bash
-python manage.py migrate
-```
+Dự án hỗ trợ chạy song song 2 cơ chế cơ sở dữ liệu cực kỳ linh hoạt:
 
-### Bước 4: Tạo tài khoản Quản trị viên (Superuser)
-Tạo tài khoản quản trị tối cao để đăng nhập vào trang admin và ứng dụng:
+#### 🔹 Lựa chọn A: Sử dụng MySQL (Môi trường mặc định của dự án)
+1. Hãy đảm bảo bạn đã khởi động máy chủ MySQL (ví dụ qua XAMPP, Laragon hoặc Docker).
+2. Tạo một database mới tên là `qlda_db` trong MySQL:
+   ```sql
+   CREATE DATABASE qlda_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   ```
+3. Chạy lệnh đồng bộ bảng dữ liệu:
+   ```bash
+   python manage.py migrate
+   ```
 
+#### 🔹 Lựa chọn B: Sử dụng SQLite (Môi trường gọn nhẹ / Test nhanh)
+1. Thiết lập biến môi trường `USE_SQLITE=True` trên terminal:
+   * **Windows (PowerShell)**: `$env:USE_SQLITE="True"`
+   * **Windows (CMD)**: `set USE_SQLITE=True`
+   * **macOS / Linux**: `export USE_SQLITE=True`
+2. Chạy lệnh đồng bộ bảng dữ liệu (Django sẽ tự tạo file `db.sqlite3` trong thư mục gốc):
+   ```bash
+   python manage.py migrate
+   ```
+
+### Bước 4: Tạo tài khoản Quản trị tối cao (Superuser)
 ```bash
 python manage.py createsuperuser
 ```
-*(Làm theo hướng dẫn nhập Username, Email và Mật khẩu)*
+*(Nhập các thông tin Username, Email và Mật khẩu theo chỉ dẫn)*
 
 ### Bước 5: Khởi động máy chủ phát triển
-Chạy máy chủ local của Django:
-
 ```bash
 python manage.py runserver
 ```
-Truy cập ứng dụng tại địa chỉ: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+Truy cập ứng dụng ngay tại địa chỉ: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
 
 ---
 
-## 👥 7. Tài khoản Thử nghiệm (Demo Accounts)
+## 👥 6. Tài Khoản Thử Nghiệm Tích Hợp Sẵn (Demo Accounts)
 
-Hệ thống lưu trữ sẵn cơ sở dữ liệu SQLite local có tích hợp sẵn các tài khoản demo tương ứng với từng vai trò. Bạn có thể sử dụng các thông tin đăng nhập sau để kiểm thử hệ thống:
+Hệ thống đã chuẩn bị sẵn cơ sở dữ liệu mẫu chứa các tài khoản đại diện cho từng vai trò kiểm thử:
 
-| Vai trò | Tên đăng nhập (Username) | Mật khẩu (Password) | Quyền hạn đặc trưng |
+| Vai trò | Tên đăng nhập | Mật khẩu | Quyền hạn đặc trưng |
 | :--- | :--- | :--- | :--- |
-| **Quản trị viên (ADMIN)** | `admin` | `admin123` | Toàn quyền cấu hình, CRUD thiết bị/tuyến mạng, phân công kỹ thuật viên. |
-| **Nhân viên vận hành (OPERATOR)** | `operator` | `operator123` | Giám sát bản đồ hạ tầng, điều phối và phân công kỹ thuật viên xử lý sự cố. |
-| **Kỹ thuật viên (TECHNICIAN)** | `technician` | `technician123` | Tiếp nhận sự cố được giao, cập nhật tiến trình sửa chữa, thêm ghi chú kỹ thuật. |
-| **Người dân (CITIZEN)** | `citizen` | `citizen123` | Xem bản đồ hạ tầng công cộng, gửi báo cáo sự cố tại vị trí bất kỳ, theo dõi tiến độ sự cố của mình. |
+| **👑 ADMIN** | `admin` | `admin123` | Toàn quyền cấu hình, CRUD thiết bị/tuyến mạng, phân công kỹ thuật viên. |
+| **🏢 OPERATOR** | `operator` | `operator123` | Giám sát bản đồ hạ tầng, phê duyệt/từ chối sự cố, phân công kỹ thuật viên. |
+| **🛠️ TECHNICIAN** | `technician` | `technician123` | Tiếp nhận sự cố được giao, cập nhật tiến trình sửa chữa, viết ghi chú kỹ thuật. |
+| **👥 CITIZEN** | `citizen` | `citizen123` | Xem bản đồ hạ tầng công cộng, tạo báo cáo sự cố tự động, tra cứu lịch sử tiêu thụ. |
 
 ---
 
-*Dự án được thực hiện bởi Nhóm 2 - Môn học Quản lý Dự án CNTT.*
+## 🧪 7. Kiểm Thử Tự Động (Automated Testing)
+
+Chất lượng mã nguồn của dự án được đảm bảo bởi bộ kiểm thử tự động toàn diện bao quát các trường hợp phân quyền API, đồng bộ trạng thái thiết bị và các ràng buộc nghiệp vụ:
+
+* **Lệnh chạy bộ kiểm thử**:
+  ```bash
+  python manage.py test
+  ```
+* **Kết quả rà soát hiện tại**:
+  ```text
+  Ran 37 tests in 21.697s
+
+  OK
+  ```
+  *(Tất cả 37 bài test tự động bao phủ 2 Module `assets` và `incidents` đều vượt qua thành công với kết quả OK)*
+
+---
+
+*Hệ thống được phát triển và tối ưu hóa bởi Nhóm 2 - Môn học Quản lý Dự án CNTT.*

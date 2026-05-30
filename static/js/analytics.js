@@ -131,8 +131,24 @@
   }
 
   /* ── Labels & Colors ─────────────────────────────────────────────── */
-  const STATUS_LABELS = { OPEN: 'Mới', ASSIGNED: 'Phân công', IN_PROGRESS: 'Đang xử lý', RESOLVED: 'Đã xử lý', CLOSED: 'Đóng' };
-  const STATUS_COLORS = { OPEN: '#ef4444', ASSIGNED: '#f59e0b', IN_PROGRESS: '#0ea5e9', RESOLVED: '#22c55e', CLOSED: '#94a3b8' };
+  const STATUS_LABELS = {
+    PENDING_VERIFY: 'Chờ xác minh',
+    CONFIRMED: 'Đã xác nhận',
+    ASSIGNED: 'Đã phân công',
+    IN_PROGRESS: 'Đang xử lý',
+    RESOLVED: 'Đã xử lý',
+    CLOSED: 'Đã đóng',
+    REJECTED: 'Từ chối'
+  };
+  const STATUS_COLORS = {
+    PENDING_VERIFY: '#f59e0b',
+    CONFIRMED: '#ef4444',
+    ASSIGNED: '#3b82f6',
+    IN_PROGRESS: '#0ea5e9',
+    RESOLVED: '#22c55e',
+    CLOSED: '#94a3b8',
+    REJECTED: '#64748b'
+  };
   const SEV_LABELS   = { LOW: 'Thấp', MEDIUM: 'Trung bình', HIGH: 'Cao', CRITICAL: 'Khẩn cấp' };
   const SEV_COLORS   = { LOW: '#22c55e', MEDIUM: '#f59e0b', HIGH: '#ef4444', CRITICAL: '#7f1d1d' };
   const TYPE_LABELS  = { ELECTRIC: '⚡ Điện', WATER: '💧 Nước', OTHER: '🔧 Khác' };
@@ -143,7 +159,7 @@
     const { total, by_status, by_severity, by_type, resolved_count, resolution_rate } = summary;
 
     document.getElementById('stat-total').textContent = total;
-    const openCount = (by_status.OPEN || 0) + (by_status.ASSIGNED || 0);
+    const openCount = (by_status.PENDING_VERIFY || 0) + (by_status.CONFIRMED || 0) + (by_status.ASSIGNED || 0) + (by_status.IN_PROGRESS || 0);
     document.getElementById('stat-open').textContent = openCount;
     document.getElementById('stat-resolved').textContent = resolved_count;
     document.getElementById('stat-rate').textContent = resolution_rate + '%';
@@ -227,7 +243,15 @@
     }
 
     const SEV_BADGE = { LOW: 'bg-success', MEDIUM: 'bg-warning text-dark', HIGH: 'bg-danger', CRITICAL: 'bg-dark' };
-    const STA_BADGE = { OPEN: 'bg-danger', ASSIGNED: 'bg-warning text-dark', IN_PROGRESS: 'bg-info text-dark', RESOLVED: 'bg-success', CLOSED: 'bg-secondary' };
+    const STA_BADGE = {
+      PENDING_VERIFY: 'bg-warning text-dark',
+      CONFIRMED: 'bg-danger',
+      ASSIGNED: 'bg-primary',
+      IN_PROGRESS: 'bg-info text-dark',
+      RESOLVED: 'bg-success',
+      CLOSED: 'bg-secondary',
+      REJECTED: 'bg-dark'
+    };
 
     tbody.innerHTML = results.map(inc => {
       const created = new Date(inc.created_at).toLocaleDateString('vi-VN');

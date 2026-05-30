@@ -43,9 +43,9 @@ class IncidentViewSet(viewsets.ModelViewSet):
         # Citizen chỉ xem sự cố của mình
         if user.role == 'CITIZEN':
             qs = qs.filter(reported_by=user)
-        # Technician chỉ xem sự cố được phân công cho mình + sự cố mở
+        # Technician chỉ xem sự cố được phân công cho mình
         elif user.role == 'TECHNICIAN':
-            qs = qs.filter(Q(assigned_to=user) | Q(status='PENDING_VERIFY'))
+            qs = qs.filter(assigned_to=user)
 
         # Lọc theo query params
         status_filter = self.request.query_params.get('status')
