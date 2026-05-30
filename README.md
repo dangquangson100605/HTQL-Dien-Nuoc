@@ -123,7 +123,14 @@ python manage.py createsuperuser
 ```
 *(Nhập các thông tin Username, Email và Mật khẩu theo chỉ dẫn)*
 
-### Bước 5: Khởi động máy chủ phát triển
+### Bước 5: Nạp dữ liệu cơ sở dữ liệu mẫu (Import Sample Database Data)
+Dự án đã đi kèm sẵn một bộ dữ liệu mẫu vô cùng đầy đủ (bao gồm mạng lưới thiết bị, các tuyến mạng truyền dẫn mẫu và toàn bộ các tài khoản thử nghiệm cho từng vai trò) trong file `data.json`. Chạy lệnh sau để nạp nhanh toàn bộ dữ liệu này:
+```bash
+python manage.py loaddata data.json
+```
+*(Lưu ý: Lệnh này hoạt động hoàn hảo trên cả môi trường MySQL và SQLite, giúp bạn sẵn sàng chạy thử nghiệm ứng dụng với đầy đủ tài nguyên trực quan ngay lập tức!)*
+
+### Bước 6: Khởi động máy chủ phát triển
 ```bash
 python manage.py runserver
 ```
