@@ -81,11 +81,18 @@ PM-Group-2/
 * **`User` (Kế thừa từ `AbstractUser`)**:
   * `role`: Lựa chọn vai trò RBAC (`ADMIN` - Quản trị viên, `OPERATOR` - Vận hành viên, `TECHNICIAN` - Kỹ thuật viên, `CITIZEN` - Người dân).
   * `failed_login_attempts`: Bộ đếm số lần đăng nhập sai (tự động khóa ở lần thứ 5).
+  * `managed_wards`: Phân quyền khu vực quản lý (phường/xã Đà Nẵng). `OPERATOR` và `TECHNICIAN` chỉ được phép thao tác dữ liệu thuộc các phường/xã này. `ADMIN` để trống có nghĩa là toàn thành phố.
 * **`AuditLog`**:
   * Tự động lưu nhật ký sửa đổi dữ liệu qua API.
   * Các trường: `user`, `action` (POST, PUT, DELETE, v.v.), `path` (endpoint API), `ip_address`, `timestamp`, `details` (dữ liệu thay đổi dạng JSON).
 
 ### 🔌 2.2 Module `assets` (Thiết bị hạ tầng & Tuyến nối)
+* **`Ward` (Đơn vị hành chính cấp Phường/Xã Đà Nẵng)**:
+  * `code`: Mã duy nhất.
+  * `name` / `short_name`: Tên đầy đủ và tên ngắn gọn.
+  * `district`: Quận/Huyện phụ thuộc (Hải Châu, Thanh Khê, Sơn Trà, Ngũ Hành Sơn, Liên Chiểu, Cẩm Lệ, Hòa Vang).
+  * `unit_type`: Loại đơn vị hành chính (`PHUONG` hoặc `XA`).
+  * `latitude` / `longitude`: Tọa độ tâm địa lý phục vụ định vị bản đồ.
 * **`Device`**:
   * `code`: Mã thiết bị duy nhất.
   * `name`: Tên thiết bị.
@@ -95,6 +102,16 @@ PM-Group-2/
   * `latitude` / `longitude`: Tọa độ vị trí địa lý của thiết bị trên bản đồ.
   * `status`: Trạng thái mạng (`ACTIVE` - Hoạt động, `FAULT` - Lỗi trực tiếp, `MAINTENANCE` - Đang bảo trì, `INACTIVE` - Ngưng hoạt động).
   * `is_active`: Đồng bộ legacy (True ứng với `ACTIVE`, False ứng với các trạng thái khác).
+  * `ward`: Liên kết tới Phường/Xã của Đà Nẵng để áp dụng phân quyền vùng địa lý.
+  * `area`: Tự động đồng bộ tên đầy đủ của Phường/Xã khi lưu (`Ward.full_label`).
+  * **Các trường phân công bảo trì thiết bị (Device Maintenance Assignment & Workflow)**:
+    * `maintenance_assigned_to`: Kỹ thuật viên (KTV) phụ trách chính.
+    * `maintenance_assigned_technicians`: Nhóm các KTV tham gia bảo trì thiết bị.
+    * `maintenance_assigned_by`: Người phân công (Operator / Admin).
+    * `maintenance_note` / `maintenance_assigned_at`: Nội dung dặn dò và thời điểm phân công.
+    * `maintenance_acknowledged_at` / `maintenance_acknowledged_by`: Thời gian & KTV xác nhận tiếp nhận việc.
+    * `maintenance_completed_at` / `maintenance_completed_by`: Thời gian & KTV báo cáo hoàn thành bảo trì.
+    * `maintenance_result_note`: Ghi chú kết quả hoàn tất công tác bảo trì thiết bị.
 * **`NetworkEdge`** (Tuyến truyền dẫn kết nối 2 thiết bị):
   * `code`: Tự động sinh `EDGE_fromDeviceID_toDeviceID`.
   * `network_type`: `ELECTRIC` hoặc `WATER`.
@@ -112,10 +129,17 @@ PM-Group-2/
   * `severity`: `LOW` (Thấp), `MEDIUM` (Trung bình), `HIGH` (Cao), `CRITICAL` (Khẩn cấp).
   * `status`: `PENDING_VERIFY` (Chờ xác minh), `CONFIRMED` (Xác nhận), `ASSIGNED` (Đã phân công), `IN_PROGRESS` (Đang xử lý), `RESOLVED` (Đã giải quyết), `CLOSED` (Đã đóng), `REJECTED` (Từ chối).
   * `target_type`: Xác định đích sự cố là Thiết bị (`DEVICE`), Tuyến mạng (`EDGE`) hoặc Chưa xác định (`UNKNOWN`).
-  * Khóa ngoại: `device` (nếu có), `edge` (nếu có), `reported_by` (người dân báo cáo), `confirmed_by` (nhân viên xác nhận), `assigned_to` (kỹ thuật viên xử lý).
+  * `rejection_reason` / `result_note`: Lý do từ chối báo cáo hoặc Ghi chú báo cáo kết quả hoàn thành.
+  * `resolved_at`: Thời điểm sự cố được xử lý xong.
+  * `ward`: Liên kết địa chính cấp Phường/Xã Đà Nẵng hỗ trợ định vị và phân quyền tác vụ.
+  * `area`: Tự động đồng bộ khi lưu theo Ward.
+  * Khóa ngoại: `device` (nếu có), `edge` (nếu có), `reported_by` (người dân báo cáo), `confirmed_by` (nhân viên xác nhận), `assigned_to` (KTV phụ trách chính), `assigned_technicians` (tập hợp tổ KTV thực hiện xử lý sự cố).
 * **`IncidentNote`**: Lưu các ghi chú cập nhật tiến trình của Kỹ thuật viên hiện trường.
-* **`Notification`**: Hộp thư thông báo trong ứng dụng cho người dùng khi trạng thái sự cố có sự thay đổi.
+* **`Notification`**: Hộp thư thông báo trong ứng dụng cho người dùng khi trạng thái sự cố có sự thay đổi hoặc khi có lịch phân công bảo trì thiết bị.
 * **`IncidentHistory`**: Nhật ký tự động ghi lại từng bước chuyển dịch trạng thái của sự cố.
+* **`SystemJournal` (Nhật ký vận hành tập trung)**:
+  * Theo dõi lịch trình phân công, xác nhận, chuyển đổi trạng thái và ghi chú của toàn bộ các sự cố và công việc bảo trì hạ tầng hệ thống. Chỉ cho phép ADMIN truy xuất và giám sát tổng quan.
+  * Các trường: `actor`, `actor_username`, `category` (`INCIDENT`, `MAINTENANCE`, `SYSTEM`), `action` (`JOB_ASSIGNED`, `JOB_ACKNOWLEDGED`, `WORK_COMPLETED`, `OPERATOR_CONFIRMED`, `STATUS_CHANGED`, `NOTE_ADDED`), `summary`, `details` (dữ liệu JSON), `incident`, `device`, `created_at`.
 
 ---
 
