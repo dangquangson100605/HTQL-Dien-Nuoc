@@ -2,6 +2,7 @@ from django.contrib.auth import login as django_login
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from assets.models import Ward
 from .models import User, AuditLog
 
 
@@ -29,26 +30,80 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    managed_ward_ids = serializers.SerializerMethodField()
+    managed_ward_names = serializers.SerializerMethodField()
+    managed_ward_ids_write = serializers.PrimaryKeyRelatedField(
+        source='managed_wards',
+        many=True,
+        queryset=Ward.objects.filter(is_active=True),
+        required=False,
+        write_only=True,
+    )
+
     class Meta:
         model = User
-        fields = ["id", "username", "email", "role", "password", "is_active"]
+        fields = [
+            "id", "username", "email", "role", "password", "is_active",
+            "managed_ward_ids", "managed_ward_names", "managed_ward_ids_write",
+        ]
         extra_kwargs = {"password": {"write_only": True, "required": False}}
+
+    def get_managed_ward_ids(self, obj):
+        return list(obj.managed_wards.values_list('id', flat=True))
+
+    def get_managed_ward_names(self, obj):
+        return [w.name for w in obj.managed_wards.all()]
+
+    def to_internal_value(self, data):
+        if isinstance(data, dict) and 'managed_ward_ids' in data and 'managed_ward_ids_write' not in data:
+            data = data.copy()
+            data['managed_ward_ids_write'] = data['managed_ward_ids']
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        role = attrs.get('role', getattr(self.instance, 'role', None))
+        wards = attrs.get('managed_wards')
+
+        if role in (User.Role.OPERATOR, User.Role.TECHNICIAN):
+            if wards is not None:
+                effective = wards
+            elif self.instance is not None and self.instance.role == role:
+                effective = list(self.instance.managed_wards.all())
+            else:
+                effective = []
+            if not effective:
+                raise serializers.ValidationError({
+                    'managed_ward_ids': 'Nhân viên vận hành / KTV phải được phân ít nhất một phường/xã.',
+                })
+        return attrs
 
     def create(self, validated_data):
         password = validated_data.pop("password", None)
+        wards = validated_data.pop("managed_wards", [])
+        role = validated_data.get('role', User.Role.CITIZEN)
         if not password:
             raise serializers.ValidationError({"password": "Mật khẩu là bắt buộc khi tạo tài khoản."})
+        if role in (User.Role.ADMIN, User.Role.CITIZEN):
+            wards = []
         user = super().create(validated_data)
         user.set_password(password)
         user.save()
+        if wards:
+            user.managed_wards.set(wards)
         return user
 
     def update(self, instance, validated_data):
         password = validated_data.pop("password", None)
+        wards = validated_data.pop("managed_wards", None)
+        new_role = validated_data.get('role', instance.role)
         user = super().update(instance, validated_data)
         if password:
             user.set_password(password)
             user.save()
+        if new_role in (User.Role.ADMIN, User.Role.CITIZEN):
+            user.managed_wards.clear()
+        elif wards is not None:
+            user.managed_wards.set(wards)
         return user
 
 

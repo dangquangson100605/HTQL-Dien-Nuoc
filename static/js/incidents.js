@@ -28,7 +28,34 @@
   const statusModal = new bootstrap.Modal(document.getElementById('statusModal'));
 
   let cachedDevices = [];
+  let cachedWardList = [];
   let cachedEdges = [];
+  let assignModalTechs = [];
+
+  function incidentTechnicianUsernames(inc) {
+    const list = inc.assigned_technician_usernames || [];
+    if (list.length) return list;
+    return inc.assigned_to_username ? [inc.assigned_to_username] : [];
+  }
+
+  function incidentTechnicianBadges(inc) {
+    const names = incidentTechnicianUsernames(inc);
+    if (!names.length) return '—';
+    return names.map((name) =>
+      `<span class="badge bg-light text-dark border me-1 mb-1"><i class="bi bi-person text-secondary"></i> ${name}</span>`
+    ).join('');
+  }
+
+  function userIsAssignedToIncident(inc, username) {
+    return incidentTechnicianUsernames(inc).includes(username);
+  }
+
+  function technicianOptionLabel(u) {
+    const names = (u.managed_ward_names || []).slice(0, 2).join(', ');
+    const extra = (u.managed_ward_names || []).length > 2 ? '…' : '';
+    const suffix = names ? ` — ${names}${extra}` : '';
+    return `${u.username}${suffix}`;
+  }
 
   async function ensureDevicesAndEdges() {
     if (!cachedDevices.length) {
@@ -90,20 +117,8 @@
   }
 
   function setupNav() {
-    const u = localStorage.getItem(STORAGE.username) || '';
     currentRole = localStorage.getItem(STORAGE.role) || '';
-    const el = document.getElementById('nav-user');
-    const roleEl = document.getElementById('nav-role');
-    if (el) el.textContent = u ? `Xin chào, ${u}` : '';
-    const labels = { ADMIN: 'Quản trị', OPERATOR: 'Vận hành', TECHNICIAN: 'Kỹ thuật', CITIZEN: 'Người dân' };
-    if (roleEl) roleEl.textContent = labels[currentRole] || currentRole;
-    if (currentRole === 'ADMIN' || currentRole === 'OPERATOR') {
-      document.getElementById('nav-dashboard-link')?.classList.remove('d-none');
-      document.getElementById('nav-analytics-link')?.classList.remove('d-none');
-    }
-    if (currentRole === 'ADMIN') {
-      document.getElementById('nav-users-link')?.classList.remove('d-none');
-    }
+    if (window.StaffNav) StaffNav.initNavUser();
     document.getElementById('btn-logout')?.addEventListener('click', async () => {
       const refresh = localStorage.getItem(STORAGE.refresh);
       await apiFetch(API.logout, { method: 'POST', body: JSON.stringify({ refresh }) });
@@ -321,13 +336,20 @@
     localEdgeLayer = L.layerGroup().addTo(incidentMap);
     localDeviceLayer = L.layerGroup().addTo(incidentMap);
     highlightLayer = L.layerGroup().addTo(incidentMap);
+    relayoutIncidentMap();
+  }
+
+  function relayoutIncidentMap() {
+    if (incidentMap) {
+      setTimeout(() => incidentMap.invalidateSize(), 50);
+    }
   }
 
   function refreshMap(incidents) {
     incidentMarkers.forEach(m => incidentMap.removeLayer(m));
     incidentMarkers = [];
     incidents.forEach(inc => {
-      if (inc.status === 'CLOSED') return;
+      if (['CLOSED', 'RESOLVED', 'REJECTED'].includes(inc.status)) return;
       const color = inc.status === 'RESOLVED' || inc.status === 'CLOSED' ? '#22c55e' :
                     inc.severity === 'CRITICAL' ? '#7f1d1d' :
                     inc.severity === 'HIGH' ? '#ef4444' : '#f59e0b';
@@ -372,7 +394,7 @@
       const locText = inc.address || inc.area || `${inc.latitude.toFixed(4)}, ${inc.longitude.toFixed(4)}`;
       const devText = inc.device_name ? `<span class="badge bg-light text-dark border"><i class="bi bi-cpu text-info"></i> ${inc.device_name}</span>` : '—';
       const edgeText = inc.edge_name ? `<span class="badge bg-light text-dark border"><i class="bi bi-bezier2 text-primary"></i> ${inc.edge_name}</span>` : '—';
-      const techText = inc.assigned_to_username ? `<span class="badge bg-light text-dark border"><i class="bi bi-person text-secondary"></i> ${inc.assigned_to_username}</span>` : '—';
+      const techText = incidentTechnicianBadges(inc);
 
       return `
         <tr style="cursor:pointer;" onclick="window._viewIncident(${inc.id})">
@@ -403,6 +425,7 @@
     // Slide left layout: hide list and show details wrapper
     document.getElementById('incident-list-wrapper')?.classList.add('d-none');
     document.getElementById('incident-detail-wrapper')?.classList.remove('d-none');
+    relayoutIncidentMap();
 
 
 
@@ -494,7 +517,8 @@
     const isStaff = ['ADMIN', 'OPERATOR'].includes(currentRole);
     const isTech = currentRole === 'TECHNICIAN';
     const loggedInUser = localStorage.getItem(STORAGE.username) || '';
-    const isAssignedTech = isTech && inc.assigned_to_username === loggedInUser;
+    const isAssignedTech = isTech && userIsAssignedToIncident(inc, loggedInUser);
+    const assignedTechLabel = incidentTechnicianUsernames(inc).join(', ') || 'Chưa phân công';
 
     let assocHtml = '';
     if (isStaff && inc.target_type === 'UNKNOWN') {
@@ -542,7 +566,7 @@
         <div class="col-6"><span class="text-muted small d-block">Mức độ nghiêm trọng:</span> <span class="badge badge-premium badge-severity-${inc.severity.toLowerCase()}">${SEVERITY_ICON[inc.severity]} ${inc.severity_display}</span></div>
         <div class="col-6"><span class="text-muted small d-block">Trạng thái hiện tại:</span> <span class="badge badge-premium badge-status-${inc.status.toLowerCase()}">${inc.status_display}</span></div>
         <div class="col-6"><span class="text-muted small d-block">Người báo cáo:</span> <strong>${inc.reported_by_username}</strong></div>
-        <div class="col-6"><span class="text-muted small d-block">Kỹ thuật viên phụ trách:</span> <strong class="text-primary">${inc.assigned_to_username || 'Chưa phân công'}</strong></div>
+        <div class="col-12"><span class="text-muted small d-block">Kỹ thuật viên phụ trách:</span> <strong class="text-primary">${assignedTechLabel}</strong></div>
         <div class="col-6"><span class="text-muted small d-block">Thiết bị liên quan:</span> ${inc.device ? `<strong>${inc.device_name}</strong> 
           <div class="mt-1 d-flex gap-1">
             <button onclick="window._focusLocalDevice(${inc.device})" class="btn btn-sm btn-outline-primary py-0 px-1" style="font-size: 10px;" title="Xem trên bản đồ bên cạnh"><i class="bi bi-geo-alt"></i> Định vị tại chỗ</button>
@@ -553,19 +577,10 @@
             <button onclick="window._focusLocalEdge(${inc.edge})" class="btn btn-sm btn-outline-primary py-0 px-1" style="font-size: 10px;" title="Xem trên bản đồ bên cạnh"><i class="bi bi-geo-alt"></i> Định vị tại chỗ</button>
             <button onclick="window._focusLocalNetwork()" class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size: 10px;" title="Xem toàn bộ mạng lưới"><i class="bi bi-map"></i> Xem tổng quan mạng</button>
           </div>` : '<strong>—</strong>'}</div>
-        <div class="col-6"><span class="text-muted small d-block">Khu vực quản lý:</span> 
+        <div class="col-6"><span class="text-muted small d-block">Phường/Xã:</span> 
           ${isStaff || isTech ? `
-            <select id="edit-incident-area-${inc.id}" class="form-select form-select-sm" style="font-size:12px; font-weight: 500; height: 30px; padding: 2px 8px;">
-              <option value="">-- Chọn khu vực --</option>
-              <option value="Hải Châu" ${inc.area === 'Hải Châu' ? 'selected' : ''}>Hải Châu</option>
-              <option value="Thanh Khê" ${inc.area === 'Thanh Khê' ? 'selected' : ''}>Thanh Khê</option>
-              <option value="Sơn Trà" ${inc.area === 'Sơn Trà' ? 'selected' : ''}>Sơn Trà</option>
-              <option value="Ngũ Hành Sơn" ${inc.area === 'Ngũ Hành Sơn' ? 'selected' : ''}>Ngũ Hành Sơn</option>
-              <option value="Liên Chiểu" ${inc.area === 'Liên Chiểu' ? 'selected' : ''}>Liên Chiểu</option>
-              <option value="Cẩm Lệ" ${inc.area === 'Cẩm Lệ' ? 'selected' : ''}>Cẩm Lệ</option>
-              <option value="Hòa Vang" ${inc.area === 'Hòa Vang' ? 'selected' : ''}>Hòa Vang</option>
-            </select>
-          ` : `<strong>${inc.area || '—'}</strong>`}
+            <select id="edit-incident-ward-${inc.id}" class="form-select form-select-sm" style="font-size:12px; font-weight: 500; height: 30px; padding: 2px 8px;"></select>
+          ` : `<strong>${inc.ward_name || inc.area || '—'}</strong>`}
         </div>
         <div class="col-12"><span class="text-muted small d-block">Địa chỉ chi tiết:</span> 
           ${isStaff || isTech ? `
@@ -587,11 +602,11 @@
         ${inc.status === 'RESOLVED' && inc.result_note ? `<div class="col-12 mt-1"><span class="text-muted small d-block">Kết quả xử lý:</span><p class="mt-1 mb-0 bg-success bg-opacity-10 p-2 rounded small text-success border border-success border-opacity-25">${inc.result_note}</p></div>` : ''}
       </div>
       ${assocHtml}
-      
+      ${(localStorage.getItem(STORAGE.role) === 'ADMIN' && inc.history && inc.history.length) ? `
       <hr class="my-3">
       <h6 class="fw-semibold mb-2 text-dark"><i class="bi bi-clock-history me-1"></i> Lịch sử trạng thái</h6>
       <div id="history-list" class="mb-3 ps-3 border-start border-2 border-secondary">
-        ${inc.history && inc.history.length ? inc.history.map(h => `
+        ${inc.history.map(h => `
           <div class="position-relative mb-3 pb-1" style="padding-left: 10px;">
             <div class="position-absolute bg-secondary rounded-circle" style="width: 10px; height: 10px; left: -16px; top: 5px;"></div>
             <div class="small text-muted fw-medium">${h.changed_by_username || 'Hệ thống'} — ${new Date(h.created_at).toLocaleString('vi-VN')}</div>
@@ -601,8 +616,8 @@
             </div>
             ${h.note ? `<div class="small mt-1 text-secondary fst-italic">"${h.note}"</div>` : ''}
           </div>
-        `).join('') : '<div class="small text-muted fst-italic">Không có lịch sử.</div>'}
-      </div>
+        `).join('')}
+      </div>` : ''}
 
       ${addNoteHtml}
       <hr class="my-3">
@@ -614,6 +629,11 @@
             <div class="small text-secondary">${n.content}</div>
           </div>`).join('') : '<p class="text-muted small mb-0">Chưa có ghi chú xử lý.</p>'}
       </div>`;
+
+    const wardSelect = document.getElementById(`edit-incident-ward-${inc.id}`);
+    if (wardSelect && window.WardUtils && cachedWardList.length) {
+      WardUtils.populateWardSelect(wardSelect, cachedWardList, { selectedId: inc.ward });
+    }
 
     // Nút hành động
     if (actionsEl) {
@@ -627,13 +647,13 @@
         actionsEl.innerHTML += `<button class="btn btn-sm btn-primary" onclick="window._openAssign(${inc.id})"><i class="bi bi-person-check me-1"></i> Phân công</button>`;
       }
       if (isStaff && inc.status === 'RESOLVED') {
-        actionsEl.innerHTML += `<button class="btn btn-sm btn-dark" onclick="window._closeIncident(${inc.id})"><i class="bi bi-lock me-1"></i> Đóng sự cố</button>`;
+        actionsEl.innerHTML += `<button class="btn btn-sm btn-success" onclick="window._closeIncident(${inc.id})"><i class="bi bi-check-circle me-1"></i> Xác nhận hoàn thành &amp; thông báo người dân</button>`;
       }
       if (isAssignedTech && inc.status === 'ASSIGNED') {
-        actionsEl.innerHTML += `<button class="btn btn-sm btn-warning" onclick="window._startProgress(${inc.id})"><i class="bi bi-play-fill me-1"></i> Bắt đầu xử lý</button>`;
+        actionsEl.innerHTML += `<button class="btn btn-sm btn-primary" onclick="window._startProgress(${inc.id})"><i class="bi bi-hand-thumbs-up me-1"></i> Xác nhận công việc</button>`;
       }
       if (isAssignedTech && inc.status === 'IN_PROGRESS') {
-        actionsEl.innerHTML += `<button class="btn btn-sm btn-success" onclick="window._resolveIncident(${inc.id})"><i class="bi bi-check-circle-fill me-1"></i> Báo hoàn thành</button>`;
+        actionsEl.innerHTML += `<button class="btn btn-sm btn-success" onclick="window._resolveIncident(${inc.id})"><i class="bi bi-send-check me-1"></i> Báo hoàn thành &amp; gửi vận hành</button>`;
       }
 
       actionsEl.classList.remove('d-none');
@@ -660,21 +680,139 @@
     }
   }
 
-  async function loadTechnicians() {
-    const res = await apiFetch(`${API.users}?role=TECHNICIAN`);
-    if (!res.ok) return;
-    const data = await res.json();
-    const techs = data.results ?? data;
-    const select = document.getElementById('assign-technician');
+  function resolveIncidentWardId(inc) {
+    if (window.WardUtils?.resolveWardId) return WardUtils.resolveWardId(inc);
+    if (!inc) return null;
+    if (inc.ward != null && inc.ward !== '') return Number(inc.ward);
+    if (inc.device_detail?.ward != null) return Number(inc.device_detail.ward);
+    return null;
+  }
+
+  async function loadTechnicians(wardId = null, { allowFallback = true } = {}) {
+    if (!window.WardUtils?.fetchAssignableTechnicians) {
+      assignModalTechs = [];
+      return { techs: [], error: 'Thiếu WardUtils.', usedFallback: false };
+    }
+    let { techs, error } = await WardUtils.fetchAssignableTechnicians(apiFetch, API.users, wardId);
+    let usedFallback = false;
+    const role = localStorage.getItem(STORAGE.role) || '';
+    if (!techs.length && !error && wardId != null && allowFallback && role === 'ADMIN') {
+      const retry = await WardUtils.fetchAssignableTechnicians(apiFetch, API.users, null);
+      if (retry.techs.length) {
+        techs = retry.techs;
+        usedFallback = true;
+      } else if (retry.error) {
+        error = retry.error;
+      }
+    }
+    assignModalTechs = techs;
+    return { techs, error, usedFallback };
+  }
+
+  function buildAssignTechCountOptions() {
+    const select = document.getElementById('assign-tech-count');
+    const confirmBtn = document.getElementById('btn-confirm-assign');
     if (!select) return;
-    select.innerHTML = '<option value="">-- Chọn kỹ thuật viên --</option>' + techs.filter(u => u.role === 'TECHNICIAN').map(u => `<option value="${u.id}">${u.username}</option>`).join('');
+    if (!assignModalTechs.length) {
+      select.innerHTML = '<option value="0">—</option>';
+      select.disabled = true;
+      if (confirmBtn) confirmBtn.disabled = true;
+      return;
+    }
+    select.disabled = false;
+    if (confirmBtn) confirmBtn.disabled = false;
+    const max = assignModalTechs.length;
+    select.innerHTML = Array.from({ length: max }, (_, i) => {
+      const n = i + 1;
+      return `<option value="${n}">${n} KTV</option>`;
+    }).join('');
+  }
+
+  function syncAssignTechOptions() {
+    const pickers = Array.from(document.querySelectorAll('.assign-tech-picker'));
+    const selected = new Set(pickers.map((p) => p.value).filter(Boolean));
+    pickers.forEach((picker) => {
+      const current = picker.value;
+      picker.querySelectorAll('option').forEach((opt) => {
+        if (!opt.value) return;
+        opt.disabled = selected.has(opt.value) && opt.value !== current;
+      });
+    });
+  }
+
+  function renderAssignTechSlots(count = 1, emptyMessage = '') {
+    const container = document.getElementById('assign-tech-slots');
+    if (!container) return;
+
+    if (!assignModalTechs.length) {
+      container.innerHTML = `<p class="text-muted small mb-0">${emptyMessage || 'Không có KTV được phân quyền phường/xã này. Admin cần gán phường/xã cho KTV tại trang <strong>Tài khoản</strong>.'}</p>`;
+      return;
+    }
+
+    const max = assignModalTechs.length;
+    const slotCount = Math.min(Math.max(1, count), max);
+    const countSelect = document.getElementById('assign-tech-count');
+    if (countSelect) countSelect.value = String(slotCount);
+
+    container.innerHTML = Array.from({ length: slotCount }, (_, i) => {
+      const options = assignModalTechs.map((u) =>
+        `<option value="${u.id}">${technicianOptionLabel(u)}</option>`
+      ).join('');
+      return `<div class="mb-2">
+        <label class="form-label small mb-1">KTV ${i + 1}</label>
+        <select class="form-select form-select-sm assign-tech-picker" data-slot="${i}">
+          <option value="">-- Chọn kỹ thuật viên --</option>${options}
+        </select>
+      </div>`;
+    }).join('');
+
+    container.querySelectorAll('.assign-tech-picker').forEach((sel) => {
+      sel.addEventListener('change', syncAssignTechOptions);
+    });
   }
 
   window._viewIncident = viewIncident;
-  window._openAssign = (id) => {
+  window._openAssign = async (id) => {
     document.getElementById('assign-incident-id').value = id;
     detailModal.hide();
-    loadTechnicians();
+
+    let wardId = null;
+    let wardLabel = '';
+    let inc = null;
+    const incRes = await apiFetch(`${API.incidents}${id}/`);
+    if (incRes.ok) {
+      inc = await incRes.json();
+      wardId = resolveIncidentWardId(inc);
+      wardLabel = [inc.ward_name, inc.ward_district].filter(Boolean).join(', ')
+        || [inc.device_detail?.ward_name, inc.device_detail?.ward_district].filter(Boolean).join(', ')
+        || inc.area || '';
+    }
+
+    const loadResult = await loadTechnicians(wardId);
+    buildAssignTechCountOptions();
+    renderAssignTechSlots(1, loadResult.error || '');
+
+    const hint = document.getElementById('assign-ward-hint');
+    if (hint) {
+      if (loadResult.error) {
+        hint.textContent = loadResult.error;
+        hint.classList.remove('d-none', 'alert-info');
+        hint.classList.add('alert-danger');
+      } else if (loadResult.usedFallback) {
+        hint.textContent = 'Không có KTV đúng phường/xã sự cố — đang hiển thị toàn bộ KTV. Kiểm tra phường/xã sự cố/thiết bị và phân quyền tại Tài khoản.';
+        hint.classList.remove('d-none', 'alert-info');
+        hint.classList.add('alert-warning');
+      } else if (wardId) {
+        hint.textContent = `Sự cố thuộc ${wardLabel || `phường/xã #${wardId}`}. Chỉ hiển thị KTV được phân quyền khu vực này.`;
+        hint.classList.remove('d-none', 'alert-warning', 'alert-danger');
+        hint.classList.add('alert-info');
+      } else {
+        hint.textContent = 'Sự cố chưa gán phường/xã — hiển thị mọi KTV trong phạm vi của bạn.';
+        hint.classList.remove('d-none', 'alert-info', 'alert-danger');
+        hint.classList.add('alert-warning');
+      }
+    }
+
     assignModal.show();
   };
   window._openStatus = (id, currentStatus) => {
@@ -686,15 +824,19 @@
   };
 
   window._saveGeoInfo = async (id) => {
-    const area = document.getElementById(`edit-incident-area-${id}`).value;
+    const ward = parseInt(document.getElementById(`edit-incident-ward-${id}`).value, 10);
     const address = document.getElementById(`edit-incident-address-${id}`).value.trim();
+    if (!ward) {
+      showAlert('Vui lòng chọn phường/xã.');
+      return;
+    }
 
     const res = await apiFetch(`${API.incidents}${id}/`, {
       method: 'PATCH',
-      body: JSON.stringify({ area, address })
+      body: JSON.stringify({ ward, address })
     });
     if (res.ok) {
-      showAlert('Cập nhật khu vực và địa chỉ thành công!', true);
+      showAlert('Cập nhật phường/xã và địa chỉ thành công!', true);
       viewIncident(id);
       loadIncidents();
     } else {
@@ -765,14 +907,14 @@
   };
 
   window._closeIncident = async (id) => {
-    if (!confirm('Bạn có chắc muốn đóng sự cố này không?')) return;
+    if (!confirm('Xác nhận sự cố đã được khắc phục? Hệ thống sẽ thông báo cho người dân và ẩn sự cố khỏi bản đồ.')) return;
     const res = await apiFetch(`${API.incidents}${id}/update-status/`, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'CLOSED' })
     });
     if (res.ok) {
       showAlert('Đóng sự cố thành công!', true);
-      viewIncident(id);
+      window._clearSelection?.();
       loadIncidents();
     } else {
       const d = await res.json().catch(() => ({}));
@@ -786,7 +928,7 @@
       body: JSON.stringify({ status: 'IN_PROGRESS' })
     });
     if (res.ok) {
-      showAlert('Đã bắt đầu xử lý sự cố!', true);
+      showAlert('Đã xác nhận công việc!', true);
       viewIncident(id);
       loadIncidents();
     } else {
@@ -796,10 +938,13 @@
   };
 
   window._resolveIncident = async (id) => {
-    const note = prompt('Nhập ghi chú kết quả xử lý (tùy chọn):');
-    if (note === null) return;
-    const payload = { status: 'RESOLVED' };
-    if (note.trim()) payload.result_note = note.trim();
+    let note = '';
+    while (!note.trim()) {
+      note = prompt('Nhập ghi chú kết quả xử lý (bắt buộc):');
+      if (note === null) return;
+      if (!note.trim()) showAlert('Ghi chú kết quả xử lý là bắt buộc.');
+    }
+    const payload = { status: 'RESOLVED', result_note: note.trim() };
 
     const res = await apiFetch(`${API.incidents}${id}/update-status/`, {
       method: 'PATCH',
@@ -812,7 +957,7 @@
           body: JSON.stringify({ content: `Báo cáo hoàn thành: ${note.trim()}` })
         });
       }
-      showAlert('Báo cáo hoàn thành thành công!', true);
+      showAlert('Đã gửi kết quả cho vận hành xác nhận!', true);
       viewIncident(id);
       loadIncidents();
     } else {
@@ -838,11 +983,37 @@
     }
   };
 
+  document.getElementById('assign-tech-count')?.addEventListener('change', (e) => {
+    renderAssignTechSlots(parseInt(e.target.value, 10) || 1);
+  });
+
   document.getElementById('btn-confirm-assign')?.addEventListener('click', async () => {
     const id = document.getElementById('assign-incident-id').value;
-    const techId = document.getElementById('assign-technician').value;
-    if (!techId) { showAlert('Vui lòng chọn kỹ thuật viên.'); return; }
-    const res = await apiFetch(`${API.incidents}${id}/assign/`, { method: 'PATCH', body: JSON.stringify({ assigned_to: techId }) });
+    const expectedCount = parseInt(document.getElementById('assign-tech-count')?.value || '1', 10);
+    const techIds = Array.from(document.querySelectorAll('.assign-tech-picker'))
+      .map((el) => el.value)
+      .filter(Boolean);
+
+    if (!techIds.length) {
+      showAlert('Vui lòng chọn ít nhất một kỹ thuật viên.');
+      return;
+    }
+    if (techIds.length !== expectedCount) {
+      showAlert(`Vui lòng chọn đủ ${expectedCount} kỹ thuật viên.`);
+      return;
+    }
+    if (new Set(techIds).size !== techIds.length) {
+      showAlert('Không được chọn trùng kỹ thuật viên.');
+      return;
+    }
+
+    const res = await apiFetch(`${API.incidents}${id}/assign/`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        assigned_technicians: techIds.map((tid) => parseInt(tid, 10)),
+        technician_count: expectedCount,
+      }),
+    });
     if (res.ok) {
       showAlert('Phân công thành công!', true);
       assignModal.hide();
@@ -912,6 +1083,7 @@
     // Slide left layout: show list wrapper and hide details
     document.getElementById('incident-detail-wrapper')?.classList.add('d-none');
     document.getElementById('incident-list-wrapper')?.classList.remove('d-none');
+    relayoutIncidentMap();
 
     const body = document.getElementById('incident-detail-body');
     if (body) {
@@ -985,9 +1157,12 @@
     window.location.href = '/report/';
   } else {
     setupNav();
+    WardUtils.fetchWards(apiFetch).then((w) => { cachedWardList = w; }).catch(() => {});
     initMap();
+    window.addEventListener('resize', relayoutIncidentMap);
     loadIncidents();
     loadFullNetworkOnLocalMap();
+    relayoutIncidentMap();
     pollNotifBadge();
     setInterval(pollNotifBadge, 30000);
   }

@@ -1,0 +1,1258 @@
+================================================================================
+  VĂN THUYẾT TRÌNH CHI TIẾT: CÁCH LÀM DỰ ÁN
+  HỆ THỐNG QUẢN LÝ HẠ TẦNG ĐIỆN – NƯỚC ĐÔ THỊ TRÊN BẢN ĐỒ
+  (HTQL-Dien-Nuoc — Map-based Infra Manager)
+================================================================================
+  Nhóm 2 — Môn Quản lý Dự án CNTT
+  Thời lượng gợi ý: 18–22 phút trình bày + 5–7 phút demo + Q&A
+  File này: kịch bản thuyết trình + hướng dẫn kỹ thuật + script demo
+================================================================================
+
+
+MỤC LỤC NHANH
+--------------
+  PHẦN 1  — Mở đầu
+  PHẦN 2  — Bài toán, phạm vi, mô hình dữ liệu
+  PHẦN 3  — Kiến trúc & công nghệ (vì sao chọn)
+  PHẦN 4  — Cấu trúc thư mục & tổ chức code
+  PHẦN 5  — Thiết kế cơ sở dữ liệu (chi tiết từng bảng)
+  PHẦN 6  — Cách làm Backend (từng bước triển khai)
+  PHẦN 7  — Cách làm Frontend (từng trang, từng file JS)
+  PHẦN 8  — Phân quyền RBAC & phường/xã
+  PHẦN 9  — Ràng buộc tọa độ theo phường/xã
+  PHẦN 10 — Luồng nghiệp vụ SỰ CỐ (7 bước, chi tiết từng thao tác)
+  PHẦN 11 — Luồng nghiệp vụ BẢO TRÌ THIẾT BỊ (5 bước)
+  PHẦN 12 — Thông báo, nhật ký, audit
+  PHẦN 13 — Kiểm thử & chất lượng
+  PHẦN 14 — Hướng dẫn cài đặt & chạy
+  PHẦN 15 — Khó khăn gặp phải & cách xử lý
+  PHẦN 16 — Hướng phát triển & kết luận
+  PHỤ LỤC A — Script demo 7 phút (từng click, từng màn hình)
+  PHỤ LỤC B — Bảng trang web × vai trò
+  PHỤ LỤC C — Danh sách API quan trọng
+  PHỤ LỤC D — State machine sự cố & bảo trì
+  PHỤ LỤC E — Bảng công nghệ tóm tắt
+
+
+================================================================================
+PHẦN 1 — MỞ ĐẦU (1 phút)
+================================================================================
+
+Kính chào thầy/cô và các bạn.
+
+Hôm nay nhóm em trình bày dự án **Hệ thống Quản lý Hạ tầng Điện – Nước Đô thị 
+dựa trên Bản đồ số** — tên mã HTQL-Dien-Nuoc.
+
+Đây là phần mềm web giúp:
+  • Quản lý thiết bị điện/nước và tuyến mạng trên bản đồ Leaflet (Đà Nẵng).
+  • Tiếp nhận báo cáo sự cố từ người dân.
+  • Phân công kỹ thuật viên (KTV) theo phường/xã.
+  • Theo dõi quy trình xử lý có phân quyền rõ ràng: Ai làm gì, lúc nào, 
+    hệ thống ghi nhận ra sao.
+
+Tài liệu này không chỉ giới thiệu tính năng — mà giải thích **cách nhóm em 
+làm dự án**: từ phân tích bài toán → chọn công nghệ → thiết kế DB → viết API 
+→ làm giao diện bản đồ → tự động hóa bằng signal → kiểm thử.
+
+
+================================================================================
+PHẦN 2 — BÀI TOÁN, PHẠM VI & MÔ HÌNH DỮ LIỆU (3 phút)
+================================================================================
+
+2.1. Bài toán thực tế
+----------------------
+Ban quản lý hạ tầng điện – nước đô thị cần trả lời các câu hỏi hàng ngày:
+
+  CÂU HỎI                          CẦN HỆ THỐNG LÀM GÌ?
+  ─────────────────────────────────────────────────────────────────
+  Thiết bị nào đang ở đâu?          Hiển thị trên bản đồ, lọc theo phường
+  Trạng thái thiết bị ra sao?       Màu/icon: ACTIVE, FAULT, MAINTENANCE...
+  Tuyến nào nối thiết bị nào?       Vẽ polyline điện (cam) / nước (xanh)
+  Dân báo sự cố thế nào?            Form + bản đồ, gắn tọa độ + phường/xã
+  Ai xử lý sự cố?                   Phân công KTV theo ward
+  Đã xử lý xong chưa?               State machine + thông báo + nhật ký
+  Tiêu thụ điện/nước bao nhiêu?     ConsumptionLog + tra cứu công khai
+
+2.2. Mô hình hóa — mạng lưới đồ thị (Graph), không phải danh sách rời
+-----------------------------------------------------------------------
+Nhóm em cố ý mô hình hóa hạ tầng thành **đồ thị**:
+
+  THIẾT BỊ (Device)     = NODE (điểm) trên bản đồ
+                          Ví dụ: trạm biến áp, trụ điện, công tơ, bể nước, van...
+
+  TUYẾN (NetworkEdge)   = EDGE (cạnh) nối 2 thiết bị
+                          Ví dụ: cáp trung thế TBA → tủ điện, ống nước bể → trạm bơm
+
+  SỰ CỐ (Incident)      = PHIẾU XỬ LÝ gắn vị trí / thiết bị / tuyến
+                          Có quy trình trạng thái nhiều bước
+
+  PHƯỜNG/XÃ (Ward)      = ĐƠN VỊ ĐỊA BÀN — nền tảng phân quyền vận hành
+
+  Lợi ích thiết kế:
+    • Bản đồ hiển thị trực quan mối quan hệ thiết bị – tuyến.
+    • Sự cố gắn device/edge → tự động đổi trạng thái thiết bị sang FAULT.
+    • Phân công KTV theo ward của sự cố/thiết bị.
+
+2.3. Phạm vi cố ý giới hạn (phù hợp đề tài môn học)
+-----------------------------------------------------
+  ✗ Không lan truyền lỗi tự động xuống toàn mạng (chỉ thiết bị/tuyến GẮN TRỰC TIẾP 
+    sự cố mới chuyển FAULT; Operator tự quan sát bản đồ đánh giá ảnh hưởng lan).
+  ✗ Không có WebSocket/push realtime — thông báo in-app + polling 30 giây.
+  ✗ Không tích hợp SCADA/IoT thật — dữ liệu seed mô phỏng.
+  ✓ Tập trung Đà Nẵng: 53 phường/xã, 7 quận/huyện.
+  ✓ 4 vai trò: ADMIN, OPERATOR, TECHNICIAN, CITIZEN.
+
+
+================================================================================
+PHẦN 3 — KIẾN TRÚC & CÔNG NGHỆ (2 phút)
+================================================================================
+
+3.1. Kiến trúc tổng thể
+------------------------
+  [Trình duyệt]
+       │  HTML (Django Template) + Vanilla JS + Leaflet
+       │  JWT Bearer token (localStorage) + Django Session cookie
+       ▼
+  [Django Monolith — một codebase]
+       ├── accounts/    → User, RBAC, audit
+       ├── assets/      → Device, Edge, Ward, Consumption
+       ├── incidents/   → Incident, Notification, Journal
+       └── core/        → settings, urls, excel, health
+       ▼
+  [MySQL qlda_db]  hoặc  [SQLite db.sqlite3 khi test]
+
+  Vì sao Monolith?
+    • Dự án môn học cần triển khai nhanh, demo 1 lệnh runserver.
+    • Không tách microservices → tránh phức tạp vận hành không cần thiết.
+
+3.2. Xác thực kép: JWT + Django Session
+-----------------------------------------
+  VẤN ĐỀ: Trang HTML cần session (login_required), JS gọi API cần token.
+
+  CÁCH LÀM:
+    1. User POST /api/auth/login/ → nhận access + refresh JWT.
+    2. Backend đồng thời gọi django.contrib.auth.login() → tạo session cookie.
+    3. Frontend lưu token vào localStorage:
+         infra_access, infra_refresh, infra_role, infra_username
+    4. Mọi apiFetch() gắn header Authorization: Bearer {access}.
+    5. Nếu API trả 401 → tự gọi /api/auth/token/refresh/ → retry.
+    6. Refresh thất bại → redirect /login/.
+
+  → Trang server-rendered và API JSON cùng hoạt động an toàn.
+
+3.3. Cơ sở dữ liệu
+-------------------
+  • Mặc định: MySQL database `qlda_db` (XAMPP localhost, user root, password rỗng).
+  • Test/CI: tự chuyển SQLite khi:
+      - Biến môi trường USE_SQLITE=True
+      - Biến GITHUB_ACTIONS
+      - Chạy manage.py test
+  • Logic trong core/settings.py — một file, hai môi trường.
+
+3.4. Frontend stack
+--------------------
+  • Bootstrap 5.3 — layout responsive, modal, form.
+  • Leaflet.js 1.9 + OpenStreetMap — bản đồ miễn phí, không cần API key Google.
+  • Chart.js — biểu đồ dashboard/analytics.
+  • SweetAlert2 — hộp thoại xác nhận đẹp.
+  • openpyxl — xuất Excel mẫu văn bản hành chính Việt Nam.
+  • Vanilla JavaScript — không React/Vue (tập trung nghiệp vụ, tránh build tool).
+
+
+================================================================================
+PHẦN 4 — CẤU TRÚC DỰ ÁN & TỔ CHỨC CODE (2 phút)
+================================================================================
+
+4.1. Cây thư mục chính
+-----------------------
+  HTQL-Dien-Nuoc/
+  ├── core/
+  │     settings.py          Cấu hình DB, JWT, throttle, CORS
+  │     urls.py              Route trang HTML + include API
+  │     excel_reports.py     Header Excel quốc hiệu, chữ ký
+  │     exception_handler.py Xử lý lỗi API thống nhất
+  │     views.py             /api/health/, session-status
+  ├── accounts/
+  │     models.py            User (RBAC 4 role), AuditLog
+  │     views.py             Login, CRUD user, assignable-technicians
+  │     ward_permissions.py  Logic gán ward, lọc KTV phân công
+  │     signals.py           Khóa tài khoản sau 5 lần đăng nhập sai
+  │     middleware.py        AuditLogMiddleware — log POST/PUT/PATCH/DELETE
+  ├── assets/
+  │     models.py            Device, NetworkEdge, Ward, ConsumptionLog
+  │     views.py             CRUD + workflow bảo trì + import/export
+  │     serializers.py       Validate ward, tọa độ, parent-child
+  │     spatial.py           Phân quyền & validate tọa độ theo ward
+  │     signals.py           NetworkStatusHistory khi đổi status
+  │     data/danang_wards.py 53 phường/xã Đà Nẵng
+  │     management/commands/
+  │         load_danang_wards.py
+  │         seed_data.py     Nạp dữ liệu demo
+  ├── incidents/
+  │     models.py            Incident, Notification, SystemJournal, History
+  │     views.py             CRUD + assign + update-status + stats/report
+  │     serializers.py       Validate nghiệp vụ sự cố
+  │     signals.py           Thông báo + đồng bộ FAULT/ACTIVE thiết bị
+  │     journal_utils.py     log_journal() helper
+  │     notification_helpers.py
+  ├── templates/             12 trang HTML + partials/staff_navbar.html
+  ├── static/js/             11 file JavaScript theo màn hình
+  ├── static/css/            app.css, custom styles
+  ├── requirements.txt
+  ├── manage.py
+  └── README.md
+
+4.2. Nguyên tắc tách 3 Django app
+----------------------------------
+  accounts  → "AI được làm GÌ" (RBAC, ward, audit)
+  assets    → "CÁI GÌ trên bản đồ" (thiết bị, tuyến, tiêu thụ, phường)
+  incidents → "CHUYỆN GÌ XẢY RA & xử lý thế nào" (sự cố, thông báo, nhật ký)
+
+4.3. Quy ước URL
+-----------------
+  TRANG HTML (core/urls.py):
+    /login/          /register/       /lookup/
+    /app/            /monitoring/     /incidents/
+    /report/         /dashboard/      /analytics/
+    /users/          /notifications/
+
+  API:
+    /api/auth/...         Login, user, audit, assignable-technicians
+    /api/wards/           Danh mục phường/xã
+    /api/devices/         Thiết bị + bảo trì
+    /api/edges/           Tuyến mạng
+    /api/consumptions/    Tiêu thụ điện/nước
+    /api/incidents/       Sự cố
+    /api/notifications/   Thông báo in-app
+    /api/journal/         Nhật ký vận hành (Admin only)
+    /api/public-lookup/   Tra cứu công khai (không cần đăng nhập)
+    /api/network/summary/ Tổng quan mạng lưới
+
+
+================================================================================
+PHẦN 5 — THIẾT KẾ CƠ SỞ DỮ LIỆU (4 phút)
+================================================================================
+
+5.1. User (accounts.User) — RBAC 4 vai trò
+-------------------------------------------
+  VAI TRÒ        MÔ TẢ NGẮN                          PHẠM VI ĐỊA BÀN
+  ─────────────────────────────────────────────────────────────────────
+  ADMIN          Quản trị toàn hệ thống              Toàn thành phố
+  OPERATOR       Vận hành, xác nhận sự cố          managed_wards (M2M)
+  TECHNICIAN     Xử lý sự cố/bảo trì được giao     managed_wards (M2M)
+  CITIZEN        Báo sự cố, tra cứu tiêu thụ        Không có ward scope
+
+  Trường quan trọng:
+    role              CharField — ADMIN/OPERATOR/TECHNICIAN/CITIZEN
+    managed_wards     ManyToMany → Ward (bắt buộc ≥1 ward cho OPERATOR/KTV)
+    failed_login_attempts  → khóa sau 5 lần sai (signal)
+
+5.2. Ward — 53 phường/xã Đà Nẵng
+----------------------------------
+  code          Mã duy nhất (VD: DN-HC-001)
+  name          Tên phường/xã
+  district      1 trong 7 quận/huyện
+  latitude      Tâm phường (dùng validate tọa độ)
+  longitude     Tâm phường
+  is_active     Bật/tắt
+
+  Nguồn dữ liệu: assets/data/danang_wards.py
+  Lệnh nạp: python manage.py load_danang_wards
+
+5.3. Device — thiết bị hạ tầng
+-------------------------------
+  LOẠI THIẾT BỊ (device_type):
+    ĐIỆN:  TRANSFORMER, DISTRIBUTION_BOX, ELECTRIC_POLE, ELECTRIC_JUNCTION, ELECTRIC_METER
+    NƯỚC:  WATER_TANK, PUMP_STATION, MAIN_VALVE, BRANCH_VALVE, WATER_JUNCTION, WATER_METER
+    CŨ:    VALVE (legacy)
+
+  TRẠNG THÁI (status):
+    ACTIVE       — hoạt động bình thường
+    FAULT        — có sự cố / lỗi
+    MAINTENANCE  — đang bảo trì
+    INACTIVE     — ngừng hoạt động
+
+  Trường quan trọng:
+    code, name, latitude, longitude, ward (FK), address, parent (FK self)
+    attributes (JSON) — dung lượng TBA, số nhánh tủ điện...
+
+  Trường BẢO TRÌ (workflow riêng):
+    maintenance_assigned_technicians (M2M User)
+    maintenance_assigned_by, maintenance_assigned_at, maintenance_note
+    maintenance_acknowledged_at/by     — KTV xác nhận nhận việc
+    maintenance_completed_at/by        — KTV báo xong
+    maintenance_result_note            — ghi chú kết quả (bắt buộc khi báo xong)
+
+5.4. NetworkEdge — tuyến nối 2 thiết bị
+------------------------------------------
+  from_device → to_device (FK Device)
+  network_type: ELECTRIC | WATER
+  status: ACTIVE | FAULT | MAINTENANCE | INACTIVE
+  Unique: một cặp (from, to) chỉ 1 tuyến.
+
+5.5. Incident — sự cố
+---------------------
+  TRẠNG THÁI (status) — xem PHỤ LỤC D:
+    PENDING_VERIFY → CONFIRMED → ASSIGNED → IN_PROGRESS → RESOLVED → CLOSED
+    hoặc REJECTED (từ chối)
+
+  Mức độ (severity): LOW, MEDIUM, HIGH, CRITICAL
+  Loại (incident_type): ELECTRIC, WATER, OTHER
+  target_type: DEVICE | EDGE | UNKNOWN
+
+  Quan hệ:
+    reported_by (FK User)           — người báo (thường là CITIZEN)
+    confirmed_by                    — Operator xác nhận
+    assigned_to                     — KTV phụ trách chính
+    assigned_technicians (M2M)      — nhóm KTV
+    device / edge (FK, tùy chọn)
+    ward (FK, bắt buộc)
+    result_note                     — ghi chú kết quả (KTV bắt buộc khi RESOLVED)
+    rejection_reason                — lý do từ chối
+
+5.6. Notification — thông báo in-app
+-------------------------------------
+  recipient, incident/device, notif_type, message, is_read, created_at
+  Xem PHẦN 12 để biết khi nào tạo loại nào.
+
+5.7. SystemJournal — nhật ký vận hành (Admin only)
+----------------------------------------------------
+  actor, category (INCIDENT/MAINTENANCE/SYSTEM), action, summary, details
+  incident/device (FK tùy chọn), created_at
+  API: GET /api/journal/?category=INCIDENT
+
+5.8. IncidentHistory — lịch sử đổi trạng thái sự cố
+-----------------------------------------------------
+  Tự ghi qua signal mỗi lần incident.status thay đổi.
+  API trả về field history — CHỈ ADMIN thấy (serializer filter theo role).
+
+5.9. ConsumptionLog — tiêu thụ điện/nước
+------------------------------------------
+  device + date (ngày 1 mỗi tháng) + value
+  Unique: 1 thiết bị / 1 tháng / 1 bản ghi.
+  Phục vụ: /monitoring/ (nhập liệu) và /lookup/ (tra cứu công khai theo mã công tơ).
+
+5.10. AuditLog — log HTTP thao tác ghi
+---------------------------------------
+  Middleware ghi POST/PUT/PATCH/DELETE: user, path, method, IP, timestamp.
+  Admin xem tại /users/ → tab audit.
+
+
+================================================================================
+PHẦN 6 — CÁCH LÀM BACKEND (TỪNG BƯỚC) (5 phút)
+================================================================================
+
+6.1. Bước 1 — Khởi tạo project
+-------------------------------
+  django-admin startproject core
+  python manage.py startapp accounts
+  python manage.py startapp assets
+  python manage.py startapp incidents
+
+  settings.py:
+    AUTH_USER_MODEL = 'accounts.User'
+    REST_FRAMEWORK: IsAuthenticated mặc định, JWT auth
+    SIMPLE_JWT: rotate refresh, blacklist
+    Throttle login: 10 lần/phút
+    CORS cho localhost dev
+
+6.2. Bước 2 — Models → Migrations → Seed
+-----------------------------------------
+  Thứ tự migration quan trọng (phụ thuộc FK):
+    assets.0001 Device, Edge
+    assets.0006 Ward + device.ward
+    accounts.0003 user.managed_wards
+    assets.0007 maintenance assignment fields
+    assets.0008 maintenance workflow (acknowledge, complete, result_note)
+    incidents.0004 incident.ward
+    incidents.0005 assigned_technicians M2M
+    incidents.0007 SystemJournal + notification types mới
+
+  Lệnh nạp dữ liệu (theo thứ tự):
+    python manage.py migrate
+    python manage.py load_danang_wards     # 53 phường/xã
+    python manage.py seed_data             # thiết bị, tuyến, sự cố, user demo
+
+  seed_data làm gì?
+    1. Xóa dữ liệu cũ (device, edge, incident, consumption).
+    2. Tạo/reset 4 user demo (admin, operator, technician, citizen).
+    3. Gán ward cho operator + technician: 6 quận trung tâm (không Hòa Vang).
+    4. Mỗi phường/xã tạo ~18 thiết bị + ~8–11 tuyến (cấu trúc cố định):
+         TBA → Tủ điện → 3 trụ điện → 6 công tơ điện
+         Bể nước → Trạm bơm → Van tổng → 2 van nhánh → 2 đồng hồ nước
+    5. Mỗi phường 1 sự cố mẫu (trạng thái luân phiên) + 3 sự cố đặc biệt toàn thành phố.
+    6. 6 tháng tiêu thụ cho mỗi công tơ/đồng hồ.
+
+  Kết quả seed (xấp xỉ):
+    ~53 phường | ~950+ thiết bị | ~420+ tuyến | ~56 sự cố | ~2100+ bản ghi tiêu thu
+
+6.3. Bước 3 — Serializers (validate nghiệp vụ TRƯỚC khi lưu DB)
+-----------------------------------------------------------------
+  DeviceSerializer (assets/serializers.py):
+    • ward bắt buộc.
+    • latitude/longitude trong [-90,90] / [-180,180].
+    • coordinates_match_ward() — tọa độ phải khớp phường đã chọn.
+    • parent phải cùng loại mạng (điện/nước).
+
+  IncidentSerializer (incidents/serializers.py):
+    • ward bắt buộc (trừ khi auto lấy từ device).
+    • Không vừa device vừa edge.
+    • target_type=DEVICE → phải có device; target_type=EDGE → phải có edge.
+    • coordinates_match_ward() — áp dụng cho CẢ người dân báo sự cố.
+    • history field — chỉ trả về nếu request.user.role == ADMIN.
+
+  UserSerializer (accounts/serializers.py):
+    • OPERATOR/KTV phải có managed_ward_ids ≥ 1.
+    • Register luôn tạo role CITIZEN.
+
+6.4. Bước 4 — ViewSets + @action (endpoint đặc biệt)
+-----------------------------------------------------
+  DeviceViewSet (assets/views.py):
+    CRUD thông thường + lọc theo ward/status/type (spatial filter).
+    @action đặc biệt:
+      PATCH .../assign-maintenance/           [ADMIN, OPERATOR]
+      PATCH .../acknowledge-maintenance/      [TECHNICIAN được giao]
+      PATCH .../report-maintenance-complete/  [TECHNICIAN, bắt buộc note]
+      PATCH .../confirm-maintenance/          [ADMIN, OPERATOR → ACTIVE]
+      PATCH .../update-status/                [theo bảng chuyển trạng thái role]
+      GET   .../export-excel/  POST .../import-csv/
+
+  IncidentViewSet (incidents/views.py):
+    CRUD + queryset filter theo role:
+      CITIZEN     → chỉ sự cố reported_by = mình
+      OPERATOR    → sự cố trong managed_wards
+      TECHNICIAN  → sự cố được giao HOẶC trong managed_wards
+      ADMIN       → tất cả
+    @action:
+      PATCH .../assign/          Phân công KTV (validate assignable-technicians)
+      PATCH .../update-status/   Chuyển trạng thái (VALID_TRANSITIONS + role)
+      POST  .../add-note/        Thêm ghi chú tiến độ
+      GET   .../stats/           Dashboard KPI
+      GET   .../report/          Báo cáo analytics
+      GET   .../report-excel/    Xuất Excel
+
+6.5. Bước 5 — Phân quyền (permissions.py + spatial.py)
+--------------------------------------------------------
+  accounts/permissions.py:
+    IsAdminRole, IsOperatorRole, IsTechnicianRole — class DRF permission.
+
+  assets/spatial.py — TRÁI TIM phân quyền địa bàn:
+    haversine_km(lat1,lng1,lat2,lng2)     — khoảng cách km
+    max_km_for_ward(ward)                   — 4.5 km hoặc 12 km (Hòa Vang)
+    coordinates_match_ward(ward, lat, lng)  — validate tọa độ
+    get_user_ward_ids(user)                 — None=toàn TP, []=không quyền
+    filter_devices_for_user()               — lọc queryset thiết bị
+    filter_incidents_for_user()               — lọc queryset sự cố
+    filter_edges_for_user()                   — lọc queryset tuyến
+    user_can_access_ward(user, ward_id)     — kiểm tra 1 ward
+
+  accounts/ward_permissions.py:
+    get_assignable_technicians(actor, ward_id):
+      ADMIN    → mọi KTV active (lọc ward nếu có)
+      OPERATOR → KTV có managed_wards giao với ward_id
+    validate_managed_ward_assignment():
+      OPERATOR không gán ward cho OPERATOR khác.
+
+6.6. Bước 6 — Django Signals (tự động hóa, không cần gọi thủ công)
+--------------------------------------------------------------------
+  accounts/signals.py:
+    pre_save User → nếu failed_login_attempts ≥ 5 → is_active = False
+
+  incidents/signals.py (post_save Incident):
+    Sự cố MỚI (created):
+      → Notification NEW_INCIDENT cho ADMIN + OPERATOR ward
+      → Device/Edge liên quan → status = FAULT (nếu sự cố đang mở)
+    Đổi status:
+      IN_PROGRESS  → notify Operator (JOB_ACKNOWLEDGED)
+      RESOLVED     → notify Operator (PENDING_OPERATOR) — CHƯA báo dân
+      CLOSED       → notify Citizen (OPERATOR_CONFIRMED)
+      CONFIRMED    → notify Citizen
+      REJECTED     → notify Citizen + lý do
+    CLOSED/REJECTED:
+      → Device/Edge về ACTIVE nếu không còn sự cố mở khác
+    Mọi đổi status:
+      → Ghi IncidentHistory (old_status, new_status, changed_by)
+
+  assets/signals.py:
+    post_save Device/Edge → ghi NetworkStatusHistory khi status thay đổi
+
+  journal_utils.log_journal():
+    Gọi thủ công từ views khi: assign, acknowledge, complete, confirm, add-note.
+
+6.7. Bước 7 — Excel export
+---------------------------
+  core/excel_reports.py — khung header (quốc hiệu, đơn vị, chữ ký).
+  assets/excel_exports.py — xuất danh sách thiết bị.
+  incidents/excel_exports.py — xuất báo cáo sự cố analytics.
+
+
+================================================================================
+PHẦN 7 — CÁCH LÀM FRONTEND (TỪNG TRANG, TỪNG FILE JS) (4 phút)
+================================================================================
+
+7.1. Bảng trang ↔ file JS ↔ chức năng
+---------------------------------------
+  URL              FILE JS           CHỨC NĂNG CHÍNH
+  ─────────────────────────────────────────────────────────────────────────────
+  /login/          login.js          Đăng nhập JWT, redirect theo role
+  /register/       (inline)          Đăng ký CITIZEN
+  /lookup/         (inline)          Tra cứu tiêu thụ công khai /api/public-lookup/
+  /app/            app.js (~2300 dòng) Bản đồ Leaflet chính — trái tim UI
+  /incidents/      incidents.js      Quản lý sự cố + bản đồ sự cố
+  /report/         report.js         Form báo cáo sự cố (chủ yếu CITIZEN)
+  /monitoring/     monitoring.js     Nhập/xem tiêu thụ, biểu đồ, Excel
+  /dashboard/      dashboard.js      KPI cards + Chart.js
+  /analytics/      analytics.js      Báo cáo sự cố nâng cao + Excel
+  /notifications/  notifications.js  Hộp thư thông báo, mark read
+  /users/          users.js          CRUD user + gán ward + nhật ký (Admin)
+  (dùng chung)     staff-nav.js      Navbar theo role, badge user
+  (dùng chung)     wards.js          Cache ward, validate tọa độ, fetch KTV
+
+7.2. Pattern JavaScript dùng chung
+-----------------------------------
+  apiFetch(url, options):
+    • Gắn Authorization: Bearer {access}
+    • 401 → refresh token → retry
+    • Refresh fail → /login/
+
+  localStorage keys:
+    infra_access, infra_refresh, infra_role, infra_username
+
+  StaffNav.initNavUser():
+    • Gắn data-user-role lên <html>
+    • Hiện/ẩn menu theo role (CSS class nav-tier-mgmt, nav-hide-technician...)
+    • CITIZEN: đổi link "Bản đồ" → "Tra cứu" trỏ /lookup/
+
+7.3. app.js — Bản đồ chính (chi tiết cách làm)
+------------------------------------------------
+  KHỞI TẠO:
+    • Leaflet map center Đà Nẵng (16.0544, 108.2022), zoom 13.
+    • 3 layer group: markerLayer (thiết bị), routeLayer (tuyến), incidentLayer (sự cố).
+
+  TẢI DỮ LIỆU:
+    • GET /api/devices/?page_size=999&ward=... (lọc theo sidebar).
+    • GET /api/edges/ — vẽ polyline.
+    • GET /api/incidents/ — marker sự cố (ẩn CLOSED/RESOLVED/REJECTED trên map).
+
+  HIỂN THỊ THIẾT BỊ:
+    • CircleMarker màu theo status: xanh ACTIVE, đỏ FAULT (pulse), vàng MAINTENANCE.
+    • Icon khác nhau theo device_type (trụ điện, TBA, bể nước...).
+    • Popup: thông tin + nút hành động theo role.
+
+  SIDEBAR:
+    • Bảng thiết bị phân trang, tìm kiếm, lọc loại/ward/status.
+    • OPERATOR/TECH: dropdown ward chỉ hiện managed_ward_ids (load từ /api/auth/profile/).
+
+  ADMIN — CRUD THIẾT BỊ:
+    • Click map (pickLocationMode) → điền lat/lng vào modal.
+    • validateCoordsForSelectedWard() — tọa độ phải khớp ward đã chọn.
+    • POST/PATCH /api/devices/
+
+  OPERATOR — BẢO TRÌ:
+    • Popup thiết bị FAULT → "Tiến hành bảo trì & phân công KTV"
+    • Modal chọn KTV từ WardUtils.fetchAssignableTechnicians()
+    • PATCH assign-maintenance
+
+  TECHNICIAN — BẢO TRÌ:
+    • Popup thiết bị MAINTENANCE được giao:
+        "Xác nhận công việc" → acknowledge-maintenance
+        "Báo bảo trì xong & gửi vận hành" → report-maintenance-complete (+ note)
+    • KHÔNG có nút chuyển ACTIVE — chỉ Operator/Admin confirm.
+
+  BÁO SỰ CỐ (ADMIN/OPERATOR trên map):
+    • Click map → popup "Báo sự cố tại đây" → modal report-incident-form
+    • Submit → POST /api/incidents/
+
+7.4. report.js — Trang báo cáo người dân (chi tiết)
+-----------------------------------------------------
+  ĐỐI TƯỢNG: chủ yếu CITIZEN (OPERATOR/ADMIN cũng vào được).
+
+  GIAO DIỆN 2 TAB:
+    Tab 1: Form báo cáo mới + bản đồ chọn vị trí
+    Tab 2: Danh sách sự cố đã báo cáo (GET /api/incidents/ — chỉ của mình)
+
+  QUY TRÌNH BÁO CÁO (CITIZEN):
+    1. Chọn Phường/Xã (bắt buộc) — dropdown nhóm theo quận/huyện.
+    2. Click bản đồ → hệ thống kiểm tra tọa độ có thuộc phường đã chọn không.
+       • Sai → báo lỗi, KHÔNG đặt marker.
+       • Đúng → hiện marker đỏ + điền lat/lng.
+    3. Nhập tiêu đề, mô tả, loại sự cố, mức độ.
+    4. (Tùy chọn) chọn thiết bị liên quan.
+    5. Gửi → POST /api/incidents/ → status PENDING_VERIFY.
+
+  HỖ TRỢ URL PARAMS (deep link từ bản đồ khác):
+    ?device_id=&lat=&lng=&type=ELECTRIC&target_type=DEVICE
+
+  VALIDATE:
+    • Frontend: WardUtils.validateCoordsForWard() — haversine + nearest ward.
+    • Backend: IncidentSerializer.coordinates_match_ward() — chặn bypass API.
+
+7.5. incidents.js — Quản lý sự cố (chi tiết)
+---------------------------------------------
+  DANH SÁCH:
+    • Bảng sự cố + filter status/severity/type/ward.
+    • CITIZEN redirect → /report/ (không vào trang này).
+
+  CHI TIẾT SỰ CỐ (panel/modal):
+    Nút hiện theo role + status hiện tại:
+
+    OPERATOR/ADMIN + PENDING_VERIFY:
+      [Xác nhận sự cố] → CONFIRMED
+      [Từ chối] → REJECTED (+ lý do)
+      [Phân công KTV] → ASSIGNED
+
+    OPERATOR/ADMIN + RESOLVED:
+      [Xác nhận hoàn thành & thông báo người dân] → CLOSED
+
+    TECHNICIAN + ASSIGNED:
+      [Xác nhận công việc] → IN_PROGRESS
+
+    TECHNICIAN + IN_PROGRESS:
+      [Báo hoàn thành] → RESOLVED (+ result_note bắt buộc)
+
+  BẢN ĐỒ SỰ CỐ:
+    • Marker sự cố đang mở (ẩn CLOSED/RESOLVED/REJECTED).
+    • Click marker → mở panel chi tiết.
+
+  PHÂN CÔNG KTV:
+    • Modal chọn nhiều KTV.
+    • Gọi GET /api/auth/users/assignable-technicians/?ward={id}
+    • PATCH /api/incidents/{id}/assign/
+
+  LỊCH SỬ TRẠNG THÁI:
+    • Chỉ Admin thấy (API filter + UI ẩn với role khác).
+
+7.6. Các trang còn lại (tóm tắt)
+---------------------------------
+  monitoring.js  — 2 bảng điện/nước, nhập ConsumptionLog, xuất Excel, chart.
+  dashboard.js   — KPI từ /api/network/summary/ + /api/incidents/stats/.
+  analytics.js   — Báo cáo lọc theo ngày/loại/mức độ, chart, export Excel.
+  notifications.js — Inbox, lọc loại, mark read/all read, polling badge.
+  users.js       — Admin CRUD user, gán managed_wards, xem nhật ký /api/journal/.
+
+
+================================================================================
+PHẦN 8 — PHÂN QUYỀN RBAC & PHƯỜNG/XÃ (2 phút)
+================================================================================
+
+8.1. Ma trận quyền theo vai trò (tóm tắt)
+------------------------------------------
+  HÀNH ĐỘNG                    ADMIN   OPERATOR   TECHNICIAN   CITIZEN
+  ─────────────────────────────────────────────────────────────────────
+  CRUD user                    ✓       ✗          ✗            ✗
+  Gán ward cho KTV/Operator    ✓       ✗          ✗            ✗
+  CRUD thiết bị/tuyến          ✓       ✓ (ward)   ✗ (read)     ✗
+  Phân công bảo trì            ✓       ✓ (ward)   ✗            ✗
+  Xác nhận bảo trì xong        ✓       ✓          ✗            ✗
+  Thực hiện bảo trì            ✗       ✗          ✓ (assigned) ✗
+  Xác nhận/từ chối sự cố       ✓       ✓ (ward)   ✗            ✗
+  Phân công sự cố              ✓       ✓ (ward)   ✗            ✗
+  Xử lý sự cố được giao        ✗       ✗          ✓            ✗
+  Báo sự cố                    ✓       ✓          ✗            ✓
+  Đóng sự cố (CLOSED)          ✓       ✓          ✗            ✓ (của mình)
+  Xem nhật ký SystemJournal    ✓       ✗          ✗            ✗
+  Dashboard/Analytics          ✓       ✓          ✗            ✗
+
+8.2. Cách gán phường/xã
+------------------------
+  • CHỈ ADMIN gán tại /users/ → sửa user → chọn managed_wards.
+  • Operator KHÔNG được gán ward cho Operator khác (validate backend).
+  • seed_data: operator + technician cùng 6 quận:
+      Hải Châu, Thanh Khê, Liên Chiểu, Cẩm Lệ, Sơn Trà, Ngũ Hành Sơn
+    (Không gồm Hòa Vang — để demo phân công trong nội thành).
+
+8.3. Cách lọc dữ liệu theo ward (2 lớp)
+-----------------------------------------
+  LỚP 1 — BACKEND (bắt buộc, không bypass được):
+    filter_devices_for_user(), filter_incidents_for_user() trong spatial.py
+    Mọi API list đều áp dụng.
+
+  LỚP 2 — FRONTEND (UX):
+    app.js load profile → managed_ward_ids → lọc dropdown ward sidebar.
+    incidents.js tương tự.
+
+8.4. Phân công KTV — tại sao trước đây danh sách trống?
+---------------------------------------------------------
+  Nguyên nhân đã sửa:
+    1. Frontend gọi sai URL: /api/users/ → đúng là /api/auth/users/
+    2. Không truyền ?ward= khi lọc KTV theo phường sự cố.
+    3. Operator/KTV chưa được gán cùng ward.
+
+  Giải pháp:
+    • wards.js: fetchAssignableTechnicians(apiFetch, '/api/auth/users/', wardId)
+    • Backend: get_assignable_technicians() validate KTV thuộc ward.
+
+
+================================================================================
+PHẦN 9 — RÀNG BUỘC TỌA ĐỘ THEO PHƯỜNG/XÃ (1 phút)
+================================================================================
+
+9.1. Vì sao cần ràng buộc?
+---------------------------
+  Người dân có thể chọn phường A nhưng click bản đồ ở phường B → dữ liệu sai,
+  Operator phân công nhầm khu vực. Cần validate cả UI lẫn API.
+
+9.2. Thuật toán (assets/spatial.py — mirror trong wards.js)
+------------------------------------------------------------
+  Bước 1: Tính khoảng cách Haversine từ (lat, lng) đến TÂM mỗi phường.
+  Bước 2: Tìm phường GẦN NHẤT (nearest ward).
+  Bước 3: Kiểm tra:
+    • nearest.id == ward.id (phường đã chọn phải là gần nhất)
+    • dist(selected_center, point) ≤ max_km
+  Bước 4:
+    max_km = 4.5 km (nội thành)
+    max_km = 12.0 km (quận Hòa Vang — diện tích rộng)
+
+9.3. Áp dụng ở đâu?
+--------------------
+  • POST/PATCH Device (DeviceSerializer)
+  • POST Incident (IncidentSerializer) — bao gồm báo cáo người dân
+  • app.js: validateCoordsForSelectedWard() khi Admin thêm/sửa thiết bị
+  • report.js: WardUtils.validateCoordsForWard() khi CITIZEN báo sự cố
+
+
+================================================================================
+PHẦN 10 — LUỒNG NGHIỆP VỤ SỰ CỐ (7 BƯỚC, CHI TIẾT) (4 phút)
+================================================================================
+
+Sơ đồ tổng quan:
+  CITIZEN → PENDING_VERIFY → OPERATOR xác minh → CONFIRMED
+         → OPERATOR phân công → ASSIGNED → KTV xác nhận → IN_PROGRESS
+         → KTV báo xong → RESOLVED → OPERATOR đóng → CLOSED
+  (Nhánh từ chối: REJECTED ở bất kỳ bước xác minh nào)
+
+────────────────────────────────────────────────────────────────────────────────
+BƯỚC 1 — CITIZEN BÁO SỰ CỐ
+────────────────────────────────────────────────────────────────────────────────
+  MÀN HÌNH: /report/ (tab "Báo cáo sự cố mới")
+
+  THAO TÁC NGƯỜI DÙNG:
+    1. Chọn Phường/Xã (VD: Hải Châu 1, quận Hải Châu).
+    2. Click vị trí trên bản đồ TRONG phạm vi phường đó.
+    3. Nhập tiêu đề: "Mất điện khu vực..."
+    4. Nhập mô tả chi tiết.
+    5. Chọn loại: Điện / Nước / Khác.
+    6. (Tùy chọn) chọn thiết bị liên quan.
+    7. Bấm "Gửi báo cáo".
+
+  API: POST /api/incidents/
+  Body mẫu: { title, description, incident_type, severity, latitude, longitude,
+              ward, address, device?, target_type }
+
+  BACKEND XỬ LÝ:
+    • IncidentSerializer validate ward + tọa độ.
+    • perform_create → reported_by = citizen hiện tại.
+    • status mặc định = PENDING_VERIFY.
+
+  SIGNAL TỰ ĐỘNG:
+    • Notification NEW_INCIDENT → ADMIN + OPERATOR ward đó.
+    • Nếu gắn device → device.status = FAULT.
+    • Ghi IncidentHistory.
+
+  KẾT QUẢ HIỂN THỊ:
+    • Tab "Sự cố đã báo cáo" cập nhật — status "Chờ xác minh".
+    • Marker sự cố xuất hiện trên bản đồ staff (nếu xem /incidents/).
+
+────────────────────────────────────────────────────────────────────────────────
+BƯỚC 2 — OPERATOR XÁC MINH
+────────────────────────────────────────────────────────────────────────────────
+  MÀN HÌNH: /incidents/ → click sự cố PENDING_VERIFY
+
+  THAO TÁC (chọn 1 trong 2):
+    A. [Xác nhận sự cố] → status CONFIRMED
+    B. [Từ chối] → nhập lý do → status REJECTED
+
+  API: PATCH /api/incidents/{id}/update-status/
+  Body: { status: "CONFIRMED" } hoặc { status: "REJECTED", rejection_reason: "..." }
+
+  THÔNG BÁO:
+    • CONFIRMED → Citizen nhận notification "Đã xác nhận".
+    • REJECTED  → Citizen nhận notification "Từ chối" + lý do.
+
+  GHI CHÚ: Operator chỉ thấy sự cố trong managed_wards của mình.
+
+────────────────────────────────────────────────────────────────────────────────
+BƯỚC 3 — OPERATOR PHÂN CÔNG KTV
+────────────────────────────────────────────────────────────────────────────────
+  MÀN HÌNH: /incidents/ → sự cố CONFIRMED (hoặc PENDING_VERIFY/ASSIGNED)
+
+  THAO TÁC:
+    1. Bấm [Phân công KTV].
+    2. Modal hiện danh sách KTV từ assignable-technicians?ward={ward_id}.
+    3. Chọn 1 hoặc nhiều KTV → Xác nhận.
+
+  API: PATCH /api/incidents/{id}/assign/
+  Body: { assigned_technicians: [id1, id2], technician_count: 2 }
+
+  BACKEND VALIDATE:
+    • Mỗi KTV phải thuộc get_assignable_technicians(operator, ward_id).
+    • status → ASSIGNED.
+
+  THÔNG BÁO & NHẬT KÝ:
+    • Mỗi KTV nhận notification ASSIGNED.
+    • SystemJournal: JOB_ASSIGNED.
+
+────────────────────────────────────────────────────────────────────────────────
+BƯỚC 4 — KTV XÁC NHẬN CÔNG VIỆC
+────────────────────────────────────────────────────────────────────────────────
+  MÀN HÌNH: /incidents/ hoặc /notifications/ → click thông báo phân công
+
+  THAO TÁC: Bấm [Xác nhận công việc]
+
+  API: PATCH /api/incidents/{id}/update-status/
+  Body: { status: "IN_PROGRESS" }
+
+  VALIDATE:
+    • User phải là TECHNICIAN trong assigned_technicians.
+    • Chuyển từ ASSIGNED → IN_PROGRESS (VALID_TRANSITIONS).
+
+  THÔNG BÁO:
+    • Operator nhận JOB_ACKNOWLEDGED.
+    • SystemJournal ghi nhận.
+
+────────────────────────────────────────────────────────────────────────────────
+BƯỚC 5 — KTV BÁO HOÀN THÀNH
+────────────────────────────────────────────────────────────────────────────────
+  MÀN HÌNH: /incidents/ → sự cố IN_PROGRESS
+
+  THAO TÁC:
+    1. Bấm [Báo hoàn thành].
+    2. NHẬP GHI CHÚ KẾT QUẢ (bắt buộc): "Đã thay cầu chì, cấp điện lại..."
+    3. Xác nhận.
+
+  API: PATCH /api/incidents/{id}/update-status/
+  Body: { status: "RESOLVED", result_note: "Đã thay cầu chì..." }
+
+  QUAN TRỌNG:
+    • Device VẪN FAULT — chưa CLOSED.
+    • Sự cố ẨN khỏi bản đồ (filter CLOSED/RESOLVED/REJECTED).
+    • Vẫn hiện trong danh sách incidents cho Operator xác nhận.
+
+  THÔNG BÁO:
+    • Operator nhận PENDING_OPERATOR ("Chờ vận hành xác nhận").
+    • SystemJournal: WORK_COMPLETED.
+
+────────────────────────────────────────────────────────────────────────────────
+BƯỚC 6 — OPERATOR XÁC NHẬN & ĐÓNG SỰ CỐ
+────────────────────────────────────────────────────────────────────────────────
+  MÀN HÌNH: /incidents/ → sự cố RESOLVED
+
+  THAO TÁC: Bấm [Xác nhận hoàn thành & thông báo người dân]
+
+  API: PATCH /api/incidents/{id}/update-status/
+  Body: { status: "CLOSED" }
+
+  SIGNAL TỰ ĐỘNG:
+    • Citizen nhận OPERATOR_CONFIRMED.
+    • Device/Edge liên quan → ACTIVE (nếu không còn sự cố mở khác).
+    • Sự cố biến mất hoàn toàn khỏi bản đồ.
+
+  SystemJournal: OPERATOR_CONFIRMED.
+
+────────────────────────────────────────────────────────────────────────────────
+BƯỚC 7 — ADMIN TRA NHẬT KÝ
+────────────────────────────────────────────────────────────────────────────────
+  MÀN HÌNH: /users/ → tab "Nhật ký vận hành"
+
+  API: GET /api/journal/?category=INCIDENT
+
+  THẤY GÌ:
+    • JOB_ASSIGNED — ai phân công cho ai, lúc nào.
+    • JOB_ACKNOWLEDGED — KTV xác nhận.
+    • WORK_COMPLETED — ghi chú kết quả KTV.
+    • OPERATOR_CONFIRMED — Operator đóng sự cố.
+    • STATUS_CHANGED, NOTE_ADDED — mọi thay đổi khác.
+
+
+================================================================================
+PHẦN 11 — LUỒNG BẢO TRÌ THIẾT BỊ (5 BƯỚC) (2 phút)
+================================================================================
+
+Luồng này KHÔNG qua sự cố — Operator phát hiện thiết bị lỗi trên bản đồ và 
+điều phối bảo trì trực tiếp.
+
+  [1] THIẾT BỊ FAULT
+      Nguồn: sự cố gắn device HOẶC Operator/Admin đánh dấu thủ công.
+
+  [2] OPERATOR PHÂN CÔNG BẢO TRÌ
+      Màn hình: /app/ → click thiết bị FAULT → popup
+      Nút: "Tiến hành bảo trì & phân công KTV"
+      API: PATCH /api/devices/{id}/assign-maintenance/
+      Body: { assigned_technicians: [id], note: "...", technician_count: 1 }
+      Kết quả: status → MAINTENANCE, KTV nhận MAINTENANCE_ASSIGNED.
+
+  [3] KTV XÁC NHẬN NHẬN VIỆC
+      Màn hình: /app/ → click thiết bị MAINTENANCE (được giao)
+      Nút: "Xác nhận công việc"
+      API: PATCH /api/devices/{id}/acknowledge-maintenance/
+      Kết quả: maintenance_acknowledged_at ghi nhận, Operator nhận JOB_ACKNOWLEDGED.
+
+  [4] KTV BÁO BẢO TRÌ XONG
+      Nút: "Báo bảo trì xong & gửi vận hành" (+ ghi chú BẮT BUỘC)
+      API: PATCH /api/devices/{id}/report-maintenance-complete/
+      Body: { note: "Đã thay van, kiểm tra áp suất OK" }
+
+      ★ ĐIỂM NHẤN THUYẾT TRÌNH:
+        KTV KHÔNG được tự chuyển ACTIVE.
+        Thiết bị VẪN MAINTENANCE — chờ Operator duyệt.
+        Operator nhận PENDING_OPERATOR.
+
+  [5] OPERATOR XÁC NHẬN HOÀN THÀNH
+      Nút: "Xác nhận hoàn thành & về hoạt động"
+      API: PATCH /api/devices/{id}/confirm-maintenance/
+      Kết quả: status → ACTIVE, xóa thông tin phân công bảo trì.
+
+  TÁCH TRÁCH NHIỆM:
+    KTV    = thực hiện + báo cáo kết quả
+    OPERATOR = giám sát + phê duyệt + đưa thiết bị về vận hành
+
+
+================================================================================
+PHẦN 12 — THÔNG BÁO, NHẬT KÝ, AUDIT (1 phút)
+================================================================================
+
+12.1. Loại thông báo (Notification.NotifType)
+----------------------------------------------
+  LOẠI                  KHI NÀO TẠO                         GỬI CHO
+  ─────────────────────────────────────────────────────────────────────
+  NEW_INCIDENT          Sự cố mới tạo                       ADMIN + OPERATOR ward
+  ASSIGNED              Phân công sự cố                     KTV được chọn
+  MAINTENANCE_ASSIGNED  Phân công bảo trì thiết bị          KTV được chọn
+  JOB_ACKNOWLEDGED      KTV xác nhận công việc              OPERATOR
+  PENDING_OPERATOR      KTV báo hoàn thành (sự cố/thiết bị) OPERATOR
+  OPERATOR_CONFIRMED    Sự cố CLOSED                        CITIZEN (người báo)
+  CONFIRMED             Sự cố được xác nhận                 CITIZEN
+  REJECTED              Sự cố bị từ chối                    CITIZEN
+
+  Frontend polling: GET /api/notifications/unread-count/ mỗi 30 giây → badge đỏ.
+
+12.2. SystemJournal (Admin only)
+---------------------------------
+  Category: INCIDENT | MAINTENANCE | SYSTEM
+  Action: JOB_ASSIGNED | JOB_ACKNOWLEDGED | WORK_COMPLETED | OPERATOR_CONFIRMED
+          | STATUS_CHANGED | NOTE_ADDED
+
+12.3. AuditLog (middleware)
+-----------------------------
+  Ghi mọi POST/PUT/PATCH/DELETE: user, path, method, IP.
+  Admin xem tại /users/.
+
+
+================================================================================
+PHẦN 13 — KIỂM THỬ & CHẤT LƯỢNG (1 phút)
+================================================================================
+
+  Bộ test tự động: 46 test cases
+    accounts/tests.py   —  4 tests (ward assignment, permissions)
+    assets/tests.py     — 27 tests (device CRUD, maintenance workflow, spatial)
+    incidents/tests.py  — 15 tests (incident workflow, validation, assign)
+
+  Chạy:
+    # Windows PowerShell — dùng SQLite, không cần MySQL:
+    $env:USE_SQLITE="True"
+    python manage.py test
+
+  Các kịch bản test quan trọng:
+    • Workflow sự cố PENDING → CLOSED → device ACTIVE
+    • KTV không update-status thiết bị chưa được giao
+    • assignable-technicians lọc đúng ward
+    • coordinates_match_ward reject tọa độ sai phường
+    • Permissions API theo role (403 cho CITIZEN truy cập admin API)
+
+
+================================================================================
+PHẦN 14 — HƯỚNG DẪN CÀI ĐẶT & CHẠY (1 phút)
+================================================================================
+
+  # 1. Clone & vào thư mục dự án
+  cd HTQL-Dien-Nuoc
+
+  # 2. Tạo & kích hoạt venv
+  python -m venv venv
+  venv\Scripts\Activate.ps1          # Windows
+  # source venv/bin/activate         # Linux/Mac
+
+  # 3. Cài dependencies
+  pip install -r requirements.txt
+
+  # 4a. MySQL (mặc định) — cần XAMPP/MySQL chạy
+  # Tạo database: CREATE DATABASE qlda_db CHARACTER SET utf8mb4;
+  python manage.py migrate
+  python manage.py load_danang_wards
+  $env:PYTHONIOENCODING='utf-8'       # tránh lỗi font tiếng Việt trên Windows
+  python manage.py seed_data
+
+  # 4b. HOẶC SQLite (không cần MySQL)
+  $env:USE_SQLITE="True"
+  python manage.py migrate
+  python manage.py load_danang_wards
+  python manage.py seed_data
+
+  # 5. Chạy server
+  python manage.py runserver
+  → http://127.0.0.1:8000/
+
+  TÀI KHOẢN DEMO:
+    admin / admin123          — Quản trị viên
+    operator / operator123    — Vận hành (6 quận trung tâm)
+    technician / technician123 — KTV (6 quận trung tâm)
+    citizen / citizen123      — Người dân
+
+  LƯU Ý MYSQL:
+    Nếu migrate báo lỗi "django_migrations doesn't exist in engine" → database 
+    MariaDB bị hỏng metadata. Cần xóa thư mục qlda_db trong mysql/data và tạo lại.
+
+
+================================================================================
+PHẦN 15 — KHÓ KHĂN GẶP PHẢI & CÁCH XỬ LÝ (1 phút)
+================================================================================
+
+  1. JWT vs Session
+     Vấn đề: Trang HTML cần session, JS cần token.
+     Giải pháp: Login API gọi django_login() + trả JWT; frontend lưu cả hai.
+
+  2. Danh sách KTV trống khi phân công
+     Vấn đề: URL sai (/api/users/ vs /api/auth/users/), thiếu ?ward=, ward chưa gán.
+     Giải pháp: Sửa app.js/incidents.js + dùng assignable-technicians backend.
+
+  3. KTV tự chuyển thiết bị ACTIVE
+     Vấn đề: Ban đầu KTV có thể update-status → ACTIVE, bỏ qua Operator.
+     Giải pháp: Tách API report-maintenance-complete + confirm-maintenance;
+               ẩn nút ACTIVE trên UI KTV; chặn backend.
+
+  4. Tọa độ không khớp phường/xã
+     Vấn đề: Click map bất kỳ, chọn ward tùy ý.
+     Giải pháp: Haversine validate frontend (app.js, report.js) + backend serializer.
+
+  5. MySQL corrupt trên XAMPP
+     Vấn đề: Table exists nhưng engine không đọc được (.ibd mồ côi).
+     Giải pháp: Xóa folder mysql/data/qlda_db, DROP/CREATE database, migrate lại.
+
+  6. seed_data lỗi font Windows
+     Vấn đề: UnicodeEncodeError cp1252 khi in tiếng Việt.
+     Giải pháp: $env:PYTHONIOENCODING='utf-8' trước khi chạy seed.
+
+
+================================================================================
+PHẦN 16 — HƯỚNG PHÁT TRIỂN & KẾT LUẬN (1 phút)
+================================================================================
+
+HƯỚNG PHÁT TRIỂN:
+  • Lan truyền lỗi theo đồ thị (downstream FAULT tự động).
+  • WebSocket push notification realtime.
+  • Mobile app cho KTV hiện trường (GPS + chụp ảnh hiện trường).
+  • Tích hợp SCADA/IoT đọc công tơ tự động.
+  • GeoDjango + shapefile ranh giới phường chính xác (thay haversine).
+
+KẾT LUẬN:
+  Dự án HTQL Điện – Nước là hệ thống web hoàn chỉnh:
+
+  ✓ Mô hình mạng lưới thiết bị – tuyến trên bản đồ Leaflet
+  ✓ RBAC 4 vai trò + phân quyền 53 phường/xã Đà Nẵng
+  ✓ Quy trình sự cố 7 bước & bảo trì 5 bước — tách trách nhiệm KTV/Operator
+  ✓ Thông báo in-app + nhật ký Admin + audit HTTP
+  ✓ Validate tọa độ theo phường/xã (frontend + backend)
+  ✓ API RESTful + frontend Vanilla JS + xuất Excel
+  ✓ 46 tests tự động, seed data demo sẵn sàng
+
+Nhóm em xin cảm ơn thầy/cô. Em sẵn sàng demo trực tiếp và trả lời câu hỏi.
+
+
+================================================================================
+PHỤ LỤC A — SCRIPT DEMO 7 PHÚT (TỪNG CLICK, TỪNG MÀN HÌNH)
+================================================================================
+
+Chuẩn bị: runserver đang chạy, đã seed_data, trình duyệt ẩn danh hoặc logout sẵn.
+
+─── PHẦN A1: LUỒNG BẢO TRÌ (3 phút) ───
+
+  [A1.1] Login operator / operator123
+         → Tự redirect /app/
+         → Quan sát: bản đồ Đà Nẵng, marker thiết bị nhiều màu.
+
+  [A1.2] Sidebar → Lọc trạng thái: "Lỗi (FAULT)"
+         → Click 1 thiết bị đỏ trên bản đồ.
+         → Popup hiện thông tin + nút "Tiến hành bảo trì & phân công KTV".
+
+  [A1.3] Bấm phân công → Modal chọn KTV
+         → Chọn "technician" → Xác nhận.
+         → Thiết bị chuyển màu vàng MAINTENANCE.
+
+  [A1.4] Logout → Login technician / technician123
+         → Vào /notifications/ → thấy "Phân công bảo trì thiết bị..."
+         → Vào /app/ → click thiết bị vàng → "Xác nhận công việc".
+
+  [A1.5] "Báo bảo trì xong & gửi vận hành"
+         → Nhập ghi chú: "Đã kiểm tra, thay linh kiện, test OK."
+         → Lưu ý: thiết bị VẪN MAINTENANCE (không ACTIVE).
+
+  [A1.6] Logout → Login operator
+         → /notifications/ → "Chờ vận hành xác nhận"
+         → Click thiết bị → "Xác nhận hoàn thành & về hoạt động"
+         → Thiết bị chuyển xanh ACTIVE.
+
+─── PHẦN A2: LUỒNG SỰ CỐ (3 phút) ───
+
+  [A2.1] Login citizen / citizen123
+         → Redirect /lookup/ (trang tra cứu — navbar "Tra cứu")
+         → Click menu "Báo cáo" hoặc vào /report/
+
+  [A2.2] Tab "Báo cáo sự cố mới"
+         → Chọn phường: VD "Hải Châu 1" (quận Hải Châu)
+         → Click bản đồ TRONG khu vực phường (marker đỏ xuất hiện)
+         → Thử click SAI phường → hệ thống báo lỗi, không đặt marker
+         → Nhập tiêu đề + mô tả → Gửi báo cáo.
+
+  [A2.3] Tab "Sự cố đã báo cáo" → status "Chờ xác minh".
+
+  [A2.4] Logout → Login operator
+         → /incidents/ → tìm sự cố vừa tạo → Xác nhận (CONFIRMED)
+         → Phân công KTV "technician".
+
+  [A2.5] Logout → Login technician
+         → /incidents/ → Xác nhận công việc (IN_PROGRESS)
+         → Báo hoàn thành + ghi chú (RESOLVED).
+
+  [A2.6] Logout → Login operator
+         → Xác nhận hoàn thành & thông báo người dân (CLOSED).
+
+  [A2.7] Login citizen → /notifications/
+         → Thấy "Vận hành đã xác nhận khắc phục sự cố".
+
+─── PHẦN A3: ADMIN NHẬT KÝ (1 phút) ───
+
+  [A3.1] Login admin / admin123
+         → /users/ → tab "Nhật ký vận hành"
+         → Lọc category INCIDENT / MAINTENANCE
+         → Chỉ ra: phân công, xác nhận, hoàn thành, ghi chú — đầy đủ timeline.
+
+
+================================================================================
+PHỤ LỤC B — BẢNG TRANG WEB × VAI TRÒ
+================================================================================
+
+  TRANG            ADMIN   OPERATOR   TECHNICIAN   CITIZEN   GHI CHÚ
+  ────────────────────────────────────────────────────────────────────────
+  /login/          ✓       ✓          ✓            ✓         Public
+  /register/       ✓       ✓          ✓            ✓         Chỉ tạo CITIZEN
+  /lookup/         ✓       ✓          ✓            ✓★        ★ Home của dân
+  /app/            ✓       ✓          ✓            ✗→lookup  Bản đồ chính
+  /monitoring/     ✓       ✓          ✓            ✗         Tiêu thụ
+  /incidents/      ✓       ✓          ✓            ✗→report  Quản lý sự cố
+  /report/         ✓       ✓          ✗            ✓★        ★ Báo cáo dân
+  /dashboard/      ✓       ✓          ✗            ✗         KPI
+  /analytics/      ✓       ✓          ✗            ✗         Báo cáo
+  /users/          ✓★      ✗          ✗            ✗         ★ Admin only
+  /notifications/  ✓       ✓          ✓            ✓         Tất cả role
+
+  ★ = trang/mục đích chính của role đó
+
+
+================================================================================
+PHỤ LỤC C — DANH SÁCH API QUAN TRỌNG
+================================================================================
+
+AUTH (/api/auth/):
+  POST   login/                          Đăng nhập → JWT + session
+  POST   logout/                         Đăng xuất, blacklist refresh
+  POST   register/                       Đăng ký CITIZEN
+  POST   token/refresh/                  Refresh access token
+  GET    profile/                        Thông tin user + managed_ward_ids
+  GET    users/                          CRUD user (Admin)
+  GET    users/assignable-technicians/   Lọc KTV theo ?ward=
+  PATCH  users/{id}/managed-wards/       Gán phường (Admin)
+  GET    audit-logs/                     Log HTTP (Admin)
+
+ASSETS (/api/):
+  GET    wards/                          53 phường/xã
+  GET/POST/PATCH/DELETE devices/         CRUD thiết bị
+  PATCH  devices/{id}/assign-maintenance/
+  PATCH  devices/{id}/acknowledge-maintenance/
+  PATCH  devices/{id}/report-maintenance-complete/
+  PATCH  devices/{id}/confirm-maintenance/
+  GET    devices/export-excel/
+  POST   devices/import-csv/
+  GET/POST/PATCH/DELETE edges/           CRUD tuyến
+  GET    consumptions/by-area/           Tiêu thụ theo khu vực
+  GET    network/summary/                Tổng quan mạng lưới
+  GET    public-lookup/?code=            Tra cứu công khai (no auth)
+
+INCIDENTS (/api/):
+  GET/POST/PATCH/DELETE incidents/       CRUD sự cố
+  PATCH  incidents/{id}/assign/          Phân công KTV
+  PATCH  incidents/{id}/update-status/   Chuyển trạng thái
+  POST   incidents/{id}/add-note/        Thêm ghi chú
+  GET    incidents/stats/                Dashboard stats
+  GET    incidents/report/               Analytics report
+  GET    incidents/report-excel/         Xuất Excel
+  GET    notifications/                  Hộp thư
+  GET    notifications/unread-count/     Badge số chưa đọc
+  POST   notifications/{id}/mark-read/
+  POST   notifications/mark-all-read/
+  GET    journal/                        Nhật ký (Admin only)
+
+SYSTEM:
+  GET    /api/health/                    Health check
+  GET    /api/auth/session-status/       Kiểm tra session
+
+
+================================================================================
+PHỤ LỤC D — STATE MACHINE
+================================================================================
+
+D1. SỰ CỐ (VALID_TRANSITIONS trong incidents/views.py)
+────────────────────────────────────────────────────────
+
+  PENDING_VERIFY ──→ CONFIRMED ──→ ASSIGNED ──→ IN_PROGRESS ──→ RESOLVED ──→ CLOSED
+        │                │            │
+        ├──→ REJECTED    ├──→ REJECTED ├──→ REJECTED
+        └──→ ASSIGNED (phân công trực tiếp từ chờ xác minh)
+
+  RESOLVED ──→ IN_PROGRESS (Operator mở lại nếu cần)
+
+  Ai được chuyển gì:
+    CITIZEN:     chỉ → CLOSED (sự cố của mình)
+    TECHNICIAN:  chỉ → IN_PROGRESS, RESOLVED (sự cố được giao)
+    OPERATOR/ADMIN: mọi transition hợp lệ trong VALID_TRANSITIONS
+
+D2. BẢO TRÌ THIẾT BỊ
+─────────────────────
+
+  FAULT/INACTIVE
+      │ assign-maintenance [OPERATOR/ADMIN]
+      ▼
+  MAINTENANCE
+      │ acknowledge-maintenance [KTV assigned]
+      ▼
+  (đang sửa)
+      │ report-maintenance-complete [KTV, + note]
+      ▼
+  MAINTENANCE (chờ duyệt — KTV KHÔNG được ACTIVE)
+      │ confirm-maintenance [OPERATOR/ADMIN]
+      ▼
+  ACTIVE
+
+
+================================================================================
+PHỤ LỤC E — BẢNG CÔNG NGHỆ TÓM TẮT (IN SLIDE)
+================================================================================
+
+  THÀNH PHẦN        CÔNG NGHỆ / PHIÊN BẢN
+  ─────────────────────────────────────────────────────
+  Backend           Django 5.x, Python 3.11
+  API               Django REST Framework 3.x
+  Auth              SimpleJWT + Django Session
+  Frontend          Bootstrap 5.3, Vanilla JavaScript
+  Bản đồ            Leaflet.js 1.9, OpenStreetMap
+  Biểu đồ           Chart.js
+  Database          MySQL/MariaDB (prod) / SQLite (test)
+  Excel             openpyxl
+  Deploy            gunicorn (requirements.txt)
+  Test              46 unit tests, Django TestCase
+
+
+================================================================================
+                              HẾT TÀI LIỆU
+          File: tt.txt — Văn thuyết trình chi tiết dự án HTQL Điện Nước
+                    Cập nhật: workflow đầy đủ, validate tọa độ, 46 tests
+================================================================================

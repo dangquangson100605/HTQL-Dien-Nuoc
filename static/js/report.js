@@ -45,27 +45,7 @@
   }
 
   function setupNav() {
-    const u = localStorage.getItem(STORAGE.username) || '';
-    const role = localStorage.getItem(STORAGE.role) || '';
-    const el = document.getElementById('nav-user');
-    const roleEl = document.getElementById('nav-role');
-    if (el) el.textContent = u ? `Xin chào, ${u}` : '';
-    if (roleEl) {
-      const labels = { ADMIN: 'Quản trị', OPERATOR: 'Vận hành', TECHNICIAN: 'Kỹ thuật', CITIZEN: 'Người dân' };
-      roleEl.textContent = labels[role] || role;
-    }
-
-    if (role === 'CITIZEN') {
-      const mapLink = document.querySelector('a[href="/app/"]');
-      if (mapLink) {
-        mapLink.setAttribute('href', '/lookup/');
-        mapLink.innerHTML = '<i class="bi bi-search"></i> Tra cứu';
-      }
-      const incidentsLink = document.querySelector('a[href="/incidents/"]');
-      if (incidentsLink) {
-        incidentsLink.classList.add('d-none');
-      }
-    }
+    if (window.StaffNav) StaffNav.initNavUser();
 
     document.getElementById('btn-logout')?.addEventListener('click', async () => {
       const refresh = localStorage.getItem(STORAGE.refresh);
@@ -89,9 +69,56 @@
   }
 
   let reportMap, reportMarker;
+  let reportWards = [];
+
+  const reportMarkerIcon = L.divIcon({
+    className: '',
+    html: '<div style="background:#ef4444;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>',
+    iconAnchor: [8, 8],
+  });
+
+  function updateReportCoordHint(result) {
+    const el = document.getElementById('report-coord-hint');
+    if (!el) return;
+    if (result?.ok && result.selected) {
+      el.className = 'form-text small text-success mt-1 mb-0';
+      el.innerHTML = `<i class="bi bi-check-circle"></i> Tọa độ khớp <strong>${result.selected.name}</strong>`;
+      return;
+    }
+    el.className = 'form-text small text-primary mt-1 mb-0';
+    el.innerHTML = '<i class="bi bi-info-circle"></i> Chọn <strong>phường/xã</strong> trước, sau đó click trên bản đồ (tọa độ phải khớp phường/xã).';
+  }
+
+  function clearReportMarker() {
+    if (reportMarker && reportMap) {
+      reportMap.removeLayer(reportMarker);
+      reportMarker = null;
+    }
+  }
+
+  function setReportMarker(lat, lng) {
+    if (!reportMap) return;
+    clearReportMarker();
+    reportMarker = L.marker([lat, lng], { icon: reportMarkerIcon }).addTo(reportMap);
+  }
+
+  function validateReportCoords(lat, lng, showAlertMsg = false) {
+    const wardId = document.getElementById('report-ward')?.value;
+    const result = WardUtils.validateCoordsForWard(reportWards, wardId, lat, lng);
+    updateReportCoordHint(result);
+    if (!result.ok && showAlertMsg) showAlert(result.message);
+    return result.ok;
+  }
+
+  function readReportCoords() {
+    const lat = parseFloat(document.getElementById('report-lat')?.value);
+    const lng = parseFloat(document.getElementById('report-lng')?.value);
+    return { lat, lng, valid: !Number.isNaN(lat) && !Number.isNaN(lng) };
+  }
+
   function initMap() {
-    let defaultLat = 10.8231; // Ho Chi Minh City standard default if not set
-    let defaultLng = 106.6297;
+    let defaultLat = 16.0544; // Đà Nẵng
+    let defaultLng = 108.2022;
     let hasCoords = false;
 
     if (latParam && lngParam) {
@@ -113,35 +140,48 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(reportMap);
 
     if (hasCoords) {
-      reportMarker = L.marker([defaultLat, defaultLng], { icon: L.divIcon({ className: '', html: '<div style="background:#ef4444;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>', iconAnchor: [8, 8] }) }).addTo(reportMap);
+      setReportMarker(defaultLat, defaultLng);
     }
 
     reportMap.on('click', (e) => {
       const { lat, lng } = e.latlng;
+      if (!validateReportCoords(lat, lng, true)) return;
       document.getElementById('report-lat').value = lat.toFixed(6);
       document.getElementById('report-lng').value = lng.toFixed(6);
-      if (reportMarker) reportMap.removeLayer(reportMarker);
-      reportMarker = L.marker([lat, lng], { icon: L.divIcon({ className: '', html: '<div style="background:#ef4444;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>', iconAnchor: [8, 8] }) }).addTo(reportMap);
+      setReportMarker(lat, lng);
     });
 
-    document.getElementById('report-area')?.addEventListener('change', (e) => {
-      const area = e.target.value;
-      if (!area) return;
-      
-      const areaCoords = {
-        'Hải Châu': [16.0474, 108.2198],
-        'Thanh Khê': [16.0610, 108.1818],
-        'Sơn Trà': [16.0899, 108.2612],
-        'Ngũ Hành Sơn': [16.0150, 108.2633],
-        'Liên Chiểu': [16.0805, 108.1492],
-        'Cẩm Lệ': [16.0155, 108.1963],
-        'Hòa Vang': [15.9867, 108.1215]
-      };
-      
-      const coords = areaCoords[area];
-      if (coords && reportMap) {
-        reportMap.flyTo(coords, 14, { duration: 1.5 });
+    document.getElementById('report-ward')?.addEventListener('change', (e) => {
+      const opt = e.target.selectedOptions[0];
+      if (opt?.dataset.lat && reportMap) {
+        reportMap.flyTo([parseFloat(opt.dataset.lat), parseFloat(opt.dataset.lng)], 15, { duration: 1.5 });
       }
+      const { lat, lng, valid } = readReportCoords();
+      if (valid) {
+        if (!validateReportCoords(lat, lng, true)) {
+          document.getElementById('report-lat').value = '';
+          document.getElementById('report-lng').value = '';
+          clearReportMarker();
+        }
+      } else {
+        updateReportCoordHint(null);
+      }
+    });
+
+    ['report-lat', 'report-lng'].forEach((id) => {
+      document.getElementById(id)?.addEventListener('change', () => {
+        const { lat, lng, valid } = readReportCoords();
+        if (!valid) {
+          clearReportMarker();
+          updateReportCoordHint(null);
+          return;
+        }
+        if (validateReportCoords(lat, lng, true)) {
+          setReportMarker(lat, lng);
+        } else {
+          clearReportMarker();
+        }
+      });
     });
   }
 
@@ -251,7 +291,12 @@
     document.getElementById('detail-type').textContent = inc.type_display || inc.incident_type;
     document.getElementById('detail-desc').textContent = inc.description;
     
-    document.getElementById('detail-assignee').textContent = inc.assigned_to_username ? `@${inc.assigned_to_username}` : 'Chưa phân công';
+    document.getElementById('detail-assignee').textContent = (() => {
+      const names = inc.assigned_technician_usernames?.length
+        ? inc.assigned_technician_usernames
+        : (inc.assigned_to_username ? [inc.assigned_to_username] : []);
+      return names.length ? names.map((n) => `@${n}`).join(', ') : 'Chưa phân công';
+    })();
     
     const lastUpdate = inc.updated_at ? new Date(inc.updated_at) : new Date(inc.created_at);
     document.getElementById('detail-updated').textContent = lastUpdate.toLocaleString('vi-VN');
@@ -345,7 +390,7 @@
                       ${inc.status_display}
                     </span>
                   </td>
-                  <td class="text-center text-secondary">${inc.area || '—'}</td>
+                  <td class="text-center text-secondary">${inc.ward_name || inc.area || '—'}</td>
                   <td class="text-center text-muted small">${new Date(inc.created_at).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}</td>
                   <td class="text-center">
                     <button class="btn btn-sm btn-outline-primary px-3 py-1 rounded-pill fw-semibold" style="font-size: 12px;">
@@ -387,12 +432,13 @@
     const desc = document.getElementById('report-desc').value.trim();
     const lat = parseFloat(document.getElementById('report-lat').value);
     const lng = parseFloat(document.getElementById('report-lng').value);
-    const area = document.getElementById('report-area').value;
+    const ward = parseInt(document.getElementById('report-ward').value, 10);
     const address = document.getElementById('report-address').value.trim();
 
     if (!title || !desc) { showAlert('Vui lòng nhập tiêu đề và mô tả.'); return; }
-    if (!area) { showAlert('Vui lòng chọn khu vực quản lý.'); return; }
+    if (!ward) { showAlert('Vui lòng chọn phường/xã.'); return; }
     if (isNaN(lat) || isNaN(lng)) { showAlert('Vui lòng chọn vị trí trên bản đồ.'); return; }
+    if (!validateReportCoords(lat, lng, true)) return;
 
     const body = {
       title,
@@ -404,7 +450,7 @@
       device: document.getElementById('report-device').value || null,
       edge: (targetTypeParam === 'EDGE' && edgeIdParam) ? parseInt(edgeIdParam) : null,
       target_type: targetTypeParam || (document.getElementById('report-device').value ? 'DEVICE' : 'UNKNOWN'),
-      area,
+      ward,
       address
     };
 
@@ -418,7 +464,8 @@
       if (res.ok) {
         showAlert('✅ Báo cáo sự cố đã được gửi thành công!', true);
         document.getElementById('report-form').reset();
-        if (reportMarker) { reportMap.removeLayer(reportMarker); reportMarker = null; }
+        clearReportMarker();
+        updateReportCoordHint(null);
         // Re-enable device select and remove edge banner if form reset is triggered
         const deviceSelect = document.getElementById('report-device');
         if (deviceSelect) {
@@ -443,6 +490,16 @@
 
   setupNav();
   initMap();
+  WardUtils.fetchWards(apiFetch).then((wards) => {
+    reportWards = wards;
+    WardUtils.populateWardSelect(document.getElementById('report-ward'), wards);
+    const { lat, lng, valid } = readReportCoords();
+    if (valid && !validateReportCoords(lat, lng, false)) {
+      document.getElementById('report-lat').value = '';
+      document.getElementById('report-lng').value = '';
+      clearReportMarker();
+    }
+  }).catch(() => showAlert('Không tải danh mục phường/xã.'));
   prefillIncidentType();
   loadDevices().then(() => {
     handleEdgeSelection();

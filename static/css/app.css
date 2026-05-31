@@ -95,19 +95,418 @@ body {
 }
 
 /* Specific App styles */
+.app-topnav {
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+  min-height: 56px;
+  overflow: visible;
+}
+
+.app-topnav .container-fluid {
+  overflow: visible;
+}
+
+.staff-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: visible;
+  max-width: none;
+  scrollbar-width: none;
+}
+
+.staff-nav-links::-webkit-scrollbar {
+  display: none;
+}
+
+.staff-nav-link {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.staff-nav-link.staff-nav-active {
+  color: var(--primary-dark) !important;
+  font-weight: 600;
+}
+
+.staff-nav-userbox {
+  flex-shrink: 0;
+  border-left: 1px solid rgba(0, 0, 0, 0.08);
+  padding-left: 0.65rem;
+  margin-left: 0.15rem;
+  overflow: visible;
+}
+
+.staff-nav-notif {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px 2px 4px;
+  overflow: visible;
+  text-decoration: none;
+}
+
+.staff-nav-notif-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.22rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.05rem;
+  text-align: center;
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 0 1px rgba(220, 53, 69, 0.15);
+}
+
+/* Ẩn theo role — tách rule hiện / ẩn để không ghi đè nhau */
+.nav-tier-mgmt,
+.nav-tier-admin {
+  display: none !important;
+}
+
+html[data-user-role="ADMIN"] .nav-tier-mgmt,
+html[data-user-role="ADMIN"] .nav-tier-admin,
+html[data-user-role="OPERATOR"] .nav-tier-mgmt {
+  display: inline !important;
+}
+
+html[data-user-role="CITIZEN"] .nav-staff-only,
+html[data-user-role="CITIZEN"] .nav-tier-mgmt,
+html[data-user-role="CITIZEN"] .nav-tier-admin {
+  display: none !important;
+}
+
+html[data-user-role="TECHNICIAN"] .nav-hide-technician {
+  display: none !important;
+}
+
+.leaflet-popup-content-wrapper .leaflet-popup-content {
+  max-height: min(340px, 58vh);
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  margin: 10px 14px;
+  scrollbar-gutter: stable;
+}
+
+.leaflet-popup-content-wrapper .leaflet-popup-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.leaflet-popup-content-wrapper .leaflet-popup-content::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.5);
+  border-radius: 3px;
+}
+
+.app-page-body {
+  padding-top: 0;
+}
+
+.app-alert-slot {
+  position: relative;
+  z-index: 5;
+  min-height: 0;
+}
+
+.app-alert-slot #app-alert {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  margin: 0;
+  z-index: 6;
+}
+
+.app-map-row {
+  align-items: stretch;
+}
+
+/* Trang bản đồ: chiều cao cố định theo viewport, không co giãn theo số dòng bảng */
+body:has(.map-page) {
+  overflow: hidden;
+}
+
+.map-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 56px);
+  max-height: calc(100dvh - 56px);
+  overflow: hidden;
+  padding: 0.75rem 1rem;
+  box-sizing: border-box;
+}
+
+.map-page .app-alert-slot {
+  flex-shrink: 0;
+}
+
+.map-page .app-map-row {
+  flex: 1 1 0;
+  min-height: 0;
+  height: 0;
+  overflow: hidden;
+  margin-bottom: 0 !important;
+}
+
+.map-page .app-map-row > [class*="col-"] {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 100%;
+}
+
+.map-page .app-map-card,
+.map-page .sidebar-panel {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+}
+
+.map-page .sidebar-table-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.map-page .map-shell {
+  min-height: 0;
+}
+
+.app-map-row > [class*="col-"] {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.app-map-row .app-map-card,
+.app-map-row .sidebar-panel {
+  flex: 1;
+  width: 100%;
+}
+
+.app-map-card,
+.sidebar-panel {
+  display: flex;
+  flex-direction: column;
+  height: min(calc(100vh - 120px), 680px);
+  min-height: 420px;
+  max-height: calc(100vh - 120px);
+  overflow: hidden;
+}
+
+.app-map-card .card-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-panel > .sidebar-toolbar {
+  flex-shrink: 0;
+  background: #fff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  padding: 0.5rem 0.75rem;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+}
+
+.sidebar-panel > .sidebar-toolbar .nav-tabs {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.sidebar-panel > .sidebar-toolbar .sidebar-actions {
+  flex-shrink: 0;
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: nowrap;
+}
+
+.sidebar-panel .tab-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-panel .tab-pane {
+  min-height: 0;
+}
+
+.sidebar-panel .tab-pane.active.show {
+  display: flex !important;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar-panel .tab-pane > .d-flex.flex-column {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar-filter-bar {
+  flex-shrink: 0;
+  min-height: 100px;
+  background: #f8fafc;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 0.5rem 0.75rem;
+}
+
+.sidebar-table-scroll {
+  flex: 1 1 auto;
+  min-height: 120px;
+  overflow-y: auto !important;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
+.sidebar-table-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.sidebar-table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.45);
+  border-radius: 4px;
+}
+
+.sidebar-table-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.sidebar-table-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8f9fa;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+}
+
+.sidebar-footer-bar {
+  flex-shrink: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  background: #fff;
+  padding: 0.35rem 0.75rem;
+}
+
+.incidents-content-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Trang sự cố: không cuộn ngoài trang, chỉ cuộn bảng bên phải */
+body:has(.incidents-page) {
+  overflow: hidden;
+}
+
+.incidents-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 56px);
+  max-height: calc(100dvh - 56px);
+  overflow: hidden;
+  padding: 0.75rem 1rem;
+  box-sizing: border-box;
+}
+
+.incidents-page .incidents-filter-bar,
+.incidents-page #app-alert {
+  flex-shrink: 0;
+}
+
+.incidents-page .incidents-main {
+  flex: 1 1 0;
+  min-height: 0;
+  height: 0;
+  overflow: hidden;
+  margin-bottom: 0 !important;
+  align-items: stretch;
+}
+
+.incidents-page .incidents-main > [class*="col-"] {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 100%;
+}
+
+.incidents-page .app-map-card,
+.incidents-page .sidebar-panel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  max-height: 100%;
+  min-height: 0 !important;
+  overflow: hidden;
+}
+
+.incidents-page #incident-list-wrapper,
+.incidents-page #incident-detail-wrapper:not(.d-none) {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.incidents-page .sidebar-table-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto !important;
+  overflow-x: auto;
+}
+
+.incidents-filter-bar {
+  margin-bottom: 0.75rem;
+}
+
+.incidents-filter-toolbar .incidents-filter-select {
+  flex-shrink: 0;
+  width: auto;
+  padding-right: 1.75rem;
+  white-space: nowrap;
+}
+
+.incidents-filter-select--status {
+  min-width: 11.5rem;
+}
+
+.incidents-filter-select--severity {
+  min-width: 10.5rem;
+}
+
+.incidents-filter-select--type {
+  min-width: 9.5rem;
+}
+
 .map-shell {
-  height: min(70vh, 560px);
+  flex: 1;
+  height: 100%;
   min-height: 320px;
   width: 100%;
-  border-radius: 12px;
+  border-radius: 0 0 12px 12px;
   overflow: hidden;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
   z-index: 1;
-}
-
-.device-table-wrap {
-  max-height: min(70vh, 560px);
-  overflow-y: auto;
 }
 
 .leaflet-popup-content {

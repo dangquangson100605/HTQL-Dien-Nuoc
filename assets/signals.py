@@ -21,12 +21,14 @@ def track_device_status_change(sender, instance, created, **kwargs):
         reason = f"Trạng thái chuyển sang {new_status}"
         if incident:
             reason += f" do sự cố: {incident.title}"
+        reason = getattr(instance, '_status_note', None) or reason
         NetworkStatusHistory.objects.create(
             target_type=NetworkStatusHistory.TargetType.DEVICE,
             device=instance,
             old_status=old_status if old_status else 'NONE',
             new_status=new_status,
             reason=reason,
+            changed_by=getattr(instance, '_changed_by', None),
             incident=incident
         )
 
@@ -49,12 +51,14 @@ def track_edge_status_change(sender, instance, created, **kwargs):
         reason = f"Trạng thái chuyển sang {new_status}"
         if incident:
             reason += f" do sự cố: {incident.title}"
+        reason = getattr(instance, '_status_note', None) or reason
         NetworkStatusHistory.objects.create(
             target_type=NetworkStatusHistory.TargetType.EDGE,
             edge=instance,
             old_status=old_status if old_status else 'NONE',
             new_status=new_status,
             reason=reason,
+            changed_by=getattr(instance, '_changed_by', None),
             incident=incident
         )
 

@@ -14,6 +14,7 @@
     username: 'infra_username',
   };
   const API_REPORT = '/api/incidents/report/';
+  const API_REPORT_EXCEL = '/api/incidents/report-excel/';
   const API_REFRESH = '/api/auth/token/refresh/';
 
   /* ── Auto token refresh ──────────────────────────────────────────── */
@@ -52,17 +53,7 @@
 
   /* ── Navbar ──────────────────────────────────────────────────────── */
   function setupNav() {
-    const u = localStorage.getItem(STORAGE.username) || '';
-    const role = localStorage.getItem(STORAGE.role) || '';
-    const el = document.getElementById('nav-user');
-    const roleEl = document.getElementById('nav-role');
-    if (el) el.textContent = u ? `Xin chào, ${u}` : '';
-    const labels = { ADMIN: 'Quản trị', OPERATOR: 'Vận hành', TECHNICIAN: 'Kỹ thuật', CITIZEN: 'Người dân' };
-    if (roleEl) roleEl.textContent = labels[role] || role;
-    if (role === 'ADMIN' || role === 'OPERATOR') {
-      document.getElementById('nav-dashboard-link')?.classList.remove('d-none');
-      document.getElementById('nav-analytics-link')?.classList.remove('d-none');
-    }
+    if (window.StaffNav) StaffNav.initNavUser();
 
     document.getElementById('btn-logout')?.addEventListener('click', async () => {
       const refresh = localStorage.getItem(STORAGE.refresh);
@@ -264,7 +255,9 @@
           <td><span class="badge ${SEV_BADGE[inc.severity] || 'bg-secondary'}">${SEV_LABELS[inc.severity] || inc.severity}</span></td>
           <td><span class="badge ${STA_BADGE[inc.status] || 'bg-secondary'}">${STATUS_LABELS[inc.status] || inc.status}</span></td>
           <td>${inc.reported_by || '—'}</td>
-          <td>${inc.assigned_to || '<span class="text-muted">Chưa phân</span>'}</td>
+          <td>${(inc.assigned_technicians && inc.assigned_technicians.length)
+            ? inc.assigned_technicians.join(', ')
+            : (inc.assigned_to || '<span class="text-muted">Chưa phân</span>')}</td>
           <td>${created}</td>
           <td>${resolved}</td>
         </tr>`;
@@ -298,7 +291,7 @@
   };
 
   /* ── Get filter params ───────────────────────────────────────────── */
-  function getFilterParams() {
+  function getFilterParams(includePagination = true) {
     const params = new URLSearchParams();
     const from = document.getElementById('filter-date-from')?.value;
     const to = document.getElementById('filter-date-to')?.value;
@@ -310,8 +303,10 @@
     if (type) params.set('incident_type', type);
     if (sev) params.set('severity', sev);
     if (sta) params.set('status', sta);
-    params.set('page', currentPage);
-    params.set('page_size', 20);
+    if (includePagination) {
+      params.set('page', currentPage);
+      params.set('page_size', 20);
+    }
     return params.toString();
   }
 
@@ -348,6 +343,42 @@
     currentPage = 1;
     loadReport();
   });
+
+  async function downloadExcel() {
+    const params = getFilterParams(false);
+    try {
+      const token = localStorage.getItem(STORAGE.access);
+      const res = await fetch(`${API_REPORT_EXCEL}?${params}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.status === 401) {
+        const ok = await doRefresh();
+        if (ok) return downloadExcel();
+        window.location.href = '/login/';
+        return;
+      }
+      if (!res.ok) {
+        alert('Không thể xuất Excel. Vui lòng thử lại.');
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const cd = res.headers.get('Content-Disposition') || '';
+      const match = cd.match(/filename="([^"]+)"/);
+      a.download = match ? match[1] : 'bao_cao_su_co.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('export excel error:', e);
+      alert('Lỗi khi tải file Excel.');
+    }
+  }
+
+  document.getElementById('btn-export-excel')?.addEventListener('click', downloadExcel);
 
   // Default: last 30 days
   function setDefaultDates() {

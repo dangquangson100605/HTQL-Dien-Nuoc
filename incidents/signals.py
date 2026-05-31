@@ -1,12 +1,14 @@
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
-from django.utils import timezone
-from .models import Incident, Notification, IncidentHistory
+
 from accounts.models import User
+
+from .models import Incident, Notification, IncidentHistory
+from .notification_helpers import notify_operators_for_incident
+from accounts.ward_permissions import get_operators_for_ward
 
 
 def _create_notification(recipient, incident, notif_type, message):
-    """Helper to create a notification."""
     if recipient:
         Notification.objects.create(
             recipient=recipient,
@@ -18,7 +20,6 @@ def _create_notification(recipient, incident, notif_type, message):
 
 @receiver(pre_save, sender=Incident)
 def capture_old_status(sender, instance, **kwargs):
-    """Lưu lại trạng thái cũ của sự cố trước khi save."""
     if instance.pk:
         try:
             instance._old_status = Incident.objects.get(pk=instance.pk).status
@@ -30,78 +31,69 @@ def capture_old_status(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Incident)
 def handle_incident_notifications(sender, instance, created, **kwargs):
-    """Tự động tạo thông báo, lưu lịch sử, và cập nhật trạng thái thiết bị/tuyến."""
+    """Thông báo, lịch sử sự cố, cập nhật trạng thái thiết bị/tuyến."""
 
-    # 1. Tự động tạo thông báo
     if created:
-        # Thông báo cho tất cả ADMIN và OPERATOR khi có sự cố mới
-        staff = User.objects.filter(role__in=['ADMIN', 'OPERATOR'], is_active=True)
-        for user in staff:
+        for user in User.objects.filter(role='ADMIN', is_active=True):
             _create_notification(
                 recipient=user,
                 incident=instance,
                 notif_type=Notification.NotifType.NEW_INCIDENT,
-                message=f"Sự cố mới: {instance.title}"
+                message=f'Sự cố mới: {instance.title}',
             )
-
+        for user in get_operators_for_ward(instance.ward_id):
+            _create_notification(
+                recipient=user,
+                incident=instance,
+                notif_type=Notification.NotifType.NEW_INCIDENT,
+                message=f'Sự cố mới tại {instance.area or (instance.ward.name if instance.ward_id else "khu vực phụ trách")}: {instance.title}',
+            )
     else:
+        old_status = getattr(instance, '_old_status', None)
         status = instance.status
+        changed_by = getattr(instance, '_changed_by', None)
+        tech_name = changed_by.username if changed_by else 'KTV'
 
-        if status == Incident.Status.ASSIGNED and instance.assigned_to:
-            # Thông báo cho kỹ thuật viên được phân công
-            _create_notification(
-                recipient=instance.assigned_to,
-                incident=instance,
-                notif_type=Notification.NotifType.ASSIGNED,
-                message=f"Bạn được phân công xử lý sự cố: {instance.title}"
-            )
+        if old_status != status:
+            if status == Incident.Status.IN_PROGRESS:
+                notify_operators_for_incident(
+                    instance,
+                    Notification.NotifType.JOB_ACKNOWLEDGED,
+                    f'KTV {tech_name} đã xác nhận công việc sự cố: {instance.title}',
+                )
+            elif status == Incident.Status.RESOLVED:
+                note = (instance.result_note or '').strip()
+                msg = f'KTV {tech_name} báo hoàn thành sự cố: {instance.title}'
+                if note:
+                    msg += f'. Ghi chú: {note[:200]}'
+                notify_operators_for_incident(
+                    instance,
+                    Notification.NotifType.PENDING_OPERATOR,
+                    msg,
+                )
+            elif status == Incident.Status.CLOSED:
+                if instance.reported_by_id:
+                    _create_notification(
+                        recipient=instance.reported_by,
+                        incident=instance,
+                        notif_type=Notification.NotifType.OPERATOR_CONFIRMED,
+                        message=f'Sự cố "{instance.title}" đã được vận hành xác nhận khắc phục và đóng.',
+                    )
+            elif status == Incident.Status.CONFIRMED and old_status != Incident.Status.ASSIGNED:
+                _create_notification(
+                    recipient=instance.reported_by,
+                    incident=instance,
+                    notif_type=Notification.NotifType.CONFIRMED,
+                    message=f'Sự cố "{instance.title}" đã được xác nhận.',
+                )
+            elif status == Incident.Status.REJECTED:
+                _create_notification(
+                    recipient=instance.reported_by,
+                    incident=instance,
+                    notif_type=Notification.NotifType.REJECTED,
+                    message=f'Sự cố "{instance.title}" đã bị từ chối. Lý do: {instance.rejection_reason or "Không rõ"}.',
+                )
 
-        elif status == Incident.Status.IN_PROGRESS:
-            # Thông báo cho người báo cáo
-            _create_notification(
-                recipient=instance.reported_by,
-                incident=instance,
-                notif_type=Notification.NotifType.STATUS_UPDATE,
-                message=f"Sự cố '{instance.title}' đang được xử lý."
-            )
-
-        elif status == Incident.Status.RESOLVED:
-            # Thông báo cho người báo cáo khi giải quyết xong
-            _create_notification(
-                recipient=instance.reported_by,
-                incident=instance,
-                notif_type=Notification.NotifType.RESOLVED,
-                message=f"Sự cố '{instance.title}' đã được giải quyết."
-            )
-
-        elif status == Incident.Status.CLOSED:
-            # Thông báo cho người báo cáo khi sự cố chính thức đóng
-            _create_notification(
-                recipient=instance.reported_by,
-                incident=instance,
-                notif_type=Notification.NotifType.STATUS_UPDATE,
-                message=f"Sự cố '{instance.title}' đã chính thức đóng."
-            )
-
-        elif status == Incident.Status.CONFIRMED:
-            # Thông báo cho người báo cáo khi sự cố được xác nhận
-            _create_notification(
-                recipient=instance.reported_by,
-                incident=instance,
-                notif_type=Notification.NotifType.CONFIRMED,
-                message=f"Sự cố '{instance.title}' đã được xác nhận."
-            )
-
-        elif status == Incident.Status.REJECTED:
-            # Thông báo cho người báo cáo khi sự cố bị từ chối
-            _create_notification(
-                recipient=instance.reported_by,
-                incident=instance,
-                notif_type=Notification.NotifType.REJECTED,
-                message=f"Sự cố '{instance.title}' đã bị từ chối. Lý do: {instance.rejection_reason or 'Không rõ'}."
-            )
-
-    # 2. Lưu lịch sử thay đổi IncidentHistory
     old_status = getattr(instance, '_old_status', Incident.Status.PENDING_VERIFY)
     new_status = instance.status
     if created or old_status != new_status:
@@ -110,22 +102,20 @@ def handle_incident_notifications(sender, instance, created, **kwargs):
             old_status=old_status if not created else '',
             new_status=new_status,
             note=instance.result_note or instance.rejection_reason or '',
-            changed_by=getattr(instance, '_changed_by', None) or instance.confirmed_by or instance.assigned_to or None
+            changed_by=getattr(instance, '_changed_by', None) or instance.confirmed_by or instance.assigned_to or None,
         )
 
-    # 3. Cập nhật trạng thái cục bộ của Device hoặc NetworkEdge (KHÔNG LAN TRUYỀN)
     fault_statuses = [
         Incident.Status.PENDING_VERIFY,
         Incident.Status.CONFIRMED,
         Incident.Status.ASSIGNED,
         Incident.Status.IN_PROGRESS,
-        Incident.Status.RESOLVED
+        Incident.Status.RESOLVED,
     ]
 
     device = instance.device
     edge = instance.edge
 
-    # Cập nhật Device liên quan
     if device:
         from assets.models import Device
         if instance.status in fault_statuses:
@@ -135,20 +125,16 @@ def handle_incident_notifications(sender, instance, created, **kwargs):
                 device._triggering_incident = instance
                 device.save()
         else:
-            # Kiểm tra xem có sự cố hoạt động nào khác liên quan đến device này không
             has_other_active = Incident.objects.filter(
                 device=device,
-                status__in=fault_statuses
+                status__in=fault_statuses,
             ).exclude(id=instance.id).exists()
-            
-            if not has_other_active:
-                if device.status == Device.Status.FAULT:
-                    device.status = Device.Status.ACTIVE
-                    device.is_active = True
-                    device._triggering_incident = instance
-                    device.save()
+            if not has_other_active and device.status == Device.Status.FAULT:
+                device.status = Device.Status.ACTIVE
+                device.is_active = True
+                device._triggering_incident = instance
+                device.save()
 
-    # Cập nhật NetworkEdge liên quan
     if edge:
         from assets.models import NetworkEdge
         if instance.status in fault_statuses:
@@ -157,16 +143,11 @@ def handle_incident_notifications(sender, instance, created, **kwargs):
                 edge._triggering_incident = instance
                 edge.save()
         else:
-            # Kiểm tra xem có sự cố hoạt động nào khác liên quan đến edge này không
             has_other_active = Incident.objects.filter(
                 edge=edge,
-                status__in=fault_statuses
+                status__in=fault_statuses,
             ).exclude(id=instance.id).exists()
-            
-            if not has_other_active:
-                if edge.status == NetworkEdge.Status.FAULT:
-                    edge.status = NetworkEdge.Status.ACTIVE
-                    edge._triggering_incident = instance
-                    edge.save()
-
-
+            if not has_other_active and edge.status == NetworkEdge.Status.FAULT:
+                edge.status = NetworkEdge.Status.ACTIVE
+                edge._triggering_incident = instance
+                edge.save()

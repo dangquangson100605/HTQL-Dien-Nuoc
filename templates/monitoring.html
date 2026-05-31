@@ -7,7 +7,7 @@
 <style>
 #app-alert {
   position: fixed;
-  top: 24px;
+  top: 72px;
   right: 24px;
   z-index: 100000;
   min-width: 320px;
@@ -51,22 +51,9 @@
 {% endblock %}
 
 {% block body %}
-<nav class="navbar navbar-expand-lg navbar-light sticky-top">
-  <div class="container-fluid px-3">
-    <span class="navbar-brand"><i class="bi bi-graph-up me-1"></i> Theo dõi tiêu thụ</span>
-    <div class="d-flex align-items-center gap-3">
-      <a href="/app/" class="text-secondary text-decoration-none small hover-lift"><i class="bi bi-map"></i> Bản đồ</a>
-      <a href="/users/" id="nav-users-link" class="text-secondary text-decoration-none small hover-lift d-none"><i class="bi bi-people"></i> Tài khoản</a>
-      <div class="d-flex align-items-center gap-2 small">
-        <span id="nav-user" class="d-none d-md-inline fw-medium text-dark"></span>
-        <span id="nav-role" class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-2 py-1"></span>
-        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill ms-2" id="btn-logout" title="Đăng xuất"><i class="bi bi-box-arrow-right"></i></button>
-      </div>
-    </div>
-  </div>
-</nav>
+{% include "partials/staff_navbar.html" with brand_icon="bi-graph-up" brand_text="Theo dõi tiêu thụ" %}
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-4 app-page-body">
   <div id="app-alert" class="alert py-2 small d-none" role="alert"></div>
 
   <div class="row g-3">
@@ -147,23 +134,68 @@
       </div>
 
       <div class="card shadow-sm border-0">
-        <div class="card-header bg-white py-2 fw-semibold">Bảng dữ liệu chi tiết</div>
-        <div class="card-body p-0 table-responsive" style="max-height: 400px; overflow-y: auto;">
-          <table class="table table-hover table-sm mb-0 align-middle text-center">
-            <thead class="table-light sticky-top">
-              <tr>
-                <th>Thiết bị</th>
-                <th>Tháng ghi nhận</th>
-                <th>Chỉ số</th>
-                <th class="admin-only d-none">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody id="monitoring-table-body">
-              <tr><td colspan="4" class="text-center text-muted py-5">
-                <div class="spinner-border spinner-border-sm text-primary" role="status"></div><span class="ms-2">Đang tải...</span>
-              </td></tr>
-            </tbody>
-          </table>
+        <div class="card-header bg-white py-2 fw-semibold d-flex justify-content-between align-items-center">
+          <span>Bảng dữ liệu chi tiết</span>
+          <button type="button" class="btn btn-sm btn-outline-success" id="btn-export-excel" title="Xuất Excel">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Xuất Excel
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div id="detail-table-area" class="table-responsive d-none" style="max-height: 400px; overflow-y: auto;">
+            <table class="table table-hover table-sm mb-0 align-middle text-center">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th>Khu vực</th>
+                  <th>Tháng ghi nhận</th>
+                  <th>Chỉ số</th>
+                </tr>
+              </thead>
+              <tbody id="monitoring-table-area-body"></tbody>
+            </table>
+          </div>
+
+          <div id="detail-tables-split">
+            <div class="border-bottom">
+              <div class="px-3 py-2 bg-light bg-opacity-50 fw-semibold text-warning">
+                <i class="bi bi-lightning-charge-fill me-1"></i> Tiêu thụ điện (kWh)
+              </div>
+              <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                <table class="table table-hover table-sm mb-0 align-middle text-center">
+                  <thead class="table-light sticky-top">
+                    <tr>
+                      <th>Thiết bị</th>
+                      <th>Tháng ghi nhận</th>
+                      <th>Chỉ số</th>
+                      <th class="admin-only d-none">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="monitoring-table-electric-body">
+                    <tr><td colspan="4" class="text-center text-muted py-4">Đang tải...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <div class="px-3 py-2 bg-light bg-opacity-50 fw-semibold text-primary">
+                <i class="bi bi-droplet-fill me-1"></i> Tiêu thụ nước (m³)
+              </div>
+              <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
+                <table class="table table-hover table-sm mb-0 align-middle text-center">
+                  <thead class="table-light sticky-top">
+                    <tr>
+                      <th>Thiết bị</th>
+                      <th>Tháng ghi nhận</th>
+                      <th>Chỉ số</th>
+                      <th class="admin-only d-none">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="monitoring-table-water-body">
+                    <tr><td colspan="4" class="text-center text-muted py-4">Đang tải...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -173,5 +205,5 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{% static 'js/monitoring.js' %}?v=9"></script>
+<script src="{% static 'js/monitoring.js' %}?v=11"></script>
 {% endblock %}

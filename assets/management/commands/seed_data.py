@@ -1,25 +1,214 @@
 import random
 from datetime import datetime, timedelta
+
+from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
-from assets.models import Device, NetworkEdge, ConsumptionLog
+from django.utils import timezone
+
+from assets.models import Device, NetworkEdge, ConsumptionLog, Ward
+from assets.data.realistic_seed import (
+    DISTRICT_STREETS, INCIDENT_TEMPLATES,
+    OPERATOR_NOTE, TECH_NOTE,
+)
 from incidents.models import Incident, IncidentNote
 
 User = get_user_model()
+random.seed(42)
+
+
+def jitter(base, spread=0.004):
+    return base + random.uniform(-spread, spread)
+
 
 class Command(BaseCommand):
-    help = "Khoi tao du lieu mau phong phu va thuc te de kiem thu he thong"
+    help = "Nap day du phuong/xa, thiet bi va su co thuc te Da Nang"
 
     def handle(self, *args, **options):
-        self.stdout.write("[+] Dang don dep du lieu cu...")
+        call_command("load_danang_wards", verbosity=0)
+        self.stdout.write("[+] Don du lieu cu...")
         IncidentNote.objects.all().delete()
         Incident.objects.all().delete()
         NetworkEdge.objects.all().delete()
         ConsumptionLog.objects.all().delete()
         Device.objects.all().delete()
 
-        # 1. Tao hoac lay tai khoan demo
-        self.stdout.write("[+] Dang xac thuc tai khoan thu nghiem...")
+        users = self._ensure_users()
+        self._assign_ward_permissions(users)
+
+        wards = list(Ward.objects.filter(is_active=True).order_by("district", "name"))
+        street_idx = {}
+        device_count = edge_count = 0
+
+        self.stdout.write(f"[+] Tao ha tang cho {len(wards)} phuong/xa...")
+        for w in wards:
+            streets = DISTRICT_STREETS.get(w.district, ["Duong chinh"])
+            si = street_idx.get(w.district, 0)
+            street_main = streets[si % len(streets)]
+            street_sub = streets[(si + 1) % len(streets)]
+            street_idx[w.district] = si + 1
+            slug = w.code.replace("DN-", "").replace("-", "_")
+            lat, lng = w.latitude, w.longitude
+
+            tba = Device.objects.create(
+                code=f"TBA-{slug}",
+                name=f"Tram bien ap 22/0.4kV {street_main} ({w.short_name})",
+                device_type="TRANSFORMER",
+                ward=w,
+                latitude=jitter(lat, 0.002),
+                longitude=jitter(lng, 0.002),
+                status=random.choice(["ACTIVE"] * 9 + ["MAINTENANCE"]),
+                address=f"So {random.randint(10, 180)} {street_main}, {w.name}",
+                attributes={"dung_luong": random.choice(["630kVA", "1000kVA", "1250kVA"]), "dien_ap": "22/0.4kV"},
+            )
+            tdb = Device.objects.create(
+                code=f"TDB-{slug}-A",
+                name=f"Tu dien phan phoi {street_main} — {w.short_name}",
+                device_type="DISTRIBUTION_BOX",
+                parent=tba,
+                ward=w,
+                latitude=jitter(lat + 0.0015, 0.001),
+                longitude=jitter(lng - 0.0015, 0.001),
+                status=random.choice(["ACTIVE"] * 8 + ["FAULT", "MAINTENANCE"]),
+                address=f"So {random.randint(20, 120)} {street_main}, {w.name}",
+                attributes={"so_nhanh": random.randint(4, 8), "dong_dinh_muc": "400A"},
+            )
+            device_count += 2
+
+            poles = []
+            for i in range(1, 4):
+                pole = Device.objects.create(
+                    code=f"COT-{slug}-{i}",
+                    name=f"Tru dien {street_sub} doan {i} ({w.short_name})",
+                    device_type="ELECTRIC_POLE",
+                    parent=tdb,
+                    ward=w,
+                    latitude=jitter(lat + 0.002 * i, 0.0008),
+                    longitude=jitter(lng - 0.001 * i, 0.0008),
+                    status="ACTIVE",
+                    address=f"Doan {i} duong {street_sub}, {w.name}",
+                    attributes={"chieu_cao": "12m", "loai_cot": "Be tong ly tam"},
+                )
+                poles.append(pole)
+                device_count += 1
+
+            for i, pole in enumerate(poles, 1):
+                for j in range(1, 3):
+                    num = random.randint(1, 200)
+                    Device.objects.create(
+                        code=f"CT-{slug}-{i}{j}",
+                        name=f"Cong to dien ho {num} {street_sub}",
+                        device_type="ELECTRIC_METER",
+                        parent=pole,
+                        ward=w,
+                        latitude=jitter(pole.latitude, 0.0003),
+                        longitude=jitter(pole.longitude, 0.0003),
+                        status="ACTIVE",
+                        address=f"So {num} {street_sub}, {w.name}",
+                        attributes={"loai_pha": random.choice(["1 pha", "3 pha"]), "hang": random.choice(["EMIC", "Landis+Gyr"])},
+                    )
+                    device_count += 1
+
+            tank = Device.objects.create(
+                code=f"BE-{slug}",
+                name=f"Be chua nuoc sach {w.short_name}",
+                device_type="WATER_TANK",
+                ward=w,
+                latitude=jitter(lat - 0.001, 0.001),
+                longitude=jitter(lng + 0.002, 0.001),
+                status="ACTIVE",
+                address=f"Khu dan cu {street_main}, {w.name}",
+                attributes={"the_tich": f"{random.randint(1500, 5000)} m3"},
+            )
+            pump = Device.objects.create(
+                code=f"BOM-{slug}",
+                name=f"Tram bom tang ap {street_main} ({w.short_name})",
+                device_type="PUMP_STATION",
+                parent=tank,
+                ward=w,
+                latitude=jitter(tank.latitude + 0.0008, 0.0005),
+                longitude=jitter(tank.longitude, 0.0005),
+                status="ACTIVE",
+                address=f"So {random.randint(5, 80)} {street_main}, {w.name}",
+                attributes={"cong_suat": f"{random.randint(30, 75)}kW"},
+            )
+            main_valve = Device.objects.create(
+                code=f"VAN-T-{slug}",
+                name=f"Van tong mang nuoc {street_main}",
+                device_type="MAIN_VALVE",
+                parent=pump,
+                ward=w,
+                latitude=jitter(pump.latitude + 0.001, 0.0005),
+                longitude=jitter(pump.longitude + 0.001, 0.0005),
+                status="ACTIVE",
+                address=f"Nga tu {street_main} — {street_sub}, {w.name}",
+                attributes={"duong_kinh": random.choice(["DN200", "DN300", "DN400"])},
+            )
+            device_count += 3
+
+            branch_valves = []
+            for i in range(1, 3):
+                bv = Device.objects.create(
+                    code=f"VAN-N-{slug}-{i}",
+                    name=f"Van nhanh {street_sub} nhanh {i}",
+                    device_type="BRANCH_VALVE",
+                    parent=main_valve,
+                    ward=w,
+                    latitude=jitter(main_valve.latitude + 0.001 * i, 0.0004),
+                    longitude=jitter(main_valve.longitude - 0.001 * i, 0.0004),
+                    status=random.choice(["ACTIVE"] * 9 + ["MAINTENANCE"]),
+                    address=f"So {random.randint(10, 90)} {street_sub}, {w.name}",
+                    attributes={"duong_kinh": random.choice(["DN80", "DN100", "DN150"])},
+                )
+                branch_valves.append(bv)
+                device_count += 1
+                num = random.randint(1, 150)
+                Device.objects.create(
+                    code=f"DH-{slug}-{i}",
+                    name=f"Dong ho nuoc ho {num} {street_sub}",
+                    device_type="WATER_METER",
+                    parent=bv,
+                    ward=w,
+                    latitude=jitter(bv.latitude, 0.0003),
+                    longitude=jitter(bv.longitude, 0.0003),
+                    status="ACTIVE",
+                    address=f"So {num} {street_sub}, {w.name}",
+                    attributes={"hang": random.choice(["Itron", "Sensus", "Kent"])},
+                )
+                device_count += 1
+
+            edge_specs = [
+                (f"EDGE-D-{slug}-1", f"Cap trung the TBA -> Tu {street_main}", "ELECTRIC", tba, tdb),
+                (f"EDGE-D-{slug}-2", f"Ha the Tu -> Tru {street_sub}", "ELECTRIC", tdb, poles[0]),
+                (f"EDGE-N-{slug}-1", f"Ong hut be -> tram bom", "WATER", tank, pump),
+                (f"EDGE-N-{slug}-2", f"Ong ap luc -> van tong", "WATER", pump, main_valve),
+            ]
+            for i, pole in enumerate(poles):
+                if i + 1 < len(poles):
+                    edge_specs.append((f"EDGE-D-{slug}-P{i}", f"Day noi tru {i+1}-{i+2}", "ELECTRIC", pole, poles[i + 1]))
+            for i, bv in enumerate(branch_valves, 1):
+                edge_specs.append((f"EDGE-N-{slug}-V{i}", f"Ong nhanh van {i}", "WATER", main_valve, bv))
+
+            for code, name, ntype, f_dev, t_dev in edge_specs:
+                NetworkEdge.objects.create(
+                    code=code, name=name, network_type=ntype,
+                    from_device=f_dev, to_device=t_dev, status="ACTIVE", description=name,
+                )
+                edge_count += 1
+
+        self.stdout.write(f"    -> {device_count} thiet bi, {edge_count} tuyen")
+        self._create_incidents(users, wards)
+        self._create_consumption_logs()
+
+        self.stdout.write(self.style.SUCCESS(
+            f"[+] Hoan tat: {Ward.objects.count()} phuong/xa | "
+            f"{Device.objects.count()} thiet bi | "
+            f"{NetworkEdge.objects.count()} tuyen | "
+            f"{Incident.objects.count()} su co | "
+            f"{ConsumptionLog.objects.count()} ban ghi tieu thu"
+        ))
+
+    def _ensure_users(self):
         credentials = {
             "admin": ("ADMIN", "admin123", "admin@infra.com"),
             "operator": ("OPERATOR", "operator123", "operator@infra.com"),
@@ -31,399 +220,106 @@ class Command(BaseCommand):
             user = User.objects.filter(username=username).first()
             if not user:
                 user = User.objects.create_user(
-                    username=username,
-                    password=password,
-                    role=role,
-                    email=email,
-                    is_staff=(role == "ADMIN"),
-                    is_superuser=(role == "ADMIN")
+                    username=username, password=password, role=role, email=email,
+                    is_staff=(role == "ADMIN"), is_superuser=(role == "ADMIN"),
                 )
-                self.stdout.write(f"  - Da tao tai khoan demo: {username} ({role})")
             else:
                 user.role = role
                 user.set_password(password)
                 user.save()
-                self.stdout.write(f"  - Da cap nhat tai khoan demo: {username} ({role})")
             users[role] = user
+        return users
 
-        # Toa do moc trung tam (Go Vap/Quan 12 - TP.HCM)
-        base_lat, base_lng = 10.8231, 106.6297
+    def _assign_ward_permissions(self, users):
+        """Operator và KTV cùng phủ các quận trung tâm để demo phân công được."""
+        shared_districts = ["Hải Châu", "Thanh Khê", "Liên Chiểu", "Cẩm Lệ", "Sơn Trà", "Ngũ Hành Sơn"]
+        shared = Ward.objects.filter(district__in=shared_districts)
+        users["OPERATOR"].managed_wards.set(shared)
+        users["TECHNICIAN"].managed_wards.set(shared)
 
-        # 2. Khoi tao Thiet bi Dien (15 thiet bi)
-        self.stdout.write("[+] Dang khoi tao 15 thiet bi mang Dien...")
-        
-        # Tram bien ap nguon
-        tba = Device.objects.create(
-            code="TBA_HUNG_VUONG",
-            name="Tram Bien Ap Hung Vuong",
-            device_type="TRANSFORMER",
-            latitude=base_lat,
-            longitude=base_lng,
-            status="ACTIVE",
-            area="Phuong 10, Go Vap",
-            address="150 Quang Trung, Go Vap, TP.HCM",
-            attributes={"dung_luong": "1000kVA", "dien_ap": "22/0.4kV"}
-        )
+    def _create_incidents(self, users, wards):
+        self.stdout.write("[+] Tao su co thuc te...")
+        devices = list(Device.objects.select_related("ward").all())
+        tdb_fault = [d for d in devices if d.device_type == "DISTRIBUTION_BOX" and d.status == "FAULT"]
+        tanks = [d for d in devices if d.device_type == "WATER_TANK"]
+        valves = [d for d in devices if d.device_type == "BRANCH_VALVE"]
+        now = timezone.now()
 
-        # 2 Tu dien phan phoi trung gian
-        tdb1 = Device.objects.create(
-            code="TDB_KHU_PHO_1",
-            name="Tu Dien A - Khu Pho 1",
-            device_type="DISTRIBUTION_BOX",
-            parent=tba,
-            latitude=base_lat + 0.0020,
-            longitude=base_lng - 0.0030,
-            status="ACTIVE",
-            area="Phuong 10, Go Vap",
-            address="45 Duong So 1, Go Vap, TP.HCM",
-            attributes={"so_nhanh": 4, "dong_dinh_muc": "400A"}
-        )
+        for i, w in enumerate(wards):
+            tpl = INCIDENT_TEMPLATES[i % len(INCIDENT_TEMPLATES)]
+            streets = DISTRICT_STREETS.get(w.district, ["Duong chinh"])
+            street = streets[i % len(streets)]
+            num = random.randint(5, 120)
+            ward_devices = [d for d in devices if d.ward_id == w.id]
+            if tpl["incident_type"] == "ELECTRIC":
+                target = next((d for d in ward_devices if d.device_type == "ELECTRIC_METER"), ward_devices[0] if ward_devices else None)
+            else:
+                target = next((d for d in ward_devices if d.device_type == "WATER_METER"), ward_devices[0] if ward_devices else None)
+            if not target:
+                continue
 
-        tdb2 = Device.objects.create(
-            code="TDB_KHU_PHO_2",
-            name="Tu Dien B - Khu Pho 2",
-            device_type="DISTRIBUTION_BOX",
-            parent=tba,
-            latitude=base_lat - 0.0025,
-            longitude=base_lng + 0.0025,
-            status="ACTIVE",
-            area="Phuong 10, Go Vap",
-            address="188 Quang Trung, Go Vap, TP.HCM",
-            attributes={"so_nhanh": 4, "dong_dinh_muc": "400A"}
-        )
-
-        # 4 Tru dien khu pho
-        poles = []
-        pole_configs = [
-            ("POLE_01", "Tru Dien Doc Lap 1", tdb1, 0.0035, -0.0040),
-            ("POLE_02", "Tru Dien Doc Lap 2", tdb1, 0.0015, -0.0015),
-            ("POLE_03", "Tru Dien Hoa Binh 1", tdb2, -0.0035, 0.0040),
-            ("POLE_04", "Tru Dien Hoa Binh 2", tdb2, -0.0015, 0.0015),
-        ]
-        for code, name, parent, d_lat, d_lng in pole_configs:
-            p = Device.objects.create(
-                code=code,
-                name=name,
-                device_type="ELECTRIC_POLE",
-                parent=parent,
-                latitude=base_lat + d_lat,
-                longitude=base_lng + d_lng,
-                status="ACTIVE",
-                area="Phuong 10, Go Vap",
-                address=f"Dau hem {name}",
-                attributes={"chieu_cao": "12m", "loai_cot": "Be tong ly tam"}
+            status = tpl["status"]
+            inc = Incident.objects.create(
+                title=tpl["title"].format(street=street, ward=w.short_name, num=num, n=random.randint(8, 40), time=f"{random.randint(18, 22)}h"),
+                description=tpl["description"].format(street=street, ward=w.short_name, num=num, n=random.randint(8, 40), time=f"{random.randint(18, 22)}h"),
+                incident_type=tpl["incident_type"],
+                severity=tpl["severity"],
+                status="CLOSED" if status == "CLOSED" else status,
+                latitude=target.latitude,
+                longitude=target.longitude,
+                device=target,
+                ward=w,
+                reported_by=users["CITIZEN"],
+                address=target.address,
+                target_type="DEVICE",
+                confirmed_by=users["OPERATOR"] if status != "PENDING_VERIFY" else None,
+                assigned_to=users["TECHNICIAN"] if status in ("ASSIGNED", "IN_PROGRESS", "RESOLVED", "CLOSED") else None,
+                result_note="Da xu ly xong." if status in ("RESOLVED", "CLOSED") else "",
+                resolved_at=now - timedelta(days=random.randint(1, 14)) if status in ("RESOLVED", "CLOSED") else None,
             )
-            poles.append(p)
+            if status in ("ASSIGNED", "IN_PROGRESS", "RESOLVED", "CLOSED"):
+                inc.assigned_technicians.add(users["TECHNICIAN"])
+            if status in ("ASSIGNED", "IN_PROGRESS"):
+                IncidentNote.objects.create(incident=inc, author=users["OPERATOR"], content=OPERATOR_NOTE)
+                IncidentNote.objects.create(incident=inc, author=users["TECHNICIAN"], content=TECH_NOTE)
 
-        # 8 Cong to dien ho gia dinh (2 cai moi tru dien)
-        e_meters = []
-        meter_idx = 1
-        for pole in poles:
-            for i in range(1, 3):
-                code = f"METER_E_{meter_idx}"
-                name = f"Cong To Dien Ho {100 + meter_idx}"
-                m = Device.objects.create(
-                    code=code,
-                    name=name,
-                    device_type="ELECTRIC_METER",
-                    parent=pole,
-                    latitude=pole.latitude + random.uniform(-0.0003, 0.0003),
-                    longitude=pole.longitude + random.uniform(-0.0003, 0.0003),
-                    status="ACTIVE",
-                    area="Phuong 10, Go Vap",
-                    address=f"So nha {10 + meter_idx} Duong Quang Trung",
-                    attributes={"loai_pha": "1 Pha", "hang_san_xuat": "Gelex"}
-                )
-                e_meters.append(m)
-                meter_idx += 1
-
-
-        # 3. Khoi tao Thiet bi Nuoc (12 thiet bi)
-        self.stdout.write("[+] Dang khoi tao 12 thiet bi mang Nuoc...")
-
-        # Be nuoc trung tam
-        tank = Device.objects.create(
-            code="TANK_TRUNG_TAM",
-            name="Be Nuoc Sach Trung Tam Q12",
-            device_type="WATER_TANK",
-            latitude=base_lat + 0.0050,
-            longitude=base_lng - 0.0050,
-            status="ACTIVE",
-            area="Phuong Dong Hung Thuan, Q12",
-            address="78 Nguyen Van Qua, Quan 12, TP.HCM",
-            attributes={"the_tich": "5000 m3", "vat_lieu": "Be tong cot thep"}
-        )
-
-        # Tram bom tang ap
-        pump = Device.objects.create(
-            code="PUMP_DONG_HUNG",
-            name="Tram Bom Tang Ap Dong Hung",
-            device_type="PUMP_STATION",
-            parent=tank,
-            latitude=base_lat + 0.0040,
-            longitude=base_lng - 0.0035,
-            status="ACTIVE",
-            area="Phuong Dong Hung Thuan, Q12",
-            address="102 Nguyen Van Qua, Quan 12, TP.HCM",
-            attributes={"cong_suat": "45kW", "luu_luong": "300 m3/h"}
-        )
-
-        # 2 Van tong phan phoi
-        valve_m1 = Device.objects.create(
-            code="VALVE_M1",
-            name="Van Tong Nhanh Bac Q12",
-            device_type="MAIN_VALVE",
-            parent=pump,
-            latitude=base_lat + 0.0025,
-            longitude=base_lng - 0.0020,
-            status="ACTIVE",
-            area="Phuong Dong Hung Thuan, Q12",
-            address="Nga tu Nguyen Van Qua - Song Hanh",
-            attributes={"duong_kinh": "DN200", "ap_luc": "6 bar"}
-        )
-
-        valve_m2 = Device.objects.create(
-            code="VALVE_M2",
-            name="Van Tong Nhanh Nam Q12",
-            device_type="MAIN_VALVE",
-            parent=pump,
-            latitude=base_lat - 0.0010,
-            longitude=base_lng - 0.0010,
-            status="ACTIVE",
-            area="Phuong Dong Hung Thuan, Q12",
-            address="Gan Cau Cho Cau, Quan 12, TP.HCM",
-            attributes={"duong_kinh": "DN200", "ap_luc": "5.5 bar"}
-        )
-
-        # 4 Van nhanh
-        valves = []
-        valve_configs = [
-            ("VALVE_B1", "Van Nhanh 1 - Nguyen Anh Thu", valve_m1, 0.0030, -0.0010),
-            ("VALVE_B2", "Van Nhanh 2 - To Ky", valve_m1, 0.0020, -0.0030),
-            ("VALVE_B3", "Van Nhanh 3 - Song Hanh", valve_m2, -0.0015, -0.0015),
-            ("VALVE_B4", "Van Nhanh 4 - Le Van Khuong", valve_m2, -0.0025, 0.0010),
-        ]
-        for code, name, parent, d_lat, d_lng in valve_configs:
-            v = Device.objects.create(
-                code=code,
-                name=name,
-                device_type="BRANCH_VALVE",
-                parent=parent,
-                latitude=base_lat + d_lat,
-                longitude=base_lng + d_lng,
-                status="ACTIVE",
-                area="Phuong Dong Hung Thuan, Q12",
-                address=name.replace("Van Nhanh ", "Duong "),
-                attributes={"duong_kinh": "DN100", "loai_van": "Van cong"}
+        for dev, sev, st, itype in [
+            (tdb_fault[0] if tdb_fault else None, "CRITICAL", "IN_PROGRESS", "ELECTRIC"),
+            (tanks[0] if tanks else None, "HIGH", "ASSIGNED", "WATER"),
+            (valves[0] if valves else None, "LOW", "CLOSED", "WATER"),
+        ]:
+            if not dev:
+                continue
+            inc = Incident.objects.create(
+                title=f"Su co khan cap tai {dev.name}",
+                description=f"Canh bao SCADA tai {dev.address}.",
+                incident_type=itype, severity=sev, status=st,
+                latitude=dev.latitude, longitude=dev.longitude,
+                device=dev, ward=dev.ward, reported_by=users["CITIZEN"],
+                confirmed_by=users["OPERATOR"],
+                assigned_to=users["TECHNICIAN"] if st != "CLOSED" else users["TECHNICIAN"],
+                address=dev.address, target_type="DEVICE",
+                resolved_at=now - timedelta(days=3) if st == "CLOSED" else None,
+                result_note="Da bao duong." if st == "CLOSED" else "",
             )
-            valves.append(v)
+            if st in ("ASSIGNED", "IN_PROGRESS", "CLOSED"):
+                inc.assigned_technicians.add(users["TECHNICIAN"])
+            if st == "ASSIGNED":
+                IncidentNote.objects.create(incident=inc, author=users["OPERATOR"], content=OPERATOR_NOTE)
 
-        # 4 Dong ho nuoc gia dinh (1 cai moi van nhanh)
-        w_meters = []
-        w_idx = 1
-        for valve in valves:
-            m = Device.objects.create(
-                code=f"METER_W_{w_idx}",
-                name=f"Dong Ho Nuoc Ho {200 + w_idx}",
-                device_type="WATER_METER",
-                parent=valve,
-                latitude=valve.latitude + random.uniform(-0.0004, 0.0004),
-                longitude=valve.longitude + random.uniform(-0.0004, 0.0004),
-                status="ACTIVE",
-                area="Phuong Dong Hung Thuan, Q12",
-                address=f"So nha {25 + w_idx} {valve.name.split(' - ')[-1]}",
-                attributes={"hang_san_xuat": "Kent", "duong_kinh": "DN15"}
-            )
-            w_meters.append(m)
-            w_idx += 1
-
-
-        # 4. Khoi tao Tuyen truyen dan (NetworkEdge)
-        self.stdout.write("[+] Dang lien ket cac tuyen truyen dan mang (NetworkEdge)...")
-        
-        # Tuyen Dien
-        edges_electric_data = [
-            ("EDGE_E_TBA_TDB1", "Duong Day Trung The TBA -> Tu A", tba, tdb1),
-            ("EDGE_E_TBA_TDB2", "Duong Day Trung The TBA -> Tu B", tba, tdb2),
-            ("EDGE_E_TDB1_P1", "Nhanh Ha The Tu A -> Tru 1", tdb1, poles[0]),
-            ("EDGE_E_TDB1_P2", "Nhanh Ha The Tu A -> Tru 2", tdb1, poles[1]),
-            ("EDGE_E_TDB2_P3", "Nhanh Ha The Tu B -> Tru 3", tdb2, poles[2]),
-            ("EDGE_E_TDB2_P4", "Nhanh Ha The Tu B -> Tru 4", tdb2, poles[3]),
-        ]
-        
-        # Lien ket tu Tru dien den Cong to dien
-        idx = 0
-        for pole in poles:
-            edges_electric_data.append((f"EDGE_E_P{idx+1}_M1", f"Day nhanh dan ho {101 + idx*2}", pole, e_meters[idx*2]))
-            edges_electric_data.append((f"EDGE_E_P{idx+1}_M2", f"Day nhanh dan ho {102 + idx*2}", pole, e_meters[idx*2 + 1]))
-            idx += 1
-
-        for code, name, f_dev, t_dev in edges_electric_data:
-            NetworkEdge.objects.create(
-                code=code,
-                name=name,
-                network_type="ELECTRIC",
-                from_device=f_dev,
-                to_device=t_dev,
-                status="ACTIVE",
-                description=f"Tuyen phan phoi dan dien tu {f_dev.name} den {t_dev.name}"
-            )
-
-        # Tuyen Nuoc
-        edges_water_data = [
-            ("EDGE_W_TANK_PUMP", "Tuyen Ong Hut Be Chua -> Tram Bom", tank, pump),
-            ("EDGE_W_PUMP_VM1", "Ong Ap Luc Tram Bom -> Van Tong Bac", pump, valve_m1),
-            ("EDGE_W_PUMP_VM2", "Ong Ap Luc Tram Bom -> Van Tong Nam", pump, valve_m2),
-            ("EDGE_W_VM1_VB1", "Ong Phan Phoi Van Tong Bac -> Van B1", valve_m1, valves[0]),
-            ("EDGE_W_VM1_VB2", "Ong Phan Phoi Van Tong Bac -> Van B2", valve_m1, valves[1]),
-            ("EDGE_W_VM2_VB3", "Ong Phan Phoi Van Tong Nam -> Van B3", valve_m2, valves[2]),
-            ("EDGE_W_VM2_VB4", "Ong Phan Phoi Van Tong Nam -> Van B4", valve_m2, valves[3]),
-        ]
-
-        # Lien ket tu Van nhanh den Dong ho nuoc
-        for idx, valve in enumerate(valves):
-            edges_water_data.append((f"EDGE_W_VB{idx+1}_MW", f"Ong nhanh dan ho {201 + idx}", valve, w_meters[idx]))
-
-        for code, name, f_dev, t_dev in edges_water_data:
-            NetworkEdge.objects.create(
-                code=code,
-                name=name,
-                network_type="WATER",
-                from_device=f_dev,
-                to_device=t_dev,
-                status="ACTIVE",
-                description=f"Tuyen cap nuoc tu {f_dev.name} den {t_dev.name}"
-            )
-
-
-        # 5. Khoi tao Su co thu nghiem o cac trang thai khac nhau (4 su co)
-        self.stdout.write("[+] Dang tao cac su co kiem thu o nhieu vai tro va trang thai...")
-        
-        # Su co 1: Moi tao (OPEN/PENDING_VERIFY)
-        Incident.objects.create(
-            title="Mat dien dot ngot tai Ho Dan 101",
-            description="Toi la ho dan 101, nha toi tu dung mat dien hoan toan trong khi hang xom van co. Da kiem tra Aptomat tong nha van dang bat.",
-            incident_type="ELECTRIC",
-            severity="MEDIUM",
-            status="PENDING_VERIFY",
-            latitude=e_meters[0].latitude,
-            longitude=e_meters[0].longitude,
-            device=e_meters[0],
-            reported_by=users["CITIZEN"],
-            area="Phuong 10, Go Vap",
-            address="So 10 Duong Quang Trung, Go Vap",
-            target_type="DEVICE"
-        )
-
-        # Su co 2: Da phan cong (ASSIGNED)
-        inc2 = Incident.objects.create(
-            title="Ro ri nuoc tai duong ong To Ky",
-            description="Co nuoc sach phun len tu mat via he duong To Ky, vi tri gan van phan phoi so 2. Gay ngap cuc bo via he.",
-            incident_type="WATER",
-            severity="HIGH",
-            status="ASSIGNED",
-            latitude=(valve_m1.latitude + valves[1].latitude) / 2,
-            longitude=(valve_m1.longitude + valves[1].longitude) / 2,
-            edge=NetworkEdge.objects.get(code="EDGE_W_VM1_VB2"),
-            reported_by=users["CITIZEN"],
-            confirmed_by=users["OPERATOR"],
-            assigned_to=users["TECHNICIAN"],
-            area="Phuong Dong Hung Thuan, Q12",
-            address="Duong To Ky, Quan 12",
-            target_type="EDGE"
-        )
-        IncidentNote.objects.create(
-            incident=inc2,
-            author=users["OPERATOR"],
-            content="Da xac nhan su co ro ri nuoc sach. Da phan cong ky thuat vien phu trach sua chua gap de giam that thoat nuoc."
-        )
-
-        # Su co 3: Dang xu ly (IN_PROGRESS) va thiet bi loi
-        tdb2.status = "FAULT"
-        tdb2.is_active = False
-        tdb2.save()
-
-        inc3 = Incident.objects.create(
-            title="Tu dien B boc khoi den nguy hiem",
-            description="Phat hien tieng no let xet va co khoi den khet let phat ra tu khe cua Tu Dien B khu pho 2. Da goi dien bao khan cap.",
-            incident_type="ELECTRIC",
-            severity="CRITICAL",
-            status="IN_PROGRESS",
-            latitude=tdb2.latitude,
-            longitude=tdb2.longitude,
-            device=tdb2,
-            reported_by=users["CITIZEN"],
-            confirmed_by=users["OPERATOR"],
-            assigned_to=users["TECHNICIAN"],
-            area="Phuong 10, Go Vap",
-            address="188 Quang Trung, Go Vap",
-            target_type="DEVICE"
-        )
-        IncidentNote.objects.create(
-            incident=inc3,
-            author=users["OPERATOR"],
-            content="Tinh huong nguy cap. Da ngat dien tram thuong nguon khan cap. Ky thuat vien di chuyen ngay den hien truong xu ly."
-        )
-        IncidentNote.objects.create(
-            incident=inc3,
-            author=users["TECHNICIAN"],
-            content="Da co mat tai hien truong. Dang mo tu kiem tra, phat hien chap chay Aptomat tong cua nhanh ha the so 2. Dang tien hanh thay thiet bi."
-        )
-
-        # Su co 4: Da khac phuc hoan toan (RESOLVED -> CLOSED)
-        inc4 = Incident.objects.create(
-            title="Dong ho nuoc ho 203 bi hong kinh bao ve",
-            description="Kinh bao ve dong ho nuoc nha toi bi nut vo do xe may dam trung. Dong ho van quay binh thuong nhung nuoc dong gay mo chi so.",
-            incident_type="WATER",
-            severity="LOW",
-            status="CLOSED",
-            latitude=w_meters[2].latitude,
-            longitude=w_meters[2].longitude,
-            device=w_meters[2],
-            reported_by=users["CITIZEN"],
-            confirmed_by=users["OPERATOR"],
-            assigned_to=users["TECHNICIAN"],
-            area="Phuong Dong Hung Thuan, Q12",
-            address="So 28 Le Van Khuong, Q12",
-            result_note="Da thay vo hop bao ve va kinh mat so moi cho dong ho.",
-            target_type="DEVICE",
-            resolved_at=datetime.now() - timedelta(days=1)
-        )
-        IncidentNote.objects.create(
-            incident=inc4,
-            author=users["TECHNICIAN"],
-            content="Da thay kinh bao ve thanh cong. Chi so hien tai ghi nhan: 00452 m3. Thiet bi hoat dong on dinh binh thuong."
-        )
-
-
-        # 6. Khoi tao Nhat ky Tieu thu dien/nuoc (ConsumptionLog)
-        self.stdout.write("[+] Dang tao 150 ban ghi lich su tieu thu 7 ngay gan nhat...")
-        
-        # Chi so tieu thu cua cac dong ho do
-        meters_to_log = e_meters + w_meters
-        current_date = datetime.now().date()
-        
-        log_records = []
-        for meter in meters_to_log:
-            is_electric = (meter.device_type == "ELECTRIC_METER")
-            # Tao 7 ngay lich su
-            for d in range(1, 8):
-                log_date = current_date - timedelta(days=d)
-                # Tinh luong tieu thu ngau nhien trong ngay
-                if is_electric:
-                    val = round(random.uniform(6.5, 18.5), 2)
-                else:
-                    val = round(random.uniform(0.3, 1.2), 2)
-                
-                log_records.append(
-                    ConsumptionLog(
-                        device=meter,
-                        date=log_date,
-                        value=val
-                    )
-                )
-        
-        # Luu hang loat de tang hieu nang
-        ConsumptionLog.objects.bulk_create(log_records, ignore_conflicts=True)
-
-        self.stdout.write(self.style.SUCCESS("[+] Hoan thanh! He thong da duoc nap du lieu mau tuyet voi."))
+    def _create_consumption_logs(self):
+        self.stdout.write("[+] Tao lich su tieu thu 6 thang...")
+        meters = Device.objects.filter(device_type__in=["ELECTRIC_METER", "WATER_METER"])
+        logs = []
+        today = datetime.now().date().replace(day=1)
+        for meter in meters:
+            is_e = meter.device_type == "ELECTRIC_METER"
+            base = random.uniform(200, 450) if is_e else random.uniform(8, 25)
+            for month in range(6, 0, -1):
+                dt = (today - timedelta(days=30 * month)).replace(day=1)
+                logs.append(ConsumptionLog(
+                    device=meter,
+                    date=dt,
+                    value=round(base * (1 + random.uniform(-0.05, 0.1) * (6 - month)), 2),
+                ))
+        ConsumptionLog.objects.bulk_create(logs, batch_size=500, ignore_conflicts=True)

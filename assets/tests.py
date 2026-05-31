@@ -512,6 +512,88 @@ class IncidentStatusHistorySignalsTests(TestCase):
         self.assertIn("Transformer Explosion", record.reason)
 
 
+class DeviceMaintenanceAssignTests(APITestCase):
+    def setUp(self):
+        from assets.models import Ward
+        from incidents.models import Notification
+
+        self.ward = Ward.objects.create(
+            code='TEST_WARD',
+            name='Phường Test',
+            short_name='Test',
+            district='Hải Châu',
+            latitude=16.05,
+            longitude=108.2,
+        )
+        self.operator = User.objects.create_user(
+            username='op_maint', password='testpass123', role=User.Role.OPERATOR,
+        )
+        self.operator.managed_wards.add(self.ward)
+        self.tech = User.objects.create_user(
+            username='tech_maint', password='testpass123', role=User.Role.TECHNICIAN,
+        )
+        self.tech.managed_wards.add(self.ward)
+        self.device = Device.objects.create(
+            name='Thiết bị lỗi',
+            device_type='ELECTRIC_POLE',
+            latitude=16.05,
+            longitude=108.2,
+            ward=self.ward,
+            status=Device.Status.FAULT,
+        )
+        self.assign_url = reverse('device-assign-maintenance', kwargs={'pk': self.device.pk})
+        self.Notification = Notification
+
+    def test_operator_assigns_maintenance_to_technician(self):
+        self.client.force_authenticate(user=self.operator)
+        res = self.client.patch(
+            self.assign_url,
+            {
+                'assigned_technicians': [self.tech.id],
+                'technician_count': 1,
+                'note': 'Kiểm tra công tơ',
+            },
+            format='json',
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.status, Device.Status.MAINTENANCE)
+        self.assertEqual(self.device.maintenance_assigned_to_id, self.tech.id)
+        self.assertIn(self.tech, self.device.maintenance_assigned_technicians.all())
+        self.assertTrue(
+            self.Notification.objects.filter(
+                recipient=self.tech,
+                device=self.device,
+                notif_type=self.Notification.NotifType.MAINTENANCE_ASSIGNED,
+            ).exists()
+        )
+
+    def test_technician_cannot_update_unassigned_device(self):
+        self.client.force_authenticate(user=self.tech)
+        url = reverse('device-update-status', kwargs={'pk': self.device.pk})
+        res = self.client.patch(url, {'status': 'MAINTENANCE'}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_operator_must_assign_technician_to_start_maintenance(self):
+        self.client.force_authenticate(user=self.operator)
+        url = reverse('device-update-status', kwargs={'pk': self.device.pk})
+        res = self.client.patch(url, {'status': 'MAINTENANCE'}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('phân công', res.data['detail'].lower())
+
+    def test_operator_can_close_maintenance_after_assignment(self):
+        self.client.force_authenticate(user=self.operator)
+        self.client.patch(
+            self.assign_url,
+            {'assigned_technicians': [self.tech.id], 'technician_count': 1},
+            format='json',
+        )
+        url = reverse('device-update-status', kwargs={'pk': self.device.pk})
+        res = self.client.patch(url, {'status': 'ACTIVE'}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.status, Device.Status.ACTIVE)
+
 
 
 

@@ -20,6 +20,38 @@ WATER_DEVICE_TYPES = (
 )
 
 
+class Ward(models.Model):
+    """Đơn vị hành chính cấp phường/xã — thành phố Đà Nẵng."""
+
+    class UnitType(models.TextChoices):
+        PHUONG = 'PHUONG', 'Phường'
+        XA = 'XA', 'Xã'
+
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã phường/xã')
+    name = models.CharField(max_length=120, verbose_name='Tên đầy đủ')
+    short_name = models.CharField(max_length=80, verbose_name='Tên ngắn')
+    district = models.CharField(max_length=80, verbose_name='Quận/Huyện')
+    unit_type = models.CharField(
+        max_length=10, choices=UnitType.choices,
+        default=UnitType.PHUONG, verbose_name='Loại đơn vị',
+    )
+    latitude = models.FloatField(verbose_name='Vĩ độ (tâm)')
+    longitude = models.FloatField(verbose_name='Kinh độ (tâm)')
+    is_active = models.BooleanField(default=True, verbose_name='Đang áp dụng')
+
+    class Meta:
+        verbose_name = 'Phường/Xã'
+        verbose_name_plural = 'Đơn vị hành chính Đà Nẵng'
+        ordering = ['district', 'name']
+
+    def __str__(self):
+        return f'{self.name} ({self.district})'
+
+    @property
+    def full_label(self):
+        return f'{self.name}, {self.district}, Đà Nẵng'
+
+
 def device_network_type(device_type: str) -> str:
     """Trả về ELECTRIC hoặc WATER từ loại thiết bị."""
     if device_type in ELECTRIC_DEVICE_TYPES:
@@ -62,7 +94,11 @@ class Device(models.Model):
 
     attributes = models.JSONField(default=dict, blank=True, verbose_name='Thuộc tính mở rộng')
     address = models.CharField(max_length=255, blank=True, default='', verbose_name='Địa chỉ')
-    area = models.CharField(max_length=120, blank=True, default='', verbose_name='Khu vực')
+    ward = models.ForeignKey(
+        Ward, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='devices', verbose_name='Phường/Xã',
+    )
+    area = models.CharField(max_length=120, blank=True, default='', verbose_name='Khu vực (đồng bộ)')
 
     latitude = models.FloatField(verbose_name='Vĩ độ (Latitude)')
     longitude = models.FloatField(verbose_name='Kinh độ (Longitude)')
@@ -72,6 +108,42 @@ class Device(models.Model):
         default=Status.ACTIVE, verbose_name='Trạng thái mạng',
     )
     is_active = models.BooleanField(default=True, verbose_name='Trạng thái hoạt động (legacy)')
+
+    maintenance_assigned_to = models.ForeignKey(
+        'accounts.User', null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='primary_maintenance_devices',
+        verbose_name='KTV phụ trách bảo trì',
+    )
+    maintenance_assigned_technicians = models.ManyToManyField(
+        'accounts.User',
+        blank=True,
+        related_name='maintenance_assigned_devices',
+        verbose_name='KTV được phân công bảo trì',
+    )
+    maintenance_assigned_by = models.ForeignKey(
+        'accounts.User', null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='maintenance_assignments_made',
+        verbose_name='Người phân công bảo trì',
+    )
+    maintenance_note = models.TextField(blank=True, default='', verbose_name='Ghi chú phân công bảo trì')
+    maintenance_assigned_at = models.DateTimeField(null=True, blank=True, verbose_name='Thời điểm phân công bảo trì')
+    maintenance_acknowledged_at = models.DateTimeField(null=True, blank=True, verbose_name='KTV xác nhận công việc lúc')
+    maintenance_acknowledged_by = models.ForeignKey(
+        'accounts.User', null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='maintenance_acknowledged_devices',
+        verbose_name='KTV xác nhận công việc',
+    )
+    maintenance_completed_at = models.DateTimeField(null=True, blank=True, verbose_name='KTV báo hoàn thành lúc')
+    maintenance_completed_by = models.ForeignKey(
+        'accounts.User', null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='maintenance_completed_devices',
+        verbose_name='KTV báo hoàn thành',
+    )
+    maintenance_result_note = models.TextField(blank=True, default='', verbose_name='Ghi chú kết quả bảo trì')
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -112,6 +184,9 @@ class Device(models.Model):
             else:
                 if not self.is_active:
                     self.status = self.Status.INACTIVE
+
+        if self.ward_id:
+            self.area = self.ward.full_label
 
         super().save(*args, **kwargs)
 

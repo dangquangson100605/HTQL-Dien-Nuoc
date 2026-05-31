@@ -10,9 +10,13 @@ from rest_framework.response import Response
 
 from accounts.models import User
 from accounts.permissions import IsAdminRole
+from accounts.ward_permissions import get_assignable_technicians
 from assets.models import Device
-from .models import Incident, IncidentNote, Notification
-from .serializers import IncidentSerializer, IncidentNoteSerializer, NotificationSerializer
+from assets.spatial import filter_incidents_for_user, user_can_access_ward, filter_devices_for_user
+from .models import Incident, IncidentNote, Notification, SystemJournal
+from .serializers import IncidentSerializer, IncidentNoteSerializer, NotificationSerializer, SystemJournalSerializer
+from .journal_utils import log_journal
+from .excel_exports import export_incidents_excel
 
 # Bảng chuyển trạng thái hợp lệ
 VALID_TRANSITIONS = {
@@ -24,6 +28,58 @@ VALID_TRANSITIONS = {
     'CLOSED': [],
     'REJECTED': [],
 }
+
+
+def _incident_report_queryset(request):
+    """Lọc queryset báo cáo sự cố theo query params."""
+    qs = filter_incidents_for_user(request.user, Incident.objects.select_related(
+        'reported_by', 'assigned_to', 'device', 'ward',
+    ).prefetch_related('assigned_technicians'))
+    filters = {
+        'date_from': request.query_params.get('date_from'),
+        'date_to': request.query_params.get('date_to'),
+        'incident_type': request.query_params.get('incident_type'),
+        'severity': request.query_params.get('severity'),
+        'status': request.query_params.get('status'),
+    }
+    if filters['date_from']:
+        qs = qs.filter(created_at__date__gte=filters['date_from'])
+    if filters['date_to']:
+        qs = qs.filter(created_at__date__lte=filters['date_to'])
+    if filters['incident_type']:
+        qs = qs.filter(incident_type=filters['incident_type'])
+    if filters['severity']:
+        qs = qs.filter(severity=filters['severity'])
+    if filters['status']:
+        qs = qs.filter(status=filters['status'])
+    return qs, filters
+
+
+def _incident_report_summary(qs):
+    total = qs.count()
+    by_status = {
+        item['status']: item['count']
+        for item in qs.values('status').annotate(count=Count('id'))
+    }
+    by_severity = {
+        item['severity']: item['count']
+        for item in qs.values('severity').annotate(count=Count('id'))
+    }
+    by_type = {
+        item['incident_type']: item['count']
+        for item in qs.values('incident_type').annotate(count=Count('id'))
+    }
+    resolved_count = by_status.get('RESOLVED', 0) + by_status.get('CLOSED', 0)
+    resolution_rate = round(resolved_count / total * 100, 1) if total > 0 else 0
+    return {
+        'total': total,
+        'by_status': by_status,
+        'by_severity': by_severity,
+        'by_type': by_type,
+        'resolved_count': resolved_count,
+        'resolution_rate': resolution_rate,
+    }
+
 
 class IncidentViewSet(viewsets.ModelViewSet):
     """
@@ -38,19 +94,20 @@ class IncidentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Incident.objects.select_related('reported_by', 'assigned_to', 'device', 'edge', 'confirmed_by').prefetch_related('notes', 'history', 'history__changed_by')
+        qs = Incident.objects.select_related(
+            'reported_by', 'assigned_to', 'device', 'edge', 'confirmed_by', 'ward',
+        ).prefetch_related('notes', 'history', 'history__changed_by', 'assigned_technicians')
 
-        # Citizen chỉ xem sự cố của mình
         if user.role == 'CITIZEN':
             qs = qs.filter(reported_by=user)
-        # Technician chỉ xem sự cố được phân công cho mình
-        elif user.role == 'TECHNICIAN':
-            qs = qs.filter(assigned_to=user)
+        else:
+            qs = filter_incidents_for_user(user, qs)
 
-        # Lọc theo query params
         status_filter = self.request.query_params.get('status')
         severity_filter = self.request.query_params.get('severity')
         type_filter = self.request.query_params.get('incident_type')
+        ward_filter = self.request.query_params.get('ward')
+        district_filter = self.request.query_params.get('district')
 
         if status_filter:
             qs = qs.filter(status=status_filter)
@@ -58,6 +115,10 @@ class IncidentViewSet(viewsets.ModelViewSet):
             qs = qs.filter(severity=severity_filter)
         if type_filter:
             qs = qs.filter(incident_type=type_filter)
+        if ward_filter:
+            qs = qs.filter(ward_id=ward_filter)
+        if district_filter:
+            qs = qs.filter(ward__district=district_filter)
 
         return qs
 
@@ -76,24 +137,89 @@ class IncidentViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Chỉ Admin hoặc Operator mới được phân công.'}, status=status.HTTP_403_FORBIDDEN)
 
         incident = self.get_object()
+        if request.user.role == 'OPERATOR' and incident.ward_id and not user_can_access_ward(request.user, incident.ward_id):
+            return Response({'detail': 'Sự cố không thuộc phạm vi phường/xã bạn phụ trách.'}, status=status.HTTP_403_FORBIDDEN)
         if incident.status not in ('PENDING_VERIFY', 'CONFIRMED', 'ASSIGNED'):
             return Response(
                 {'detail': f'Không thể phân công sự cố đang ở trạng thái "{incident.get_status_display()}".'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        technician_id = request.data.get('assigned_to')
-        if not technician_id:
-            return Response({'detail': 'Vui lòng chọn kỹ thuật viên.'}, status=status.HTTP_400_BAD_REQUEST)
+        ward_id = incident.ward_id
+        if not ward_id and incident.device_id:
+            ward_id = incident.device.ward_id
+
+        technician_ids = request.data.get('assigned_technicians')
+        if technician_ids is None:
+            single_id = request.data.get('assigned_to')
+            technician_ids = [single_id] if single_id else []
+
+        if not isinstance(technician_ids, list) or not technician_ids:
+            return Response({'detail': 'Vui lòng chọn ít nhất một kỹ thuật viên.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            technician = User.objects.get(id=technician_id, role='TECHNICIAN')
-        except User.DoesNotExist:
-            return Response({'detail': 'Kỹ thuật viên không tồn tại.'}, status=status.HTTP_404_NOT_FOUND)
+            technician_ids = [int(tid) for tid in technician_ids]
+        except (TypeError, ValueError):
+            return Response({'detail': 'Danh sách kỹ thuật viên không hợp lệ.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        incident.assigned_to = technician
+        if len(technician_ids) != len(set(technician_ids)):
+            return Response({'detail': 'Không được chọn trùng kỹ thuật viên.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        expected_count = request.data.get('technician_count')
+        if expected_count is not None:
+            try:
+                expected_count = int(expected_count)
+            except (TypeError, ValueError):
+                return Response({'detail': 'Số lượng KTV không hợp lệ.'}, status=status.HTTP_400_BAD_REQUEST)
+            if expected_count != len(technician_ids):
+                return Response(
+                    {'detail': f'Cần chọn đúng {expected_count} kỹ thuật viên.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        technicians = []
+        assignable_ids = set(
+            get_assignable_technicians(request.user, ward_id).values_list('id', flat=True)
+        )
+        for technician_id in technician_ids:
+            try:
+                technician = User.objects.get(id=technician_id, role='TECHNICIAN')
+            except User.DoesNotExist:
+                return Response({'detail': f'Kỹ thuật viên #{technician_id} không tồn tại.'}, status=status.HTTP_404_NOT_FOUND)
+
+            if technician.id not in assignable_ids:
+                if ward_id:
+                    return Response(
+                        {'detail': f'Kỹ thuật viên {technician.username} không được phân quyền phường/xã của sự cố này.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                return Response(
+                    {'detail': f'Kỹ thuật viên {technician.username} không nằm trong danh sách có thể phân công.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            technicians.append(technician)
+
+        incident.assigned_to = technicians[0]
         incident.status = Incident.Status.ASSIGNED
         incident.save()
+        incident.assigned_technicians.set(technicians)
+
+        for technician in technicians:
+            Notification.objects.create(
+                recipient=technician,
+                incident=incident,
+                notif_type=Notification.NotifType.ASSIGNED,
+                message=f'Bạn được phân công xử lý sự cố: {incident.title}',
+            )
+
+        log_journal(
+            actor=request.user,
+            category=SystemJournal.Category.INCIDENT,
+            action=SystemJournal.Action.JOB_ASSIGNED,
+            summary=f'Phân công sự cố "{incident.title}" cho {", ".join(t.username for t in technicians)}',
+            incident=incident,
+            details={'technician_ids': [t.id for t in technicians]},
+        )
 
         return Response(IncidentSerializer(incident, context={'request': request}).data)
 
@@ -116,10 +242,14 @@ class IncidentViewSet(viewsets.ModelViewSet):
                 return Response({'detail': 'Người dân chỉ có thể đóng sự cố.'}, status=status.HTTP_403_FORBIDDEN)
 
         elif user.role == 'TECHNICIAN':
-            if incident.assigned_to != user:
+            if not incident.user_is_assigned_technician(user):
                 return Response({'detail': 'Sự cố này không được phân công cho bạn.'}, status=status.HTTP_403_FORBIDDEN)
             if new_status not in [Incident.Status.IN_PROGRESS, Incident.Status.RESOLVED, 'IN_PROGRESS', 'RESOLVED']:
-                return Response({'detail': 'Kỹ thuật viên chỉ có thể cập nhật trạng thái thành Đang xử lý hoặc Đã xử lý.'}, status=status.HTTP_403_FORBIDDEN)
+                return Response({'detail': 'Kỹ thuật viên chỉ có thể xác nhận công việc hoặc báo hoàn thành.'}, status=status.HTTP_403_FORBIDDEN)
+            if new_status == Incident.Status.RESOLVED:
+                note_check = (request.data.get('result_note') or incident.result_note or '').strip()
+                if not note_check:
+                    return Response({'detail': 'Vui lòng nhập ghi chú kết quả xử lý khi báo hoàn thành.'}, status=status.HTTP_400_BAD_REQUEST)
 
         elif user.role not in ('ADMIN', 'OPERATOR'):
             return Response({'detail': 'Không có quyền cập nhật trạng thái.'}, status=status.HTTP_403_FORBIDDEN)
@@ -150,28 +280,60 @@ class IncidentViewSet(viewsets.ModelViewSet):
             incident.confirmed_by = user
             if current_status == Incident.Status.ASSIGNED:
                 incident.status = Incident.Status.ASSIGNED
-                
-                # Tạo lịch sử và thông báo thủ công vì trạng thái thực tế không đổi
-                from .models import IncidentHistory, Notification
+                from .models import IncidentHistory
                 IncidentHistory.objects.create(
                     incident=incident,
                     old_status=Incident.Status.ASSIGNED,
                     new_status=Incident.Status.ASSIGNED,
                     note='Đã xác nhận sự cố',
-                    changed_by=user
+                    changed_by=user,
                 )
-                
                 if incident.reported_by:
                     Notification.objects.create(
                         recipient=incident.reported_by,
                         incident=incident,
                         notif_type=Notification.NotifType.CONFIRMED,
-                        message=f"Sự cố '{incident.title}' đã được xác nhận."
+                        message=f"Sự cố '{incident.title}' đã được xác nhận.",
                     )
 
-        # Ghi nhận người thay đổi cho IncidentHistory (signal sẽ đọc attr này)
         incident._changed_by = user
         incident.save()
+
+        if new_status == Incident.Status.IN_PROGRESS:
+            log_journal(
+                actor=user,
+                category=SystemJournal.Category.INCIDENT,
+                action=SystemJournal.Action.JOB_ACKNOWLEDGED,
+                summary=f'KTV {user.username} xác nhận công việc sự cố: {incident.title}',
+                incident=incident,
+            )
+        elif new_status == Incident.Status.RESOLVED:
+            log_journal(
+                actor=user,
+                category=SystemJournal.Category.INCIDENT,
+                action=SystemJournal.Action.WORK_COMPLETED,
+                summary=f'KTV {user.username} báo hoàn thành sự cố: {incident.title}',
+                incident=incident,
+                details={'result_note': incident.result_note},
+            )
+        elif new_status == Incident.Status.CLOSED:
+            log_journal(
+                actor=user,
+                category=SystemJournal.Category.INCIDENT,
+                action=SystemJournal.Action.OPERATOR_CONFIRMED,
+                summary=f'Vận hành xác nhận khắc phục và đóng sự cố: {incident.title}',
+                incident=incident,
+            )
+        elif new_status not in (
+            Incident.Status.IN_PROGRESS, Incident.Status.RESOLVED, Incident.Status.CLOSED,
+        ) and current_status != new_status:
+            log_journal(
+                actor=user,
+                category=SystemJournal.Category.INCIDENT,
+                action=SystemJournal.Action.STATUS_CHANGED,
+                summary=f'Sự cố "{incident.title}": {current_status} → {new_status}',
+                incident=incident,
+            )
 
         return Response(IncidentSerializer(incident, context={'request': request}).data)
 
@@ -188,6 +350,14 @@ class IncidentViewSet(viewsets.ModelViewSet):
             author=request.user,
             content=content,
         )
+        log_journal(
+            actor=request.user,
+            category=SystemJournal.Category.INCIDENT,
+            action=SystemJournal.Action.NOTE_ADDED,
+            summary=f'{request.user.username} thêm ghi chú sự cố: {incident.title}',
+            incident=incident,
+            details={'content': content[:500]},
+        )
         return Response(IncidentNoteSerializer(note).data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['get'], url_path='stats')
@@ -196,25 +366,28 @@ class IncidentViewSet(viewsets.ModelViewSet):
         if request.user.role not in ('ADMIN', 'OPERATOR'):
             return Response({'detail': 'Chỉ Admin hoặc Operator.'}, status=status.HTTP_403_FORBIDDEN)
 
-        total_devices = Device.objects.count()
+        qs = filter_incidents_for_user(request.user, Incident.objects.all())
+        total_devices = filter_devices_for_user(
+            request.user, Device.objects.all(),
+        ).count()
 
         by_status = {
             item['status']: item['count']
-            for item in Incident.objects.values('status').annotate(count=Count('id'))
+            for item in qs.values('status').annotate(count=Count('id'))
         }
         by_severity = {
             item['severity']: item['count']
-            for item in Incident.objects.values('severity').annotate(count=Count('id'))
+            for item in qs.values('severity').annotate(count=Count('id'))
         }
         by_type = {
             item['incident_type']: item['count']
-            for item in Incident.objects.values('incident_type').annotate(count=Count('id'))
+            for item in qs.values('incident_type').annotate(count=Count('id'))
         }
 
         # Xu hướng 7 ngày gần nhất
         today = timezone.now().date()
         trend_qs = (
-            Incident.objects
+            qs
             .filter(created_at__date__gte=today - timedelta(days=6))
             .annotate(day=TruncDate('created_at'))
             .values('day')
@@ -225,7 +398,7 @@ class IncidentViewSet(viewsets.ModelViewSet):
 
         return Response({
             'total_devices': total_devices,
-            'total_incidents': Incident.objects.count(),
+            'total_incidents': qs.count(),
             'by_status': by_status,
             'by_severity': by_severity,
             'by_type': by_type,
@@ -248,44 +421,8 @@ class IncidentViewSet(viewsets.ModelViewSet):
         if request.user.role not in ('ADMIN', 'OPERATOR'):
             return Response({'detail': 'Không có quyền.'}, status=status.HTTP_403_FORBIDDEN)
 
-        qs = Incident.objects.select_related('reported_by', 'assigned_to', 'device')
-
-        # ── Filters ──────────────────────────────────────────────────
-        date_from = request.query_params.get('date_from')
-        date_to = request.query_params.get('date_to')
-        inc_type = request.query_params.get('incident_type')
-        severity = request.query_params.get('severity')
-        status_filter = request.query_params.get('status')
-
-        if date_from:
-            qs = qs.filter(created_at__date__gte=date_from)
-        if date_to:
-            qs = qs.filter(created_at__date__lte=date_to)
-        if inc_type:
-            qs = qs.filter(incident_type=inc_type)
-        if severity:
-            qs = qs.filter(severity=severity)
-        if status_filter:
-            qs = qs.filter(status=status_filter)
-
-        # ── Summary stats ─────────────────────────────────────────────
-        total = qs.count()
-        by_status = {
-            item['status']: item['count']
-            for item in qs.values('status').annotate(count=Count('id'))
-        }
-        by_severity = {
-            item['severity']: item['count']
-            for item in qs.values('severity').annotate(count=Count('id'))
-        }
-        by_type = {
-            item['incident_type']: item['count']
-            for item in qs.values('incident_type').annotate(count=Count('id'))
-        }
-
-        # Resolution rate
-        resolved_count = by_status.get('RESOLVED', 0) + by_status.get('CLOSED', 0)
-        resolution_rate = round(resolved_count / total * 100, 1) if total > 0 else 0
+        qs, _filters = _incident_report_queryset(request)
+        summary = _incident_report_summary(qs)
 
         # ── Trend theo ngày trong khoảng lọc ─────────────────────────
         trend_qs = (
@@ -315,6 +452,9 @@ class IncidentViewSet(viewsets.ModelViewSet):
                 'status': inc.status,
                 'reported_by': inc.reported_by.username if inc.reported_by else None,
                 'assigned_to': inc.assigned_to.username if inc.assigned_to else None,
+                'assigned_technicians': [
+                    u.username for u in inc.assigned_technicians.all()
+                ] or ([inc.assigned_to.username] if inc.assigned_to else []),
                 'created_at': inc.created_at.isoformat(),
                 'resolved_at': inc.resolved_at.isoformat() if inc.resolved_at else None,
                 'latitude': inc.latitude,
@@ -324,23 +464,31 @@ class IncidentViewSet(viewsets.ModelViewSet):
         ]
 
         return Response({
-            'summary': {
-                'total': total,
-                'by_status': by_status,
-                'by_severity': by_severity,
-                'by_type': by_type,
-                'resolved_count': resolved_count,
-                'resolution_rate': resolution_rate,
-            },
+            'summary': summary,
             'trend': trend,
             'incidents': {
-                'count': total,
+                'count': summary['total'],
                 'page': page,
                 'page_size': page_size,
-                'total_pages': (total + page_size - 1) // page_size if total > 0 else 1,
+                'total_pages': (summary['total'] + page_size - 1) // page_size if summary['total'] > 0 else 1,
                 'results': incidents_data,
             },
         })
+
+    @action(detail=False, methods=['get'], url_path='report-excel')
+    def report_excel(self, request):
+        """Xuất báo cáo sự cố dạng Excel (mẫu văn bản hành chính)."""
+        if request.user.role not in ('ADMIN', 'OPERATOR'):
+            return Response({'detail': 'Không có quyền.'}, status=status.HTTP_403_FORBIDDEN)
+
+        qs, filters = _incident_report_queryset(request)
+        summary = _incident_report_summary(qs)
+        return export_incidents_excel(
+            qs.order_by('-created_at'),
+            request.user,
+            summary=summary,
+            filters=filters,
+        )
 
 
 class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
@@ -367,3 +515,16 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     def unread_count(self, request):
         count = Notification.objects.filter(recipient=request.user, is_read=False).count()
         return Response({'unread_count': count})
+
+
+class SystemJournalViewSet(viewsets.ReadOnlyModelViewSet):
+    """Nhật ký vận hành — chỉ Admin."""
+    serializer_class = SystemJournalSerializer
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get_queryset(self):
+        qs = SystemJournal.objects.select_related('incident', 'device', 'actor').order_by('-created_at')
+        category = self.request.query_params.get('category')
+        if category:
+            qs = qs.filter(category=category)
+        return qs

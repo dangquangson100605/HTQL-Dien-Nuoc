@@ -18,6 +18,13 @@ class User(AbstractUser):
         verbose_name="Vai trò",
     )
     failed_login_attempts = models.IntegerField(default=0, verbose_name="Số lần đăng nhập sai")
+    managed_wards = models.ManyToManyField(
+        'assets.Ward',
+        blank=True,
+        related_name='staff_users',
+        verbose_name='Phường/Xã được phân quyền',
+        help_text='OPERATOR/TECHNICIAN chỉ thao tác dữ liệu trong các phường/xã này. ADMIN bỏ trống = toàn thành phố.',
+    )
 
     def save(self, *args, **kwargs):
         if self.is_superuser:

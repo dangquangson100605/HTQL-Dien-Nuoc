@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
-from assets.models import Device, NetworkEdge
+from assets.models import Device, NetworkEdge, Ward
 from incidents.models import Incident, IncidentHistory
 
 User = get_user_model()
@@ -344,12 +344,26 @@ class IncidentWorkflowPermissionsTests(APITestCase):
         self.tech2 = User.objects.create_user(username="tech_role_2", password="password", role="TECHNICIAN")
         self.citizen = User.objects.create_user(username="citizen_role", password="password", role="CITIZEN")
 
+        self.ward = Ward.objects.create(
+            code='TEST-WARD-WF',
+            name='Phường Kiểm thử WF',
+            short_name='KT WF',
+            district='Hải Châu',
+            unit_type='PHUONG',
+            latitude=10.0,
+            longitude=106.0,
+        )
+        self.operator.managed_wards.add(self.ward)
+        self.tech1.managed_wards.add(self.ward)
+        self.tech2.managed_wards.add(self.ward)
+
         self.device = Device.objects.create(
             name="Test Device Workflow",
             device_type="ELECTRIC_POLE",
             latitude=10.0,
             longitude=106.0,
-            status=Device.Status.ACTIVE
+            status=Device.Status.ACTIVE,
+            ward=self.ward,
         )
 
         self.incident = Incident.objects.create(
@@ -359,6 +373,7 @@ class IncidentWorkflowPermissionsTests(APITestCase):
             latitude=10.0,
             longitude=106.0,
             device=self.device,
+            ward=self.ward,
             reported_by=self.citizen
         )
 
@@ -536,4 +551,31 @@ class IncidentWorkflowPermissionsTests(APITestCase):
         self.assertEqual(self.incident.status, Incident.Status.REJECTED)
         self.assertEqual(self.incident.rejection_reason, "Báo cáo sai thực tế")
 
+    def test_assign_multiple_technicians(self):
+        """Phân công nhiều KTV theo số lượng đã chọn."""
+        self.client.force_authenticate(user=self.operator)
+        response = self.client.patch(
+            f"/api/incidents/{self.incident.id}/assign/",
+            {
+                "assigned_technicians": [self.tech1.id, self.tech2.id],
+                "technician_count": 2,
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.incident.refresh_from_db()
+        self.assertEqual(self.incident.status, Incident.Status.ASSIGNED)
+        self.assertEqual(self.incident.assigned_to, self.tech1)
+        self.assertCountEqual(
+            list(self.incident.assigned_technicians.values_list('id', flat=True)),
+            [self.tech1.id, self.tech2.id],
+        )
+
+        self.client.force_authenticate(user=self.tech2)
+        response = self.client.patch(
+            f"/api/incidents/{self.incident.id}/update-status/",
+            {"status": "IN_PROGRESS"},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
 

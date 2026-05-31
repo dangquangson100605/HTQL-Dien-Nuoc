@@ -55,30 +55,7 @@
 
   /* ── Navbar setup ────────────────────────────────────────────────── */
   function setupNav() {
-    const u = localStorage.getItem(STORAGE.username) || '';
-    const role = localStorage.getItem(STORAGE.role) || '';
-    const el = document.getElementById('nav-user');
-    const roleEl = document.getElementById('nav-role');
-    if (el) el.textContent = u ? `Xin chào, ${u}` : '';
-    const labels = { ADMIN: 'Quản trị', OPERATOR: 'Vận hành', TECHNICIAN: 'Kỹ thuật', CITIZEN: 'Người dân' };
-    if (roleEl) roleEl.textContent = labels[role] || role;
-    if (role === 'ADMIN' || role === 'OPERATOR') {
-      document.getElementById('nav-dashboard-link')?.classList.remove('d-none');
-      document.getElementById('nav-analytics-link')?.classList.remove('d-none');
-    }
-
-    if (role === 'CITIZEN') {
-      const mapLink = document.querySelector('a[href="/app/"]');
-      if (mapLink) {
-        mapLink.setAttribute('href', '/lookup/');
-        mapLink.innerHTML = '<i class="bi bi-search"></i> Tra cứu';
-      }
-      const incidentsLink = document.querySelector('a[href="/incidents/"]');
-      if (incidentsLink) {
-        incidentsLink.setAttribute('href', '/report/');
-        incidentsLink.innerHTML = '<i class="bi bi-plus-circle"></i> Báo cáo';
-      }
-    }
+    if (window.StaffNav) StaffNav.initNavUser();
 
     document.getElementById('btn-logout')?.addEventListener('click', async () => {
       const refresh = localStorage.getItem(STORAGE.refresh);
@@ -96,6 +73,10 @@
   const NOTIF_META = {
     NEW_INCIDENT: { icon: '🔴', label: 'Sự cố mới', badgeClass: 'bg-danger' },
     ASSIGNED:     { icon: '👷', label: 'Được phân công', badgeClass: 'bg-warning text-dark' },
+    MAINTENANCE_ASSIGNED: { icon: '🔧', label: 'Phân công bảo trì', badgeClass: 'bg-primary' },
+    JOB_ACKNOWLEDGED: { icon: '👍', label: 'Xác nhận công việc', badgeClass: 'bg-info text-dark' },
+    PENDING_OPERATOR: { icon: '⏳', label: 'Chờ vận hành xác nhận', badgeClass: 'bg-warning text-dark' },
+    OPERATOR_CONFIRMED: { icon: '✅', label: 'Vận hành đã xác nhận', badgeClass: 'bg-success' },
     STATUS_UPDATE:{ icon: '🔧', label: 'Cập nhật trạng thái', badgeClass: 'bg-info text-dark' },
     RESOLVED:     { icon: '✅', label: 'Đã giải quyết', badgeClass: 'bg-success' },
     CONFIRMED:    { icon: '✔️', label: 'Đã xác nhận', badgeClass: 'bg-primary' },
@@ -148,7 +129,12 @@
                      <i class="bi bi-link-45deg"></i>
                      <a href="/incidents/" class="text-decoration-none text-primary">Xem sự cố: ${n.incident_title}</a>
                    </div>`
-                : ''}
+                : n.device_name
+                  ? `<div class="text-muted small mt-1">
+                       <i class="bi bi-link-45deg"></i>
+                       <a href="/app/" class="text-decoration-none text-primary">Xem thiết bị: ${n.device_name}</a>
+                     </div>`
+                  : ''}
             </div>
             <div class="flex-shrink-0 ms-2">
               ${!n.is_read

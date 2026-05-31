@@ -110,47 +110,226 @@
     VALVE: 'Van nước (cũ)',
   };
 
-  async function loadConsumptions() {
-    const tbody = document.getElementById('monitoring-table-body');
-    const admin = isAdmin();
-    
+  function getConsumptionFilterParams(forExport = false) {
     const groupAreaChk = document.getElementById('filter-group-area');
     const byArea = groupAreaChk ? groupAreaChk.checked : false;
-    
-    if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="${admin && !byArea ? 4 : 3}" class="text-center py-5">
-        <div class="spinner-border spinner-border-sm text-primary" role="status"></div><span class="ms-2">Đang tải...</span>
-      </td></tr>`;
+    const deviceCodeInput = document.getElementById('filter-device-code');
+    const deviceCode = deviceCodeInput ? deviceCodeInput.value.trim() : '';
+    const deviceTypeSel = document.getElementById('filter-device-type');
+    const deviceType = deviceTypeSel ? deviceTypeSel.value : '';
+    const startInput = document.getElementById('filter-start');
+    const startMonth = startInput ? startInput.value : '';
+    const endInput = document.getElementById('filter-end');
+    const endMonth = endInput ? endInput.value : '';
+
+    const params = new URLSearchParams();
+    if (deviceCode && !byArea) params.append('device_code', deviceCode);
+    if (deviceType) params.append('device_type', deviceType);
+    if (startMonth) params.append('start_date', startMonth + '-01');
+    if (endMonth) params.append('end_date', endMonth + '-01');
+    if (!forExport) params.append('page_size', '10000');
+    return { params, byArea };
+  }
+
+  async function downloadConsumptionExcel() {
+    const { params, byArea } = getConsumptionFilterParams(true);
+    if (byArea) {
+      showAlert('Xuất Excel chỉ hỗ trợ bảng chi tiết. Vui lòng tắt "Nhóm theo khu vực".');
+      return;
+    }
+    try {
+      const res = await apiFetch(`${API.consumptions}export-excel/?${params.toString()}`);
+      if (!res.ok) {
+        showAlert('Lỗi khi xuất Excel');
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const cd = res.headers.get('Content-Disposition') || '';
+      const match = cd.match(/filename="([^"]+)"/);
+      a.download = match ? match[1] : 'bao_cao_tieu_thu.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('export excel error:', err);
+      showAlert('Lỗi khi tải file Excel');
+    }
+  }
+
+  function formatMonth(dateStr) {
+    const parts = dateStr.split('-');
+    return parts.length >= 2 ? `Tháng ${parts[1]}/${parts[0]}` : dateStr;
+  }
+
+  function setLoadingState(byArea) {
+    const admin = isAdmin();
+    const colSpan = admin && !byArea ? 4 : 3;
+    const loadingHtml = `<tr><td colspan="${colSpan}" class="text-center py-4">
+      <div class="spinner-border spinner-border-sm text-primary" role="status"></div><span class="ms-2">Đang tải...</span>
+    </td></tr>`;
+
+    const splitEl = document.getElementById('detail-tables-split');
+    const areaEl = document.getElementById('detail-table-area');
+    if (byArea) {
+      splitEl?.classList.add('d-none');
+      areaEl?.classList.remove('d-none');
+      const areaBody = document.getElementById('monitoring-table-area-body');
+      if (areaBody) areaBody.innerHTML = loadingHtml.replace(`colspan="${colSpan}"`, 'colspan="3"');
+    } else {
+      splitEl?.classList.remove('d-none');
+      areaEl?.classList.add('d-none');
+      const elecBody = document.getElementById('monitoring-table-electric-body');
+      const waterBody = document.getElementById('monitoring-table-water-body');
+      if (elecBody) elecBody.innerHTML = loadingHtml;
+      if (waterBody) waterBody.innerHTML = loadingHtml;
+    }
+  }
+
+  function toggleAdminActionColumns(show) {
+    document.querySelectorAll('#detail-tables-split .admin-only').forEach(el => {
+      if (show && isAdmin()) el.classList.remove('d-none');
+      else el.classList.add('d-none');
+    });
+  }
+
+  function splitConsumptionRows(data) {
+    const electric = [];
+    const water = [];
+    (data || []).forEach(row => {
+      if (row.device_type === 'WATER_METER') {
+        water.push(row);
+      } else if (row.device_type === 'ELECTRIC_METER') {
+        electric.push(row);
+      } else {
+        const nameLower = (row.device_name || '').toLowerCase();
+        if (nameLower.includes('nước') || nameLower.includes('water')) {
+          water.push(row);
+        } else {
+          electric.push(row);
+        }
+      }
+    });
+    return { electric, water };
+  }
+
+  function bindDeleteButtons(container) {
+    if (!container) return;
+    container.querySelectorAll('.btn-del').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        Swal.fire({
+          title: 'Xóa bản ghi?',
+          text: 'Bạn có chắc chắn muốn xóa bản ghi tiêu thụ này không?',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#dc3545',
+          cancelButtonColor: '#6c757d',
+          confirmButtonText: 'Đồng ý xóa',
+          cancelButtonText: 'Hủy',
+          customClass: { popup: 'rounded-4 shadow border-0' }
+        }).then(async (result) => {
+          if (result.isConfirmed) {
+            const id = btn.getAttribute('data-id');
+            try {
+              const res = await apiFetch(`${API.consumptions}${id}/`, { method: 'DELETE' });
+              if (res.ok) {
+                Swal.fire({
+                  title: 'Thành công!',
+                  text: 'Xóa bản ghi thành công!',
+                  icon: 'success',
+                  timer: 2000,
+                  showConfirmButton: false,
+                  customClass: { popup: 'rounded-4 shadow border-0' }
+                });
+                loadConsumptions();
+              } else {
+                Swal.fire({
+                  title: 'Thất bại!',
+                  text: 'Lỗi khi xóa bản ghi.',
+                  icon: 'error',
+                  confirmButtonText: 'Đóng',
+                  confirmButtonColor: '#dc3545',
+                  customClass: { popup: 'rounded-4 shadow border-0' }
+                });
+              }
+            } catch (err) {
+              console.error(err);
+              Swal.fire({
+                title: 'Thất bại!',
+                text: 'Lỗi hệ thống khi xóa bản ghi.',
+                icon: 'error',
+                confirmButtonText: 'Đóng',
+                confirmButtonColor: '#dc3545',
+                customClass: { popup: 'rounded-4 shadow border-0' }
+              });
+            }
+          }
+        });
+      });
+    });
+  }
+
+  function renderDetailTableBody(tbody, rows, unit) {
+    if (!tbody) return;
+    const admin = isAdmin();
+    const colSpan = admin ? 4 : 3;
+
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="${colSpan}" class="text-muted py-4">Không có dữ liệu</td></tr>`;
+      return;
     }
 
-    try {
-      const deviceCodeInput = document.getElementById('filter-device-code');
-      const deviceCode = deviceCodeInput ? deviceCodeInput.value.trim() : '';
-      const deviceTypeSel = document.getElementById('filter-device-type');
-      const deviceType = deviceTypeSel ? deviceTypeSel.value : '';
-      const startInput = document.getElementById('filter-start');
-      const startMonth = startInput ? startInput.value : '';
-      const endInput = document.getElementById('filter-end');
-      const endMonth = endInput ? endInput.value : '';
+    tbody.innerHTML = rows.map(row => {
+      const actions = admin ? `
+        <td class="admin-only">
+          <button class="btn btn-sm btn-outline-danger btn-del" data-id="${row.id}">Xóa</button>
+        </td>` : '';
 
-      const params = new URLSearchParams();
-      if (deviceCode && !byArea) params.append('device_code', deviceCode);
-      if (deviceType) params.append('device_type', deviceType);
-      if (startMonth) params.append('start_date', startMonth + '-01');
-      if (endMonth) params.append('end_date', endMonth + '-01');
-      params.append('page_size', '10000');
+      return `
+        <tr>
+          <td>${row.device_name || 'Không rõ'}</td>
+          <td>${formatMonth(row.date)}</td>
+          <td><strong>${row.value}</strong> ${unit}</td>
+          ${actions}
+        </tr>
+      `;
+    }).join('');
+
+    bindDeleteButtons(tbody);
+  }
+
+  async function loadConsumptions() {
+    const admin = isAdmin();
+    const groupAreaChk = document.getElementById('filter-group-area');
+    const byArea = groupAreaChk ? groupAreaChk.checked : false;
+
+    setLoadingState(byArea);
+
+    try {
+      const { params, byArea } = getConsumptionFilterParams();
 
       const url = byArea ? `${API.consumptions}by-area/?${params.toString()}` : `${API.consumptions}?${params.toString()}`;
       const res = await apiFetch(url);
       if (!res.ok) {
         showAlert('Lỗi khi tải dữ liệu tiêu thụ');
-        if (tbody) {
-          tbody.innerHTML = `<tr><td colspan="${admin && !byArea ? 4 : 3}" class="text-muted py-4 text-center">Lỗi khi tải dữ liệu tiêu thụ</td></tr>`;
+        const errHtml = `<tr><td colspan="${admin && !byArea ? 4 : 3}" class="text-muted py-4 text-center">Lỗi khi tải dữ liệu tiêu thụ</td></tr>`;
+        if (byArea) {
+          const areaBody = document.getElementById('monitoring-table-area-body');
+          if (areaBody) areaBody.innerHTML = errHtml.replace('colspan="4"', 'colspan="3"');
+        } else {
+          const elecBody = document.getElementById('monitoring-table-electric-body');
+          const waterBody = document.getElementById('monitoring-table-water-body');
+          if (elecBody) elecBody.innerHTML = errHtml;
+          if (waterBody) waterBody.innerHTML = errHtml;
         }
         return;
       }
       const data = await res.json();
       const listData = data.results !== undefined ? data.results : data;
+      const deviceType = document.getElementById('filter-device-type')?.value || '';
       renderTable(listData, byArea, deviceType);
       try {
         renderChart(listData, byArea, deviceType);
@@ -159,114 +338,62 @@
       }
     } catch (err) {
       console.error('Error in loadConsumptions:', err);
-      if (tbody) {
-        tbody.innerHTML = `<tr><td colspan="${admin && !byArea ? 4 : 3}" class="text-danger py-4 text-center">Đã xảy ra lỗi khi tải dữ liệu</td></tr>`;
+      const errHtml = `<tr><td colspan="${admin && !byArea ? 4 : 3}" class="text-danger py-4 text-center">Đã xảy ra lỗi khi tải dữ liệu</td></tr>`;
+      const groupAreaChk = document.getElementById('filter-group-area');
+      const byArea = groupAreaChk ? groupAreaChk.checked : false;
+      if (byArea) {
+        const areaBody = document.getElementById('monitoring-table-area-body');
+        if (areaBody) areaBody.innerHTML = errHtml.replace('colspan="4"', 'colspan="3"');
+      } else {
+        const elecBody = document.getElementById('monitoring-table-electric-body');
+        const waterBody = document.getElementById('monitoring-table-water-body');
+        if (elecBody) elecBody.innerHTML = errHtml;
+        if (waterBody) waterBody.innerHTML = errHtml;
       }
     }
   }
 
   function renderTable(data, byArea = false, deviceType = '') {
-    const tbody = document.getElementById('monitoring-table-body');
-    if (!tbody) return;
-    const admin = isAdmin();
-    
-    const thDevice = tbody.closest('table').querySelector('thead th:first-child');
-    if (thDevice) thDevice.textContent = byArea ? 'Khu vực' : 'Thiết bị';
+    if (byArea) {
+      document.getElementById('detail-tables-split')?.classList.add('d-none');
+      document.getElementById('detail-table-area')?.classList.remove('d-none');
 
-    const thAction = tbody.closest('table').querySelector('thead th:nth-child(4)');
-    if (thAction) {
-      if (byArea) thAction.classList.add('d-none');
-      else if (admin) thAction.classList.remove('d-none');
-    }
+      const tbody = document.getElementById('monitoring-table-area-body');
+      if (!tbody) return;
 
-    if (!data || !data.length) {
-      tbody.innerHTML = `<tr><td colspan="${admin && !byArea ? 4 : 3}" class="text-muted py-4">Không có dữ liệu tiêu thụ phù hợp với bộ lọc</td></tr>`;
+      if (!data || !data.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-muted py-4">Không có dữ liệu tiêu thụ phù hợp với bộ lọc</td></tr>';
+        return;
+      }
+
+      const unit = deviceType === 'WATER_METER' ? 'm³' : deviceType === 'ELECTRIC_METER' ? 'kWh' : 'đơn vị';
+      tbody.innerHTML = data.map(row => `
+        <tr>
+          <td><strong>${row.area || 'Không có khu vực'}</strong></td>
+          <td>${formatMonth(row.date)}</td>
+          <td><strong>${row.value}</strong> ${unit}</td>
+        </tr>
+      `).join('');
       return;
     }
 
-    tbody.innerHTML = data.map(row => {
-      const parts = row.date.split('-');
-      const formattedMonth = parts.length >= 2 ? `Tháng ${parts[1]}/${parts[0]}` : row.date;
+    document.getElementById('detail-tables-split')?.classList.remove('d-none');
+    document.getElementById('detail-table-area')?.classList.add('d-none');
+    toggleAdminActionColumns(true);
 
-      if (byArea) {
-        const unit = deviceType === 'WATER_METER' ? 'm³' : deviceType === 'ELECTRIC_METER' ? 'kWh' : 'đơn vị';
-        return `
-          <tr>
-            <td><strong>${row.area || 'Không có khu vực'}</strong></td>
-            <td>${formattedMonth}</td>
-            <td><strong>${row.value}</strong> ${unit}</td>
-          </tr>
-        `;
-      }
+    const { electric, water } = splitConsumptionRows(data);
+    const elecBody = document.getElementById('monitoring-table-electric-body');
+    const waterBody = document.getElementById('monitoring-table-water-body');
 
-      const actions = admin ? `
-        <td class="admin-only">
-          <button class="btn btn-sm btn-outline-danger btn-del" data-id="${row.id}">Xóa</button>
-        </td>` : '';
-
-      return `
-        <tr>
-          <td>${row.device_name || 'Không rõ'} (${row.device_type === 'WATER_METER' ? 'Nước' : 'Điện'})</td>
-          <td>${formattedMonth}</td>
-          <td><strong>${row.value}</strong> ${row.device_type === 'WATER_METER' ? 'm³' : 'kWh'}</td>
-          ${actions}
-        </tr>
-      `;
-    }).join('');
-
-    if (!byArea) {
-      tbody.querySelectorAll('.btn-del').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          Swal.fire({
-            title: 'Xóa bản ghi?',
-            text: 'Bạn có chắc chắn muốn xóa bản ghi tiêu thụ này không?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc3545',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Đồng ý xóa',
-            cancelButtonText: 'Hủy',
-            customClass: { popup: 'rounded-4 shadow border-0' }
-          }).then(async (result) => {
-            if (result.isConfirmed) {
-              const id = btn.getAttribute('data-id');
-              try {
-                const res = await apiFetch(`${API.consumptions}${id}/`, { method: 'DELETE' });
-                if (res.ok) {
-                  Swal.fire({
-                    title: 'Thành công!',
-                    text: 'Xóa bản ghi thành công!',
-                    icon: 'success',
-                    timer: 2000,
-                    showConfirmButton: false,
-                    customClass: { popup: 'rounded-4 shadow border-0' }
-                  });
-                  loadConsumptions();
-                } else {
-                  Swal.fire({
-                    title: 'Thất bại!',
-                    text: 'Lỗi khi xóa bản ghi.',
-                    icon: 'error',
-                    confirmButtonText: 'Đóng',
-                    confirmButtonColor: '#dc3545',
-                    customClass: { popup: 'rounded-4 shadow border-0' }
-                  });
-                }
-              } catch (err) {
-                console.error(err);
-                Swal.fire({
-                  title: 'Thất bại!',
-                  text: 'Lỗi hệ thống khi xóa bản ghi.',
-                  icon: 'error',
-                  confirmButtonText: 'Đóng',
-                  confirmButtonColor: '#dc3545',
-                  customClass: { popup: 'rounded-4 shadow border-0' }
-                });
-              }
-            }
-          });
-        });
-      });
+    if (deviceType === 'WATER_METER') {
+      renderDetailTableBody(elecBody, [], 'kWh');
+      renderDetailTableBody(waterBody, water, 'm³');
+    } else if (deviceType === 'ELECTRIC_METER') {
+      renderDetailTableBody(elecBody, electric, 'kWh');
+      renderDetailTableBody(waterBody, [], 'm³');
+    } else {
+      renderDetailTableBody(elecBody, electric, 'kWh');
+      renderDetailTableBody(waterBody, water, 'm³');
     }
   }
 
@@ -594,26 +721,8 @@
   }
 
   function setupNav() {
-    const u = localStorage.getItem(STORAGE.username) || '';
-    const role = localStorage.getItem(STORAGE.role) || '';
-    const navUser = document.getElementById('nav-user');
-    const navRole = document.getElementById('nav-role');
-    if (navUser) navUser.textContent = u ? `Xin chào, ${u}` : '';
-    if (navRole) {
-      const labels = {
-        ADMIN: 'Quản trị',
-        OPERATOR: 'Vận hành',
-        TECHNICIAN: 'Kỹ thuật',
-        CITIZEN: 'Người dân',
-      };
-      navRole.textContent = labels[role] || role || '—';
-    }
-    
-    if (isAdmin()) {
-      const link = document.getElementById('nav-users-link');
-      if (link) link.classList.remove('d-none');
-    }
-    
+    if (window.StaffNav) StaffNav.initNavUser();
+
     if (!isAdminOrOperator()) {
       const card = document.getElementById('input-card');
       if (card) card.classList.add('d-none');
@@ -656,6 +765,7 @@
       return;
     }
     setupNav();
+    toggleAdminActionColumns(isAdmin());
     loadDevicesForAutocomplete();
 
     const logoutBtn = document.getElementById('btn-logout');
@@ -688,6 +798,8 @@
         loadConsumptions();
       });
     }
+
+    document.getElementById('btn-export-excel')?.addEventListener('click', downloadConsumptionExcel);
 
     // Xử lý bật/tắt nhóm theo khu vực (Area aggregation switch toggle)
     const groupAreaChk = document.getElementById('filter-group-area');

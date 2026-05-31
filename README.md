@@ -117,20 +117,20 @@ Dự án hỗ trợ chạy song song 2 cơ chế cơ sở dữ liệu cực kỳ
    python manage.py migrate
    ```
 
+### Bước 3b: Nạp phường/xã Đà Nẵng và dữ liệu mẫu thực tế
+```bash
+python manage.py load_danang_wards   # 53 phường/xã thuộc 7 quận/huyện
+python manage.py seed_data           # ~954 thiet bi, 424 tuyen, 56 su co, 53 phuong/xa
+```
+*Mọi thiết bị/sự cố đều gắn `ward` (phường/xã). OPERATOR quản lý Hải Châu + Thanh Khê; TECHNICIAN quản lý Sơn Trà + Ngũ Hành Sơn.*
+
 ### Bước 4: Tạo tài khoản Quản trị tối cao (Superuser)
 ```bash
 python manage.py createsuperuser
 ```
-*(Nhập các thông tin Username, Email và Mật khẩu theo chỉ dẫn)*
+*(Tùy chọn nếu không dùng tài khoản demo `admin` / `admin123` từ `seed_data`)*
 
-### Bước 5: Nạp dữ liệu cơ sở dữ liệu mẫu (Import Sample Database Data)
-Dự án đã đi kèm sẵn một bộ dữ liệu mẫu vô cùng đầy đủ (bao gồm mạng lưới thiết bị, các tuyến mạng truyền dẫn mẫu và toàn bộ các tài khoản thử nghiệm cho từng vai trò) trong file `data.json`. Chạy lệnh sau để nạp nhanh toàn bộ dữ liệu này:
-```bash
-python manage.py loaddata data.json
-```
-*(Lưu ý: Lệnh này hoạt động hoàn hảo trên cả môi trường MySQL và SQLite, giúp bạn sẵn sàng chạy thử nghiệm ứng dụng với đầy đủ tài nguyên trực quan ngay lập tức!)*
-
-### Bước 6: Khởi động máy chủ phát triển
+### Bước 5: Khởi động máy chủ phát triển
 ```bash
 python manage.py runserver
 ```
